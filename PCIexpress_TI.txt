@@ -1,0 +1,65 @@
+22:00.0 RAM memory: Jefferson Lab (DOE Lab) PCIexpress Trigger Interface Board (71E 0)
+00: e1 d0 e0 71 07 00 10 00 00 00 00 05 10 00 00 00
+10: 00 d0 ef bf 00 e0 ef bf 00 f0 ef bf 00 00 00 00
+20: 00 00 00 00 00 00 00 00 00 00 00 00 e1 d0 e0 71
+30: 00 00 f0 bf 40 00 00 00 00 00 00 00 0b 01 00 00
+
+22:00.0 0500: d0e1:71e0
+
+22:00.0 RAM memory: Jefferson Lab (DOE Lab) PCIexpress Trigger Interface Board (71E 0)
+        Subsystem: Jefferson Lab (DOE Lab) PCIexpress Trigger Interface Board (71E 0)
+        Control: I/O+ Mem+ BusMaster+ SpecCycle- MemWINV- VGASnoop- ParErr- Stepping- SERR- FastB2B- DisINTx-
+        Status: Cap+ 66MHz- UDF- FastB2B- ParErr- DEVSEL=fast >TAbort- <TAbort- <MAbort- >SERR- <PERR- INTx-
+        Latency: 0, Cache Line Size: 64 bytes
+        Interrupt: pin A routed to IRQ 11
+        Region 0: Memory at bfefd000 (32-bit, non-prefetchable) [size=512]
+        Region 1: Memory at bfefe000 (32-bit, non-prefetchable) [size=2K]
+        Region 2: Memory at bfeff000 (32-bit, non-prefetchable) [size=1K]
+        Expansion ROM at bff00000 [disabled] [size=1M]
+        Capabilities: [40] Power Management version 3
+                Flags: PMEClk- DSI- D1- D2- AuxCurrent=0mA PME(D0-,D1-,D2-,D3hot-,D3cold-)
+                Status: D0 NoSoftRst- PME-Enable- DSel=0 DScale=0 PME-
+        Capabilities: [48] MSI: Enable- Count=1/1 Maskable- 64bit+
+                Address: 0000000000000000  Data: 0000
+        Capabilities: [60] Express (v1) Endpoint, MSI 00
+                DevCap: MaxPayload 512 bytes, PhantFunc 1, Latency L0s unlimited, L1 unlimited
+                        ExtTag+ AttnBtn- AttnInd- PwrInd- RBE+ FLReset-
+                DevCtl: Report errors: Correctable- Non-Fatal+ Fatal+ Unsupported-
+                        RlxdOrd+ ExtTag- PhantFunc- AuxPwr- NoSnoop+
+                        MaxPayload 256 bytes, MaxReadReq 512 bytes
+                DevSta: CorrErr- UncorrErr- FatalErr- UnsuppReq- AuxPwr- TransPend-
+                LnkCap: Port #0, Speed 2.5GT/s, Width x4, ASPM L0s, Latency L0 unlimited, L1 unlimited
+                        ClockPM- Surprise- LLActRep- BwNot-
+                LnkCtl: ASPM Disabled; RCB 64 bytes Disabled- Retrain- CommClk+
+                        ExtSynch- ClockPM- AutWidDis- BWInt- AutBWInt-
+                LnkSta: Speed 2.5GT/s, Width x4, TrErr- Train- SlotClk+ DLActive- BWMgmt- ABWMgmt-
+        Capabilities: [100 v1] Device Serial Number 00-00-00-00-00-00-00-00
+
+22:00.0 0500: d0e1:71e0
+        Subsystem: d0e1:71e0
+        Control: I/O+ Mem+ BusMaster+ SpecCycle- MemWINV- VGASnoop- ParErr- Stepping- SERR- FastB2B- DisINTx-
+        Status: Cap+ 66MHz- UDF- FastB2B- ParErr- DEVSEL=fast >TAbort- <TAbort- <MAbort- >SERR- <PERR- INTx-
+        Latency: 0, Cache Line Size: 64 bytes
+        Interrupt: pin A routed to IRQ 11
+        Region 0: Memory at bfefd000 (32-bit, non-prefetchable) [size=512]
+        Region 1: Memory at bfefe000 (32-bit, non-prefetchable) [size=2K]
+        Region 2: Memory at bfeff000 (32-bit, non-prefetchable) [size=1K]
+        Expansion ROM at bff00000 [disabled] [size=1M]
+        Capabilities: [40] Power Management version 3
+                Flags: PMEClk- DSI- D1- D2- AuxCurrent=0mA PME(D0-,D1-,D2-,D3hot-,D3cold-)
+                Status: D0 NoSoftRst- PME-Enable- DSel=0 DScale=0 PME-
+        Capabilities: [48] MSI: Enable- Count=1/1 Maskable- 64bit+
+                Address: 0000000000000000  Data: 0000
+        Capabilities: [60] Express (v1) Endpoint, MSI 00
+                DevCap: MaxPayload 512 bytes, PhantFunc 1, Latency L0s unlimited, L1 unlimited
+                        ExtTag+ AttnBtn- AttnInd- PwrInd- RBE+ FLReset-
+                DevCtl: Report errors: Correctable- Non-Fatal+ Fatal+ Unsupported-
+                        RlxdOrd+ ExtTag- PhantFunc- AuxPwr- NoSnoop+
+                        MaxPayload 256 bytes, MaxReadReq 512 bytes
+                DevSta: CorrErr- UncorrErr- FatalErr- UnsuppReq- AuxPwr- TransPend-
+                LnkCap: Port #0, Speed 2.5GT/s, Width x4, ASPM L0s, Latency L0 unlimited, L1 unlimited
+                        ClockPM- Surprise- LLActRep- BwNot-
+                LnkCtl: ASPM Disabled; RCB 64 bytes Disabled- Retrain- CommClk+
+                        ExtSynch- ClockPM- AutWidDis- BWInt- AutBWInt-
+                LnkSta: Speed 2.5GT/s, Width x4, TrErr- Train- SlotClk+ DLActive- BWMgmt- ABWMgmt-
+        Capabilities: [100 v1] Device Serial Number 00-00-00-00-00-00-00-00
