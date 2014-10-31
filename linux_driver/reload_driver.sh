@@ -3,7 +3,7 @@
 # Reload the pci_skel driver
 #
 
-cd /home/moffit/work/pti/linux_driver/
+#cd /home/moffit/work/pti/linux_driver/
 
 if [ ! -e /dev/pci_skel ] ; then
     /bin/mknod /dev/pci_skel c 210 32
