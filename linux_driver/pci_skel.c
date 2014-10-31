@@ -498,7 +498,10 @@ pci_skel_ioctl(struct inode *inode, struct file *filp,
   if (_IOC_NR(cmd) > PCI_SKEL_IOC_MAXNR) return -ENOTTY;
 
   if(copy_from_user(&user_info, (void *)arg, sizeof(PTI_IOCTL_INFO)))
-    return -EFAULT;
+    {
+      printk("PTI: copy_from_user failed\n");
+      return -EFAULT;
+    }
 
   printk("%s:\n",__FUNCTION__);
   printk("   mem_region = 0x%x\n",user_info.mem_region);
@@ -516,27 +519,39 @@ pci_skel_ioctl(struct inode *inode, struct file *filp,
 	      {
 	      case 0:
 		if((user_info.reg<<2)>PCI_SKEL_MEM0_SIZE)
-		  return -ENOTTY;
+		  {
+		    printk("PTI: Bad register offset (0x%x)\n",user_info.reg);
+		    return -ENOTTY;
+		  }
 
 		iowrite32(user_info.value, pti_resaddr0 + user_info.reg);
 		break;
 
 	      case 1:
 		if((user_info.reg<<2)>PCI_SKEL_MEM1_SIZE)
-		  return -ENOTTY;
+		  {
+		    printk("PTI: Bad register offset (0x%x)\n",user_info.reg);
+		    return -ENOTTY;
+		  }
 
 		iowrite32(user_info.value, pti_resaddr1 + user_info.reg);
 		break;
 
 	      case 2:
 		if((user_info.reg<<2)>PCI_SKEL_MEM2_SIZE)
-		  return -ENOTTY;
+		  {
+		    printk("PTI: Bad register offset (0x%x)\n",user_info.reg);
+		    return -ENOTTY;
+		  }
 
 		iowrite32(user_info.value, pti_resaddr2 + user_info.reg);
 		break;
 
 	      default:
-		return -ENOTTY;
+		{
+		  printk("PTI: Bad memory region (%d)\n",user_info.mem_region);
+		  return -ENOTTY;
+		}
 
 	      }
 	  }
@@ -546,41 +561,62 @@ pci_skel_ioctl(struct inode *inode, struct file *filp,
 	      {
 	      case 0:
 		if((user_info.reg<<2)>PCI_SKEL_MEM0_SIZE)
-		  return -ENOTTY;
+		  {
+		    printk("PTI: Bad register offset (0x%x)\n",user_info.reg);
+		    return -ENOTTY;
+		  }
 
 		user_info.value = ioread32(pti_resaddr0 + user_info.reg);
 		break;
 
 	      case 1:
 		if((user_info.reg<<2)>PCI_SKEL_MEM1_SIZE)
-		  return -ENOTTY;
+		  {
+		    printk("PTI: Bad register offset (0x%x)\n",user_info.reg);
+		    return -ENOTTY;
+		  }
 
 		user_info.value = ioread32(pti_resaddr1 + user_info.reg);
 		break;
 
 	      case 2:
 		if((user_info.reg<<2)>PCI_SKEL_MEM2_SIZE)
-		  return -ENOTTY;
+		  {
+		    printk("PTI: Bad register offset (0x%x)\n",user_info.reg);
+		    return -ENOTTY;
+		  }
 
 		user_info.value = ioread32(pti_resaddr2 + user_info.reg);
 		break;
 
 	      default:
-		return -ENOTTY;
+		{
+		  printk("PTI: Bad memory region (%d)\n",user_info.mem_region);
+		  return -ENOTTY;
+		}
 	      }
 
 	  }
 	else
-	  return -ENOTTY;
-	
+	  {
+	    printk("PTI: Bad RW option (%d)\n",user_info.command_type);
+	    return -ENOTTY;
+	  }
       }
+      break;
+
     default:  /* redundant, as cmd was checked against MAXNR */
-      return -ENOTTY;
-      
+      {
+	printk("PTI: Unrecognized command (%d)... expected %d\n",cmd,PCI_SKEL_IOC_RW);
+	return -ENOTTY;
+      }
     }
 
   if(copy_to_user((void *)arg, &user_info, sizeof(PTI_IOCTL_INFO)))
-    return -EFAULT;
+    {
+      printk("PTI: copy_to_user failed\n");
+      return -EFAULT;
+    }
 
   return retval;
 }
