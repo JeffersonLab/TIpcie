@@ -17,7 +17,7 @@ RANLIB                  = ranlib
 CFLAGS			= -Wall -g -I. -I/usr/include \
 			  -L.
 
-PROGS			= mmapTest writeTest
+PROGS			= pti_test
 
 all: $(PROGS)
 
