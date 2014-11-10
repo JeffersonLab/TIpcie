@@ -518,7 +518,7 @@ pci_skel_ioctl(struct inode *inode, struct file *filp,
 	    switch(user_info.mem_region)
 	      {
 	      case 0:
-		if((user_info.reg<<2)>PCI_SKEL_MEM0_SIZE)
+		if((user_info.reg)>PCI_SKEL_MEM0_SIZE)
 		  {
 		    printk("PTI: Bad register offset (0x%x)\n",user_info.reg);
 		    return -ENOTTY;
@@ -528,7 +528,7 @@ pci_skel_ioctl(struct inode *inode, struct file *filp,
 		break;
 
 	      case 1:
-		if((user_info.reg<<2)>PCI_SKEL_MEM1_SIZE)
+		if((user_info.reg)>PCI_SKEL_MEM1_SIZE)
 		  {
 		    printk("PTI: Bad register offset (0x%x)\n",user_info.reg);
 		    return -ENOTTY;
@@ -538,7 +538,7 @@ pci_skel_ioctl(struct inode *inode, struct file *filp,
 		break;
 
 	      case 2:
-		if((user_info.reg<<2)>PCI_SKEL_MEM2_SIZE)
+		if((user_info.reg)>PCI_SKEL_MEM2_SIZE)
 		  {
 		    printk("PTI: Bad register offset (0x%x)\n",user_info.reg);
 		    return -ENOTTY;
