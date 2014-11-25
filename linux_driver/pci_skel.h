@@ -31,12 +31,15 @@
 #define PCI_SKEL_MEM1_SIZE     2048
 #define PCI_SKEL_MEM2_SIZE     1024
 
+#define PCI_SKEL_MAX_BLOCK_SIZE 512
+
 typedef struct pti_ioctl_struct
 {
-  int mem_region;
-  int reg;
   int command_type;
-  unsigned int value;
+  int mem_region;
+  unsigned int nreg;
+  unsigned int *reg;
+  unsigned int *value;
 } PTI_IOCTL_INFO;
 
 

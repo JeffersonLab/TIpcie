@@ -488,7 +488,10 @@ pci_skel_ioctl(struct inode *inode, struct file *filp,
                  unsigned int cmd, unsigned long arg)
 {
   PTI_IOCTL_INFO user_info;
-  int retval=0;
+  int ireg=0, retval=0;
+  unsigned int *regs = NULL;
+  unsigned int *values = NULL;
+  int stat=0;
 
   /*
    * extract the type and number bitfields, and don't decode
@@ -499,15 +502,32 @@ pci_skel_ioctl(struct inode *inode, struct file *filp,
 
   if(copy_from_user(&user_info, (void *)arg, sizeof(PTI_IOCTL_INFO)))
     {
-      printk("PTI: copy_from_user failed\n");
+      printk("PTI: copy_from_user (user_info) failed\n");
+      return -EFAULT;
+    }
+
+/*   printk("regs = 0x%LX\n",user_info.reg); */
+  regs   = (unsigned int*)kmalloc(user_info.nreg*sizeof(user_info.reg), GFP_KERNEL);
+  values = (unsigned int*)kmalloc(user_info.nreg*sizeof(user_info.value), GFP_KERNEL);
+/*   printk("nregs = %d\n",user_info.nreg); */
+
+
+  stat = copy_from_user(regs, user_info.reg, user_info.nreg*sizeof(user_info.reg));
+  if(stat)
+    {
+      printk("PTI: copy_from_user (regs) failed (%d)\n",stat);
+      return -EFAULT;
+    }
+
+  if(copy_from_user(values, user_info.value, user_info.nreg*sizeof(unsigned int)))
+    {
+      printk("PTI: copy_from_user (values) failed\n");
       return -EFAULT;
     }
 
   printk("%s:\n",__FUNCTION__);
   printk("   mem_region = 0x%x\n",user_info.mem_region);
-  printk("          reg = 0x%x\n",user_info.reg);
   printk(" command_type = 0x%x\n",user_info.command_type);
-  printk("        value = 0x%x\n",user_info.value);
 
   switch(cmd)
     {
@@ -518,33 +538,45 @@ pci_skel_ioctl(struct inode *inode, struct file *filp,
 	    switch(user_info.mem_region)
 	      {
 	      case 0:
-		if((user_info.reg)>PCI_SKEL_MEM0_SIZE)
+		for(ireg=0; ireg<user_info.nreg; ireg++)
 		  {
-		    printk("PTI: Bad register offset (0x%x)\n",user_info.reg);
-		    return -ENOTTY;
+		    if((regs[ireg]<<2)>PCI_SKEL_MEM0_SIZE)
+		      {
+			printk("PTI: BAR%d Bad register offset (0x%x)\n",
+			       user_info.mem_region,regs[ireg]);
+			return -ENOTTY;
+		      }
+		    
+		    iowrite32(values[ireg], pti_resaddr0 + regs[ireg]);
 		  }
-
-		iowrite32(user_info.value, pti_resaddr0 + user_info.reg);
 		break;
 
 	      case 1:
-		if((user_info.reg)>PCI_SKEL_MEM1_SIZE)
+		for(ireg=0; ireg<user_info.nreg; ireg++)
 		  {
-		    printk("PTI: Bad register offset (0x%x)\n",user_info.reg);
-		    return -ENOTTY;
+		    if((regs[ireg]<<2)>PCI_SKEL_MEM1_SIZE)
+		      {
+			printk("PTI: BAR%d Bad register offset (0x%x)\n",
+			       user_info.mem_region,regs[ireg]);
+			return -ENOTTY;
+		      }
+		    
+		    iowrite32(values[ireg], pti_resaddr1 + regs[ireg]);
 		  }
-
-		iowrite32(user_info.value, pti_resaddr1 + user_info.reg);
 		break;
 
 	      case 2:
-		if((user_info.reg)>PCI_SKEL_MEM2_SIZE)
+		for(ireg=0; ireg<user_info.nreg; ireg++)
 		  {
-		    printk("PTI: Bad register offset (0x%x)\n",user_info.reg);
-		    return -ENOTTY;
+		    if((regs[ireg]<<2)>PCI_SKEL_MEM2_SIZE)
+		      {
+			printk("PTI: BAR%d Bad register offset (0x%x)\n",
+			       user_info.mem_region,regs[ireg]);
+			return -ENOTTY;
+		      }
+		    
+		    iowrite32(values[ireg], pti_resaddr2 + regs[ireg]);
 		  }
-
-		iowrite32(user_info.value, pti_resaddr2 + user_info.reg);
 		break;
 
 	      default:
@@ -560,33 +592,45 @@ pci_skel_ioctl(struct inode *inode, struct file *filp,
 	    switch(user_info.mem_region)
 	      {
 	      case 0:
-		if((user_info.reg<<2)>PCI_SKEL_MEM0_SIZE)
+		for(ireg=0; ireg<user_info.nreg; ireg++)
 		  {
-		    printk("PTI: Bad register offset (0x%x)\n",user_info.reg);
-		    return -ENOTTY;
+		    if((regs[ireg]<<2)>PCI_SKEL_MEM0_SIZE)
+		      {
+			printk("PTI: BAR%d Bad register offset (0x%x)\n",
+			       user_info.mem_region,regs[ireg]);
+			return -ENOTTY;
+		      }
+		    
+		    values[ireg] = ioread32(pti_resaddr0 + regs[ireg]);
 		  }
-
-		user_info.value = ioread32(pti_resaddr0 + user_info.reg);
 		break;
 
 	      case 1:
-		if((user_info.reg<<2)>PCI_SKEL_MEM1_SIZE)
+		for(ireg=0; ireg<user_info.nreg; ireg++)
 		  {
-		    printk("PTI: Bad register offset (0x%x)\n",user_info.reg);
-		    return -ENOTTY;
+		    if((regs[ireg]<<2)>PCI_SKEL_MEM1_SIZE)
+		      {
+			printk("PTI: BAR%d Bad register offset (0x%x)\n",
+			       user_info.mem_region,regs[ireg]);
+			return -ENOTTY;
+		      }
+		    
+		    values[ireg] = ioread32(pti_resaddr1 + regs[ireg]);
 		  }
-
-		user_info.value = ioread32(pti_resaddr1 + user_info.reg);
 		break;
 
 	      case 2:
-		if((user_info.reg<<2)>PCI_SKEL_MEM2_SIZE)
+		for(ireg=0; ireg<user_info.nreg; ireg++)
 		  {
-		    printk("PTI: Bad register offset (0x%x)\n",user_info.reg);
-		    return -ENOTTY;
+		    if((regs[ireg]<<2)>PCI_SKEL_MEM2_SIZE)
+		      {
+			printk("PTI: BAR%d Bad register offset (0x%x)\n",
+			       user_info.mem_region,regs[ireg]);
+			return -ENOTTY;
+		      }
+		    
+		    values[ireg] = ioread32(pti_resaddr2 + regs[ireg]);
 		  }
-
-		user_info.value = ioread32(pti_resaddr2 + user_info.reg);
 		break;
 
 	      default:
@@ -612,11 +656,21 @@ pci_skel_ioctl(struct inode *inode, struct file *filp,
       }
     }
 
-  if(copy_to_user((void *)arg, &user_info, sizeof(PTI_IOCTL_INFO)))
+  if(copy_to_user(user_info.value, values, user_info.nreg*sizeof(unsigned int)))
     {
-      printk("PTI: copy_to_user failed\n");
+      printk("PTI: copy_to_user (values) failed\n");
       return -EFAULT;
     }
+
+
+  if(copy_to_user((void *)arg, &user_info, sizeof(PTI_IOCTL_INFO)))
+    {
+      printk("PTI: copy_to_user (user_info) failed\n");
+      return -EFAULT;
+    }
+
+  kfree(values);
+  kfree(regs);
 
   return retval;
 }
