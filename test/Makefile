@@ -17,12 +17,16 @@ RANLIB                  = ranlib
 CFLAGS			= -Wall -g -I. -I/usr/include \
 			  -L.
 
-PROGS			= pti_test
+PROGS			= pti_test pti_dma_test
 
 all: $(PROGS)
 
 clean distclean:
 	@rm -f $(PROGS) *~ *.so
+
+pti_dma_test: pti_test.c
+	echo "Making $@"
+	$(CC) $(CFLAGS) -o $@ $< -lrt
 
 %: %.c
 	echo "Making $@"

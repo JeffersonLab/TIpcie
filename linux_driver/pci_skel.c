@@ -32,6 +32,13 @@ static void remove(struct pci_dev *dev);
 static int pci_skel_ioctl(struct inode *inode, struct file *filp,
 	       unsigned int cmd, unsigned long arg);
 static int pci_skel_mmap(struct file *file,struct vm_area_struct *vma);
+int vmeAllocDmaBuf(DMA_BUF_INFO *dma_buf_info);
+int vmeFreeDmaBuf(DMA_BUF_INFO *dma_buf_info);
+static int dmaHandleListAdd(dmaHandle_t *dmahandle);
+static int dmaHandleListRemove(dmaHandle_t *dmahandle);
+int vmeFreeDmaHandles(void);
+
+dmaHandle_t *dma_handle_list = NULL;
 
 char* pti_resaddr0=0;
 char* pti_resaddr1=0;
@@ -40,6 +47,9 @@ struct pci_dev *ti_pci_dev;
 struct resource *tipcimem;
 int ti_revision;
 int ti_irq;
+
+struct semaphore dma_buffer_lock;
+
 
 /* static struct resource *iores1; */
 /* static struct resource *iores2; */
@@ -382,6 +392,7 @@ __init pci_skel_init(void)
   printk("  Misc0 = %08X\n",temp);      
   printk("  Irq = %04X\n",ti_irq);
 
+  sema_init(&dma_buffer_lock, 1);
 
   return rval;
 
@@ -488,6 +499,7 @@ pci_skel_ioctl(struct inode *inode, struct file *filp,
                  unsigned int cmd, unsigned long arg)
 {
   PTI_IOCTL_INFO user_info;
+  DMA_BUF_INFO dma_info;
   int ireg=0, retval=0;
   unsigned int *regs = NULL;
   unsigned int *values = NULL;
@@ -500,39 +512,38 @@ pci_skel_ioctl(struct inode *inode, struct file *filp,
   if (_IOC_TYPE(cmd) != PCI_SKEL_IOC_MAGIC) return -ENOTTY;
   if (_IOC_NR(cmd) > PCI_SKEL_IOC_MAXNR) return -ENOTTY;
 
-  if(copy_from_user(&user_info, (void *)arg, sizeof(PTI_IOCTL_INFO)))
-    {
-      printk("PTI: copy_from_user (user_info) failed\n");
-      return -EFAULT;
-    }
-
-/*   printk("regs = 0x%LX\n",user_info.reg); */
-  regs   = (unsigned int*)kmalloc(user_info.nreg*sizeof(user_info.reg), GFP_KERNEL);
-  values = (unsigned int*)kmalloc(user_info.nreg*sizeof(user_info.value), GFP_KERNEL);
-/*   printk("nregs = %d\n",user_info.nreg); */
-
-
-  stat = copy_from_user(regs, user_info.reg, user_info.nreg*sizeof(user_info.reg));
-  if(stat)
-    {
-      printk("PTI: copy_from_user (regs) failed (%d)\n",stat);
-      return -EFAULT;
-    }
-
-  if(copy_from_user(values, user_info.value, user_info.nreg*sizeof(unsigned int)))
-    {
-      printk("PTI: copy_from_user (values) failed\n");
-      return -EFAULT;
-    }
-
-  printk("%s:\n",__FUNCTION__);
-  printk("   mem_region = 0x%x\n",user_info.mem_region);
-  printk(" command_type = 0x%x\n",user_info.command_type);
 
   switch(cmd)
     {
     case PCI_SKEL_IOC_RW:
       {
+	if(copy_from_user(&user_info, (void *)arg, sizeof(PTI_IOCTL_INFO)))
+	  {
+	    printk("PTI: copy_from_user (user_info) failed\n");
+	    return -EFAULT;
+	  }
+
+	regs   = (unsigned int*)kmalloc(user_info.nreg*sizeof(user_info.reg), GFP_KERNEL);
+	values = (unsigned int*)kmalloc(user_info.nreg*sizeof(user_info.value), GFP_KERNEL);
+
+
+	stat = copy_from_user(regs, user_info.reg, user_info.nreg*sizeof(user_info.reg));
+	if(stat)
+	  {
+	    printk("PTI: copy_from_user (regs) failed (%d)\n",stat);
+	    return -EFAULT;
+	  }
+
+	if(copy_from_user(values, user_info.value, user_info.nreg*sizeof(unsigned int)))
+	  {
+	    printk("PTI: copy_from_user (values) failed\n");
+	    return -EFAULT;
+	  }
+
+	printk("%s:\n",__FUNCTION__);
+	printk("   mem_region = 0x%x\n",user_info.mem_region);
+	printk(" command_type = 0x%x\n",user_info.command_type);
+
 	if(user_info.command_type==PCI_SKEL_RW_WRITE)
 	  {
 	    switch(user_info.mem_region)
@@ -540,7 +551,7 @@ pci_skel_ioctl(struct inode *inode, struct file *filp,
 	      case 0:
 		for(ireg=0; ireg<user_info.nreg; ireg++)
 		  {
-		    if((regs[ireg]<<2)>PCI_SKEL_MEM0_SIZE)
+		    if(regs[ireg]>PCI_SKEL_MEM0_SIZE)
 		      {
 			printk("PTI: BAR%d Bad register offset (0x%x)\n",
 			       user_info.mem_region,regs[ireg]);
@@ -554,7 +565,7 @@ pci_skel_ioctl(struct inode *inode, struct file *filp,
 	      case 1:
 		for(ireg=0; ireg<user_info.nreg; ireg++)
 		  {
-		    if((regs[ireg]<<2)>PCI_SKEL_MEM1_SIZE)
+		    if(regs[ireg]>PCI_SKEL_MEM1_SIZE)
 		      {
 			printk("PTI: BAR%d Bad register offset (0x%x)\n",
 			       user_info.mem_region,regs[ireg]);
@@ -568,7 +579,7 @@ pci_skel_ioctl(struct inode *inode, struct file *filp,
 	      case 2:
 		for(ireg=0; ireg<user_info.nreg; ireg++)
 		  {
-		    if((regs[ireg]<<2)>PCI_SKEL_MEM2_SIZE)
+		    if(regs[ireg]>PCI_SKEL_MEM2_SIZE)
 		      {
 			printk("PTI: BAR%d Bad register offset (0x%x)\n",
 			       user_info.mem_region,regs[ireg]);
@@ -594,7 +605,7 @@ pci_skel_ioctl(struct inode *inode, struct file *filp,
 	      case 0:
 		for(ireg=0; ireg<user_info.nreg; ireg++)
 		  {
-		    if((regs[ireg]<<2)>PCI_SKEL_MEM0_SIZE)
+		    if(regs[ireg]>PCI_SKEL_MEM0_SIZE)
 		      {
 			printk("PTI: BAR%d Bad register offset (0x%x)\n",
 			       user_info.mem_region,regs[ireg]);
@@ -608,7 +619,7 @@ pci_skel_ioctl(struct inode *inode, struct file *filp,
 	      case 1:
 		for(ireg=0; ireg<user_info.nreg; ireg++)
 		  {
-		    if((regs[ireg]<<2)>PCI_SKEL_MEM1_SIZE)
+		    if(regs[ireg]>PCI_SKEL_MEM1_SIZE)
 		      {
 			printk("PTI: BAR%d Bad register offset (0x%x)\n",
 			       user_info.mem_region,regs[ireg]);
@@ -622,7 +633,7 @@ pci_skel_ioctl(struct inode *inode, struct file *filp,
 	      case 2:
 		for(ireg=0; ireg<user_info.nreg; ireg++)
 		  {
-		    if((regs[ireg]<<2)>PCI_SKEL_MEM2_SIZE)
+		    if(regs[ireg]>PCI_SKEL_MEM2_SIZE)
 		      {
 			printk("PTI: BAR%d Bad register offset (0x%x)\n",
 			       user_info.mem_region,regs[ireg]);
@@ -646,27 +657,58 @@ pci_skel_ioctl(struct inode *inode, struct file *filp,
 	    printk("PTI: Bad RW option (%d)\n",user_info.command_type);
 	    return -ENOTTY;
 	  }
+
+	if(copy_to_user(user_info.value, values, user_info.nreg*sizeof(unsigned int)))
+	  {
+	    printk("PTI: copy_to_user (values) failed\n");
+	    return -EFAULT;
+	  }
+	
+	
+	if(copy_to_user((void *)arg, &user_info, sizeof(PTI_IOCTL_INFO)))
+	  {
+	    printk("PTI: copy_to_user (user_info) failed\n");
+	    return -EFAULT;
+	  }
+	
+      }
+      break;
+
+    case PCI_SKEL_IOC_MEM:
+      {
+	if(copy_from_user(&dma_info, (void *)arg, sizeof(dmaHandle_t)))
+	  {
+	    printk("PTI: copy_from_user (dma_info) failed\n");
+	    return -EFAULT;
+	  }
+
+	if(dma_info.command_type==PCI_SKEL_MEM_ALLOC)
+	  {
+	    vmeAllocDmaBuf(&dma_info);	
+	  }
+	else if(dma_info.command_type==PCI_SKEL_MEM_FREE)
+	  {
+	    vmeFreeDmaBuf(&dma_info);
+	  }
+	else
+	  {
+	    printk("PTI: Bad MEM option (%d)\n",dma_info.command_type);
+	    return -ENOTTY;
+	  }
+
+	if(copy_to_user((void *)arg, &dma_info, sizeof(dmaHandle_t)))
+	  {
+	    printk("PTI: copy_to_user (dma_info) failed\n");
+	    return -EFAULT;
+	  }
       }
       break;
 
     default:  /* redundant, as cmd was checked against MAXNR */
       {
-	printk("PTI: Unrecognized command (%d)... expected %d\n",cmd,PCI_SKEL_IOC_RW);
+	printk("PTI: Unrecognized command (%d).\n",cmd);
 	return -ENOTTY;
       }
-    }
-
-  if(copy_to_user(user_info.value, values, user_info.nreg*sizeof(unsigned int)))
-    {
-      printk("PTI: copy_to_user (values) failed\n");
-      return -EFAULT;
-    }
-
-
-  if(copy_to_user((void *)arg, &user_info, sizeof(PTI_IOCTL_INFO)))
-    {
-      printk("PTI: copy_to_user (user_info) failed\n");
-      return -EFAULT;
     }
 
   kfree(values);
@@ -707,6 +749,282 @@ pci_skel_mmap(struct file *file,struct vm_area_struct *vma)
 
   return 0;
 }
+
+//----------------------------------------------------------------------------
+//  vmeAllocDmaBuf()
+//    Allocate contiguous DMA buffer.
+//----------------------------------------------------------------------------
+
+int 
+vmeAllocDmaBuf(DMA_BUF_INFO *dma_buf_info) 
+{
+    
+  dmaHandle_t *dmahandle = NULL;
+  struct page *page;
+  int status;
+
+  if (NULL == dma_buf_info)
+    {
+      return(-1);
+    }
+
+
+  if(down_interruptible(&dma_buffer_lock))
+    {
+      return(-1);
+    }
+  dmahandle = (dmaHandle_t *)kmalloc(sizeof (dmaHandle_t), GFP_KERNEL);
+
+  if (NULL == dmahandle)
+    {
+      up(&dma_buffer_lock);
+      return(-1);
+    }
+
+  memset(dmahandle, 0, sizeof(dmaHandle_t));
+    
+  dma_buf_info->dma_osspec_hdl = (unsigned long) dmahandle;
+    
+  dmahandle->size = dma_buf_info->size;
+
+  dmahandle->vptr = pci_alloc_consistent(ti_pci_dev, dma_buf_info->size,
+					 &dmahandle->resource);
+
+  if ((NULL == dmahandle->vptr)) 
+    {
+      printk("%s: pci_alloc_consistent failed\n",
+	     __FUNCTION__);
+      up(&dma_buffer_lock);
+      return(-1);
+    } 
+
+  printk("%s: pci_alloc_consistent virtual buffer pointer %#lx\n",
+	 __FUNCTION__,(unsigned long)dmahandle->vptr);
+
+  for (page = virt_to_page(dmahandle->vptr);
+       page <= virt_to_page(dmahandle->vptr + dma_buf_info->size - 1);
+       ++page)
+    {
+      SetPageReserved(page);		
+    }
+    
+  dmahandle->phys_addr = virt_to_phys(dmahandle->vptr);
+  dmahandle->pci_addr = dmahandle->phys_addr;
+
+  // Set return data for user space
+  dma_buf_info->virt_addr = 0;
+  dma_buf_info->phys_addr = (unsigned long) dmahandle->phys_addr;
+
+
+  printk("%s: %#x byte DMA buffer allocated with physical "
+	 "addr %#llx pci addr %#llx resource addr %#llx\n", 
+	 __FUNCTION__,
+	 dma_buf_info->size,
+	 (u64) dmahandle->phys_addr,
+	 (u64) dmahandle->pci_addr,
+	 (u64) dmahandle->resource);
+  
+  dmahandle->magic = PCI_SKEL_DMA_MAGIC;
+    
+  // Expects dma_buffer_lock acquired
+  status = dmaHandleListAdd(dmahandle);
+
+  up(&dma_buffer_lock);
+
+  return (status);
+    
+}
+
+//----------------------------------------------------------------------------
+//  vmeFreeDmaBuf()
+//    Free contiguous DMA buffer.
+//----------------------------------------------------------------------------
+
+int 
+vmeFreeDmaBuf(DMA_BUF_INFO *dma_buf_info) 
+{
+
+  int status;
+  struct page *page;
+  dmaHandle_t *dmahandle = NULL;
+    
+  if (NULL == dma_buf_info)
+    {
+      printk("%s: failure: NULL == dma_buf_info\n",
+	     __FUNCTION__); 
+      return(-1);
+    }
+    
+  dmahandle = (dmaHandle_t *) dma_buf_info->dma_osspec_hdl; 
+    
+  if (NULL == dmahandle)
+    {
+      printk("%s: failure: NULL == dmahandle\n",
+	     __FUNCTION__); 
+      return(-1);
+    }    
+    
+  if (PCI_SKEL_DMA_MAGIC != dmahandle->magic)
+    {
+      printk("%s: failure: VME_DMA_MAGIC != dmahandle->magic\n",
+	     __FUNCTION__); 
+      return(-1);
+    }
+    
+  printk("%s: Freeing %#llx byte DMA buffer allocated with physical "
+		"addr %#llx pci addr %#llx resource addr %#llx\n", 
+	 __FUNCTION__,
+	 (u64) dmahandle->size,
+	 (u64) dmahandle->phys_addr,
+	 (u64) dmahandle->pci_addr,
+	 (u64) dmahandle->resource);
+     
+  if(down_interruptible(&dma_buffer_lock))
+    {
+      return(-1);
+    }
+    
+  for (page = virt_to_page(dmahandle->vptr);
+       page <= virt_to_page(dmahandle->vptr + dmahandle->size - 1);
+       ++page)              
+    {
+        
+      ClearPageReserved(page);
+    }
+    
+  pci_free_consistent(ti_pci_dev, dmahandle->size,
+		      dmahandle->vptr, 
+		      dmahandle->resource);
+  
+
+  // Expects dma_buffer_lock acquired
+  status = dmaHandleListRemove(dmahandle);
+    
+  up(&dma_buffer_lock);
+    
+  return (status);
+    
+}
+
+//----------------------------------------------------------------------------
+//  dmaHandleListAdd
+//    Add handle for contiguous kernel-allocated DMA buffer to list.
+//    Expects dma_buffer_lock acquired.
+//----------------------------------------------------------------------------
+
+static int 
+dmaHandleListAdd(dmaHandle_t *dmahandle)
+{
+  if (NULL == dmahandle) 
+    {
+      return(-1);
+    }
+    
+  if (NULL == dma_handle_list)
+    {
+      dma_handle_list = dmahandle;
+      dmahandle->next = NULL;
+    } 
+  else
+    {
+      dmahandle->next = dma_handle_list;
+      dma_handle_list = dmahandle;
+    }
+    
+  return 0;
+}
+
+//----------------------------------------------------------------------------
+//  dmaHandleListRemove
+//    Remove handle for contiguous kernel-allocated DMA buffer to list.
+//    Expects dma_buffer_lock acquired.
+//----------------------------------------------------------------------------
+
+static int 
+dmaHandleListRemove(dmaHandle_t *dmahandle)
+{
+  int status;
+  dmaHandle_t *search_hdl;
+  dmaHandle_t *prev_hdl;
+  int found=0;
+    
+  if (NULL == dma_handle_list) 
+    {
+      return(-1);
+    }
+    
+  search_hdl = dma_handle_list;
+  prev_hdl = dma_handle_list;
+    
+  found = 0;
+  while ((found == 0) && (search_hdl != NULL))
+    {
+      if ((search_hdl == dmahandle))
+        {
+	  found = 1;
+        } else
+        {
+	  prev_hdl = search_hdl;
+	  search_hdl = search_hdl->next;
+        }
+    }
+    
+  if (found == 1)
+    {
+      // Check for head of list
+      if (prev_hdl == search_hdl)
+        {
+	  dma_handle_list = search_hdl->next;
+        }
+      else 
+        {
+	  prev_hdl->next = search_hdl->next;    
+        }
+      memset(search_hdl, 0, sizeof (dmaHandle_t));
+      kfree(search_hdl);
+      search_hdl = NULL;
+        
+        
+      status = 0;
+    } 
+  else
+    {
+      status = -1;
+    }
+    
+  return (status);
+}
+
+
+//----------------------------------------------------------------------------
+//  vmeFreeDmaHandles()
+//    Frees DMA buffers and handles on driver shutdown.
+//----------------------------------------------------------------------------
+
+int 
+vmeFreeDmaHandles(void) 
+{
+  int status = 0;
+  DMA_BUF_INFO dma_buf_info;
+
+  printk("%s: removing DMA buffers and handles.\n",
+	 __FUNCTION__);
+    
+  while ((NULL != dma_handle_list) && (status == 0))
+    {
+      dma_buf_info.dma_osspec_hdl = (unsigned long) dma_handle_list;
+      status = vmeFreeDmaBuf(&dma_buf_info);
+
+      if (status != 0)
+        {
+	  printk("VME:DMA handle removal failure: 0x%x\n",status);
+        }
+    }
+
+  return(0);
+}
+
+
 
 //----------------------------------------------------------------------------
 //  unregister_proc()
