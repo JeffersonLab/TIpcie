@@ -52,7 +52,15 @@ typedef struct DMA_BUF_INFO_STRUCT
   unsigned long       phys_addr;
   unsigned long       virt_addr;
   unsigned int             size;
+  char                 *map_ptr;
 } DMA_BUF_INFO;
+
+typedef struct DMA_MAP_STRUCT
+{
+  unsigned long          dmaHdl;
+  unsigned long        map_addr;
+  unsigned int             size;
+} DMA_MAP_INFO;
 
 int
 ptiRW(PTI_IOCTL_INFO info)
@@ -153,10 +161,11 @@ ptiDmaMem(DMA_BUF_INFO *info)
   return rval;
 }
 
-unsigned long
+DMA_MAP_INFO
 ptiAllocDmaMemory(int size, unsigned long *phys_addr)
 {
   int stat=0;
+  DMA_MAP_INFO rval;
   unsigned long dmaHandle = 0;
   DMA_BUF_INFO info =
     {
@@ -166,6 +175,7 @@ ptiAllocDmaMemory(int size, unsigned long *phys_addr)
       .virt_addr      = 0,
       .size           = size
     };
+  char *tmp_addr;
 
   stat = ptiDmaMem(&info);
 
@@ -173,16 +183,30 @@ ptiAllocDmaMemory(int size, unsigned long *phys_addr)
 
   *phys_addr = info.phys_addr;
 
-  return dmaHandle;
+  /* Do an mmap here */
+  tmp_addr = mmap(0, size, PROT_READ | PROT_WRITE, 
+		  MAP_SHARED, fd, info.phys_addr);
+
+  if(tmp_addr == (void*) -1)
+    {
+      printf("%s: ERROR: mmap failed\n",
+	     __FUNCTION__);
+    }
+
+  rval.dmaHdl = dmaHandle;
+  rval.map_addr = (unsigned long)tmp_addr;
+  rval.size = size;
+
+  return rval;
 }
 
 int
-ptiFreeDmaMemory(unsigned long dmaHandle)
+ptiFreeDmaMemory(DMA_MAP_INFO mapInfo)
 {
   int stat=0;
   DMA_BUF_INFO info =
     {
-      .dma_osspec_hdl = dmaHandle,
+      .dma_osspec_hdl = mapInfo.dmaHdl,
       .command_type   = PCI_SKEL_MEM_FREE,
       .phys_addr      = 0,
       .virt_addr      = 0,
@@ -190,6 +214,16 @@ ptiFreeDmaMemory(unsigned long dmaHandle)
     };
 
   stat = ptiDmaMem(&info);
+
+  /* Do an munmap here */
+  if(mapInfo.map_addr == -1)
+    {
+      /* Do nothing here */
+    }
+  else
+    {
+      munmap((char*)mapInfo.map_addr, mapInfo.size);
+    }
 
   return stat;
 }
@@ -202,11 +236,11 @@ main(int argc, char *argv[])
   int read=0, write=0;
   PTI_IOCTL_INFO info;
   unsigned long dmaHdl=0, phys_addr=0;
+  DMA_MAP_INFO mapInfo;
   int size=0;
   int ireg=0;
   unsigned int *regs;
   unsigned int *values;
-
 
   progName = argv[0];
 
@@ -351,13 +385,20 @@ main(int argc, char *argv[])
 
       /*   stat = ioctl(fd, PCI_SKEL_IOC_RW, &info); */
       printf("Allocate!\n");
-      dmaHdl = ptiAllocDmaMemory(size, &phys_addr);
+      mapInfo = ptiAllocDmaMemory(size, &phys_addr);
 
-      printf("      dmaHdl = 0x%lx\n", dmaHdl);
+      printf("      dmaHdl = 0x%lx\n", mapInfo.dmaHdl);
       printf("   phys_addr = 0x%lx\n", phys_addr);
+      printf("    map_addr = 0x%lx\n", mapInfo.map_addr);
+      regs = (unsigned int*)mapInfo.map_addr;
+      printf("Press <Enter> to Print\n");
+      getchar();
+      for(ireg=0; ireg<10; ireg++)
+	printf("0x%04x: value = 0x%08x\n",4*ireg,regs[ireg]);
+
       printf("Press <Enter> to Free\n");
       getchar();
-      stat = ptiFreeDmaMemory(dmaHdl);
+      stat = ptiFreeDmaMemory(mapInfo);
     }
     
 

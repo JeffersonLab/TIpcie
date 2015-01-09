@@ -720,14 +720,6 @@ pci_skel_ioctl(struct inode *inode, struct file *filp,
 static int 
 pci_skel_mmap(struct file *file,struct vm_area_struct *vma)
 {
-/*   unsigned long req = iomap2; */
-/*   unsigned long req = 0xd1c00000; */
-/*   unsigned long offset = (vma->vm_pgoff) << PAGE_SHIFT; */
-/*   unsigned long physical = req+offset; */
-/*   unsigned long vsize = vma->vm_end - vma->vm_start; */
-/*   unsigned long psize = req - offset; */
-
-
   printk("%s: We're here\n",__FUNCTION__);
 
   /* Don't swap these pages out */
@@ -735,17 +727,12 @@ pci_skel_mmap(struct file *file,struct vm_area_struct *vma)
 
   if (io_remap_pfn_range(vma, vma->vm_start, vma->vm_pgoff,
 		      vma->vm_end - vma->vm_start, vma->vm_page_prot)) {
-/*   if (remap_pfn_range(vma, vma->vm_start, physical,  */
-/* 		      vsize, vma->vm_page_prot)) { */
     printk("%s: remap_pfn_range failed \n",__FUNCTION__);
     return -EAGAIN;
   }
 
   printk("   Virt = 0x%0lx, Phys = 0x%0lx\n",
 	 vma->vm_start,vma->vm_pgoff);
-/*   printk("   Virt = 0x%08X, Phys = 0x%08X\n", */
-/* 	 vma->vm_start,physical); */
-
 
   return 0;
 }
