@@ -238,7 +238,7 @@ main(int argc, char *argv[])
   unsigned long dmaHdl=0, phys_addr=0;
   DMA_MAP_INFO mapInfo;
   int size=0;
-  int ireg=0;
+  int ireg=0, jreg=0, maxblock = 0;
   unsigned int *regs;
   unsigned int *values;
 
@@ -393,8 +393,12 @@ main(int argc, char *argv[])
       regs = (unsigned int*)mapInfo.map_addr;
       printf("Press <Enter> to Print\n");
       getchar();
-      for(ireg=0; ireg<10; ireg++)
-	printf("0x%04x: value = 0x%08x\n",4*ireg,regs[ireg]);
+      maxblock = size/4096;
+      for (jreg =0; jreg < maxblock; jreg++)
+	{
+	for(ireg=0; ireg<1024; ireg++)
+	  printf("0x%04x: value = 0x%08x\n",4*(jreg*1024+ireg),regs[jreg*1024+ireg]);
+	}
 
       printf("Press <Enter> to Free\n");
       getchar();
