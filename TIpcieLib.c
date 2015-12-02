@@ -1580,16 +1580,6 @@ tipGetCurrentBlockLevel()
   tipNextBlockLevel = (reg_bl & TIP_BLOCKLEVEL_RECEIVED_MASK)>>24;
   TIPUNLOCK;
 
-  /* Change Bus Error block termination, based on blocklevel */
-  if(tipBlockLevel>2)
-    {
-      tipEnableBusError();
-    }
-  else
-    {
-      tipDisableBusError();
-    }
-
   return bl;
 }
 
@@ -4132,6 +4122,62 @@ tipGetTriggerHoldoffMin(int rule, int pflag)
   return rval & ~(1<<8);
 }
 
+/**
+ *  @ingroup Config
+ *  @brief Disable the necessity to readout the TI for every block.
+ *
+ *      For instances when the TI data is not required for analysis
+ *      When a block is "ready", a call to tiResetBlockReadout must be made.
+ *
+ * @sa tiEnableDataReadout tiResetBlockReadout
+ * @return OK if successful, otherwise ERROR
+ */
+int
+tipDisableDataReadout()
+{
+  if(tipFD <= 0) 
+    {
+      printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
+      return ERROR;
+    }
+  
+  tipReadoutEnabled = 0;
+  TIPLOCK;
+  tipWrite(&TIPp->vmeControl,
+	     tipRead(&TIPp->vmeControl) | TIP_VMECONTROL_BUFFER_DISABLE);
+  TIPUNLOCK;
+  
+  printf("%s: Readout disabled.\n",__FUNCTION__);
+
+  return OK;
+}
+
+/**
+ *  @ingroup Config
+ *  @brief Enable readout the TI for every block.
+ *
+ * @sa tiDisableDataReadout
+ * @return OK if successful, otherwise ERROR
+ */
+int
+tipEnableDataReadout()
+{
+  if(tipFD <= 0) 
+    {
+      printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
+      return ERROR;
+    }
+  
+  tipReadoutEnabled = 1;
+  TIPLOCK;
+  tipWrite(&TIPp->vmeControl,
+	   tipRead(&TIPp->vmeControl) & ~TIP_VMECONTROL_BUFFER_DISABLE);
+  TIPUNLOCK;
+
+  printf("%s: Readout enabled.\n",__FUNCTION__);
+
+  return OK;
+}
 
 /**
  *  @ingroup Readout
@@ -4155,6 +4201,7 @@ tipResetBlockReadout()
   TIPUNLOCK;
 
 }
+
 
 /**
  * @ingroup MasterConfig

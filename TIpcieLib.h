@@ -603,12 +603,6 @@ int  tipDisableFiber(unsigned int fiber);
 int  tipSetBusySource(unsigned int sourcemask, int rFlag);
 int  tipSetTriggerLock(int enable);
 int  tipGetTriggerLock();
-void tipEnableBusError();
-void tipDisableBusError();
-int  tipayloadPort2VMESlot(int payloadport);
-unsigned int  tipayloadPortMask2VMESlotMask(unsigned int ppmask);
-int  tipVMESlot2PayloadPort(int vmeslot);
-unsigned int  tipVMESlotMask2PayloadPortMask(unsigned int vmemask);
 int  tipSetPrescale(int prescale);
 int  tipGetPrescale();
 int  tipSetInputPrescale(int input, int prescale);
@@ -622,8 +616,6 @@ int  tipSetSyncResetType(int type);
 void tipSyncReset(int bflag);
 void tipSyncResetResync();
 void tipClockReset();
-int  tipSetAdr32(unsigned int a32base);
-int  tipDisableA32();
 int  tipResetEventCounter();
 unsigned long long int tipGetEventCounter();
 int  tipSetBlockLimit(unsigned int limit);
@@ -632,8 +624,6 @@ unsigned int  tipBReady();
 int  tipGetSyncEventFlag();
 int  tipGetSyncEventReceived();
 int  tipGetReadoutEvents();
-int  tipEnableVXSSignals();
-int  tipDisableVXSSignals();
 int  tipSetBlockBufferLevel(unsigned int level);
 int  tipEnableTSInput(unsigned int inpMask);
 int  tipDisableTSInput(unsigned int inpMask);
@@ -690,9 +680,6 @@ int  tipSetTSInputDelay(int chan, int delay);
 int  tipGetTSInputDelay(int chan);
 int  tiprintTSInputDelay();
 unsigned int tipGetGTPBufferLength(int pflag);
-unsigned int tipGetSWAStatus(int reg);
-unsigned int tipGetSWBStatus(int reg);
-int  tipGetGeoAddress();
 
 /* Library Interrupt/Polling routine prototypes */
 int  tipIntConnect(unsigned int vector, VOIDFUNCPTR routine, unsigned int arg);
@@ -704,13 +691,8 @@ void tipIntDisable();
 unsigned int  tipGetIntCount();
 unsigned int  tipGetAckCount();
 
-int  tipGetSWBBusy(int pflag);
 unsigned int tipGetBusyCounter(int busysrc);
 int  tiprintBusyCounters();
-
-/* Some token testing routines */
-int  tipSetTokenTestMode(int mode);
-int  tipSetTokenOutTest(int level);
 
 int  tipRocEnable(int roc);
 int  tipRocEnableMask(int rocmask);

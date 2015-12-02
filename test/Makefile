@@ -17,7 +17,7 @@ RANLIB                  = ranlib
 CFLAGS			= -Wall -g -I. -I../ -I/usr/include \
 			  -L. -L../
 
-PROGS			= tipLibTest pti_test pti_dma_test
+PROGS			= tipReadoutTest tipLibTest pti_test pti_dma_test
 
 all: $(PROGS)
 
