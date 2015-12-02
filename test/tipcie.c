@@ -309,8 +309,7 @@ void TIpcieSlave(unsigned int SyncDelay)  // and trigger generation
   printf("\ The board ID is %08x \n", Dvalue);
 }
 
-int 
-main(int argc, char *argv[]) 
+int main(int argc, char *argv[]) 
 {
 
   int stat;
@@ -329,6 +328,7 @@ main(int argc, char *argv[])
   values = (unsigned int*)malloc(500*sizeof(unsigned int));
   info.nreg=1;
 
+ 
 
   if (argc == 1) 
     { BlockLevel = 10; }
@@ -342,6 +342,13 @@ main(int argc, char *argv[])
 	  goto CLOSE;
 	}
 
+  // FPGA usercode
+  FPGAusercode();
+  //PROM usercode
+  PROMusercode();
+
+
+  /*
   // load the PROM
   if (argc == 3) 
     { BoardNumb = strtol(argv[2], NULL, 10);  // get the board number for PROMload
@@ -391,7 +398,6 @@ main(int argc, char *argv[])
   //  ptiWrite(0, 0x8c, 0xfff1000); // trigger 0x1000 events in higher speed
   //  ptiWrite(0,0x88, 0x80); // fast random trigger
 
-  FPGAusercode();
   //  change the wait to a usleep
   printf("Press <Enter> to Print\n");
   getchar();
@@ -412,11 +418,14 @@ main(int argc, char *argv[])
   getchar();
   stat = ptiFreeDmaMemory(mapInfo);
 
+  // close the data file
+  fclose(fdata);
+
+  */
+
   // close the TIpciexpress
   close(fd);
 
-  // close the data file
-  fclose(fdata);
  CLOSE: 
   return(2);
 

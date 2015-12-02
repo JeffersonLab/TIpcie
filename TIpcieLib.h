@@ -20,32 +20,36 @@
 #ifndef TILIB_H
 #define TILIB_H
 
-#ifndef VXWORKS
+#define INT16  short
+#define UINT16 unsigned short
+#define INT32  int
+#define UINT32 unsigned int
+#define STATUS int
+#define TRUE  1
+#define FALSE 0
+#define OK    0
+#define ERROR -1
+#define LOCAL 
+#ifndef _ROLDEFINED
+typedef void            (*VOIDFUNCPTR) ();
+typedef int             (*FUNCPTR) ();
+#endif
+typedef char            BOOL;
+
 #include <pthread.h>
 
 pthread_mutex_t tiISR_mutex=PTHREAD_MUTEX_INITIALIZER;
-#else
-/* #include <intLib.h> */
-extern int intLock();
-extern int intUnlock();
-#endif
 
-#ifdef VXWORKS
-int intLockKeya;
-#define INTLOCK {				\
-    intLockKeya = intLock();			\
-}
-
-#define INTUNLOCK {				\
-    intUnlock(intLockKeya);			\
-}
-#else
+#ifdef NOTDONEYET
 #define INTLOCK {				\
     vmeBusLock();				\
 }
 #define INTUNLOCK {				\
     vmeBusUnlock();				\
 }
+#else
+#define INTLOCK
+#define INTUNLOCK
 #endif
 
 struct TIPCIE_RegStruct
@@ -562,163 +566,155 @@ int  tiSetCrateID_prIinit(int cid);
 /* Function prototypes */
 int  tipInit(unsigned int mode, int force);
 
-#ifdef NOTDONEYET
-int  tiCheckAddresses();
-void tiStatus(int pflag);
-int  tiSetSlavePort(int port);
-int  tiGetSlavePort();
-void tiSlaveStatus(int pflag);
-int  tiGetFirmwareVersion();
-int  tiReload();
-unsigned int tiGetSerialNumber(char **rSN);
-int  tiClockResync();
-int  tiReset();
-#endif /* NOTDONEYET */
+int  tipCheckAddresses();
+void tipStatus(int pflag);
+int  tipSetSlavePort(int port);
+int  tipGetSlavePort();
+void tipSlaveStatus(int pflag);
+int  tipReload();
+unsigned int tipGetSerialNumber(char **rSN);
+int  tipClockResync();
+int  tipReset();
+int  tipGetFirmwareVersion();
 int  tipSetCrateID(unsigned int crateID);
-#ifdef NOTDONEYET
-int  tiGetCrateID(int port);
-int  tiGetPortTrigSrcEnabled(int port);
-int  tiGetSlaveBlocklevel(int port);
-int  tiSetBlockLevel(int blockLevel);
-int  tiBroadcastNextBlockLevel(int blockLevel);
-int  tiGetNextBlockLevel();
-int  tiGetCurrentBlockLevel();
-int  tiSetInstantBlockLevelChange(int enable);
-int  tiGetInstantBlockLevelChange();
-int  tiSetTriggerSource(int trig);
-int  tiSetTriggerSourceMask(int trigmask);
-int  tiEnableTriggerSource();
-#endif /* NOTDONEYET */
+int  tipGetCrateID(int port);
+int  tipGetPortTrigSrcEnabled(int port);
+int  tipGetSlaveBlocklevel(int port);
+int  tipSetBlockLevel(int blockLevel);
+int  tipBroadcastNextBlockLevel(int blockLevel);
+int  tipGetNextBlockLevel();
+int  tipGetCurrentBlockLevel();
+int  tipSetInstantBlockLevelChange(int enable);
+int  tipGetInstantBlockLevelChange();
+int  tipSetTriggerSource(int trig);
+int  tipSetTriggerSourceMask(int trigmask);
+int  tipEnableTriggerSource();
 int  tipDisableTriggerSource(int fflag);
-#ifdef NOTDONEYET
-int  tiSetSyncSource(unsigned int sync);
-int  tiSetEventFormat(int format);
-int  tiSoftTrig(int trigger, unsigned int nevents, unsigned int period_inc, int range);
-int  tiSetRandomTrigger(int trigger, int setting);
-int  tiDisableRandomTrigger();
-int  tiReadBlock(volatile unsigned int *data, int nwrds, int rflag);
-int  tiReadTriggerBlock(volatile unsigned int *data);
-int  tiCheckTriggerBlock(volatile unsigned int *data);
-int  tiEnableFiber(unsigned int fiber);
-int  tiDisableFiber(unsigned int fiber);
-int  tiSetBusySource(unsigned int sourcemask, int rFlag);
-int  tiSetTriggerLock(int enable);
-int  tiGetTriggerLock();
-void tiEnableBusError();
-void tiDisableBusError();
-int  tiPayloadPort2VMESlot(int payloadport);
-unsigned int  tiPayloadPortMask2VMESlotMask(unsigned int ppmask);
-int  tiVMESlot2PayloadPort(int vmeslot);
-unsigned int  tiVMESlotMask2PayloadPortMask(unsigned int vmemask);
-int  tiSetPrescale(int prescale);
-int  tiGetPrescale();
-int  tiSetInputPrescale(int input, int prescale);
-int  tiGetInputPrescale(int input);
-int  tiSetTriggerPulse(int trigger, int delay, int width, int delay_step);
-int  tiSetPromptTriggerWidth(int width);
-int  tiGetPromptTriggerWidth();
-void tiSetSyncDelayWidth(unsigned int delay, unsigned int width, int widthstep);
-void tiTrigLinkReset();
-int  tiSetSyncResetType(int type);
-void tiSyncReset(int bflag);
-void tiSyncResetResync();
-void tiClockReset();
-int  tiSetAdr32(unsigned int a32base);
-int  tiDisableA32();
-int  tiResetEventCounter();
-unsigned long long int tiGetEventCounter();
-int  tiSetBlockLimit(unsigned int limit);
-unsigned int  tiGetBlockLimit();
-unsigned int  tiBReady();
-int  tiGetSyncEventFlag();
-int  tiGetSyncEventReceived();
-int  tiGetReadoutEvents();
-int  tiEnableVXSSignals();
-int  tiDisableVXSSignals();
-int  tiSetBlockBufferLevel(unsigned int level);
-int  tiEnableTSInput(unsigned int inpMask);
-int  tiDisableTSInput(unsigned int inpMask);
-int  tiSetOutputPort(unsigned int set1, unsigned int set2, unsigned int set3, unsigned int set4);
-int  tiSetClockSource(unsigned int source);
-int  tiGetClockSource();
-void  tiSetFiberDelay(unsigned int delay, unsigned int offset);
-int  tiAddSlave(unsigned int fiber);
-int  tiSetTriggerHoldoff(int rule, unsigned int value, int timestep);
-int  tiGetTriggerHoldoff(int rule);
-int  tiSetTriggerHoldoffMin(int rule, unsigned int value);
-int  tiGetTriggerHoldoffMin(int rule, int pflag);
+int  tipSetSyncSource(unsigned int sync);
+int  tipSetEventFormat(int format);
+int  tipSoftTrig(int trigger, unsigned int nevents, unsigned int period_inc, int range);
+int  tipSetRandomTrigger(int trigger, int setting);
+int  tipDisableRandomTrigger();
+/* int  tipReadBlock(volatile unsigned int *data, int nwrds, int rflag); */
+int  tipReadTriggerBlock(volatile unsigned int *data);
+int  tipCheckTriggerBlock(volatile unsigned int *data);
+int  tipEnableFiber(unsigned int fiber);
+int  tipDisableFiber(unsigned int fiber);
+int  tipSetBusySource(unsigned int sourcemask, int rFlag);
+int  tipSetTriggerLock(int enable);
+int  tipGetTriggerLock();
+void tipEnableBusError();
+void tipDisableBusError();
+int  tipayloadPort2VMESlot(int payloadport);
+unsigned int  tipayloadPortMask2VMESlotMask(unsigned int ppmask);
+int  tipVMESlot2PayloadPort(int vmeslot);
+unsigned int  tipVMESlotMask2PayloadPortMask(unsigned int vmemask);
+int  tipSetPrescale(int prescale);
+int  tipGetPrescale();
+int  tipSetInputPrescale(int input, int prescale);
+int  tipGetInputPrescale(int input);
+int  tipSetTriggerPulse(int trigger, int delay, int width, int delay_step);
+int  tipSetPromptTriggerWidth(int width);
+int  tipGetPromptTriggerWidth();
+void tipSetSyncDelayWidth(unsigned int delay, unsigned int width, int widthstep);
+void tipTrigLinkReset();
+int  tipSetSyncResetType(int type);
+void tipSyncReset(int bflag);
+void tipSyncResetResync();
+void tipClockReset();
+int  tipSetAdr32(unsigned int a32base);
+int  tipDisableA32();
+int  tipResetEventCounter();
+unsigned long long int tipGetEventCounter();
+int  tipSetBlockLimit(unsigned int limit);
+unsigned int  tipGetBlockLimit();
+unsigned int  tipBReady();
+int  tipGetSyncEventFlag();
+int  tipGetSyncEventReceived();
+int  tipGetReadoutEvents();
+int  tipEnableVXSSignals();
+int  tipDisableVXSSignals();
+int  tipSetBlockBufferLevel(unsigned int level);
+int  tipEnableTSInput(unsigned int inpMask);
+int  tipDisableTSInput(unsigned int inpMask);
+int  tipSetOutputPort(unsigned int set1, unsigned int set2, unsigned int set3, unsigned int set4);
+int  tipSetClockSource(unsigned int source);
+int  tipGetClockSource();
+void  tipSetFiberDelay(unsigned int delay, unsigned int offset);
+int  tipAddSlave(unsigned int fiber);
+int  tipSetTriggerHoldoff(int rule, unsigned int value, int timestep);
+int  tipGetTriggerHoldoff(int rule);
+int  tipSetTriggerHoldoffMin(int rule, unsigned int value);
+int  tipGetTriggerHoldoffMin(int rule, int pflag);
 
-int  tiDisableDataReadout();
-int  tiEnableDataReadout();
-void tiResetBlockReadout();
+int  tipDisableDataReadout();
+int  tipEnableDataReadout();
+void tipResetBlockReadout();
 
-int  tiTriggerTableConfig(unsigned int *itable);
-int  tiGetTriggerTable(unsigned int *otable);
-int  tiTriggerTablePredefinedConfig(int mode);
-int  tiDefineEventType(int trigMask, int hwTrig, int evType);
-int  tiDefinePulserEventType(int fixed_type, int random_type);
-int  tiLoadTriggerTable(int mode);
-void tiPrintTriggerTable(int showbits);
-int  tiSetTriggerWindow(int window_width);
-int  tiGetTriggerWindow();
-int  tiSetTriggerInhibitWindow(int window_width);
-int  tiGetTriggerInhibitWindow();
-int  tiSetTrig21Delay(int delay);
-int  tiGetTrig21Delay();
-int  tiLatchTimers();
-unsigned int tiGetLiveTime();
-unsigned int tiGetBusyTime();
-int  tiLive(int sflag);
-unsigned int tiGetTSscaler(int input, int latch);
-unsigned int tiBlockStatus(int fiber, int pflag);
+int  tipTriggerTableConfig(unsigned int *itable);
+int  tipGetTriggerTable(unsigned int *otable);
+int  tipTriggerTablePredefinedConfig(int mode);
+int  tipDefineEventType(int trigMask, int hwTrig, int evType);
+int  tipDefinePulserEventType(int fixed_type, int random_type);
+int  tipLoadTriggerTable(int mode);
+void tiprintTriggerTable(int showbits);
+int  tipSetTriggerWindow(int window_width);
+int  tipGetTriggerWindow();
+int  tipSetTriggerInhibitWindow(int window_width);
+int  tipGetTriggerInhibitWindow();
+int  tipSetTrig21Delay(int delay);
+int  tipGetTrig21Delay();
+int  tipLatchTimers();
+unsigned int tipGetLiveTime();
+unsigned int tipGetBusyTime();
+int  tipLive(int sflag);
+unsigned int tipGetTSscaler(int input, int latch);
+unsigned int tipBlockStatus(int fiber, int pflag);
 
-int  tiGetFiberLatencyMeasurement();
-int  tiSetUserSyncResetReceive(int enable);
-int  tiGetLastSyncCodes(int pflag);
-int  tiGetSyncHistoryBufferStatus(int pflag);
-void tiResetSyncHistory();
-void tiUserSyncReset(int enable, int pflag);
-void tiPrintSyncHistory();
-int  tiSetSyncEventInterval(int blk_interval);
-int  tiGetSyncEventInterval();
-int  tiForceSyncEvent();
-int  tiSyncResetRequest();
-int  tiGetSyncResetRequest();
-void tiTriggerReadyReset();
-#endif /* NOTDONEYET */
+int  tipGetFiberLatencyMeasurement();
+int  tipSetUserSyncResetReceive(int enable);
+int  tipGetLastSyncCodes(int pflag);
+int  tipGetSyncHistoryBufferStatus(int pflag);
+void tipResetSyncHistory();
+void tipUserSyncReset(int enable, int pflag);
+void tiprintSyncHistory();
+int  tipSetSyncEventInterval(int blk_interval);
+int  tipGetSyncEventInterval();
+int  tipForceSyncEvent();
+int  tipSyncResetRequest();
+int  tipGetSyncResetRequest();
+void tipTriggerReadyReset();
 int  tipFillToEndBlock();
-#ifdef NOTDONEYET
-int  tiResetMGT();
-int  tiSetTSInputDelay(int chan, int delay);
-int  tiGetTSInputDelay(int chan);
-int  tiPrintTSInputDelay();
-unsigned int tiGetGTPBufferLength(int pflag);
-unsigned int tiGetSWAStatus(int reg);
-unsigned int tiGetSWBStatus(int reg);
-int  tiGetGeoAddress();
+int  tipResetMGT();
+int  tipSetTSInputDelay(int chan, int delay);
+int  tipGetTSInputDelay(int chan);
+int  tiprintTSInputDelay();
+unsigned int tipGetGTPBufferLength(int pflag);
+unsigned int tipGetSWAStatus(int reg);
+unsigned int tipGetSWBStatus(int reg);
+int  tipGetGeoAddress();
 
 /* Library Interrupt/Polling routine prototypes */
-int  tiIntConnect(unsigned int vector, VOIDFUNCPTR routine, unsigned int arg);
-int  tiIntDisconnect();
-int  tiAckConnect(VOIDFUNCPTR routine, unsigned int arg);
-void tiIntAck();
-int  tiIntEnable(int iflag);
-void tiIntDisable();
-unsigned int  tiGetIntCount();
-unsigned int  tiGetAckCount();
+int  tipIntConnect(unsigned int vector, VOIDFUNCPTR routine, unsigned int arg);
+int  tipIntDisconnect();
+int  tipAckConnect(VOIDFUNCPTR routine, unsigned int arg);
+void tipIntAck();
+int  tipIntEnable(int iflag);
+void tipIntDisable();
+unsigned int  tipGetIntCount();
+unsigned int  tipGetAckCount();
 
-int  tiGetSWBBusy(int pflag);
-unsigned int tiGetBusyCounter(int busysrc);
-int  tiPrintBusyCounters();
+int  tipGetSWBBusy(int pflag);
+unsigned int tipGetBusyCounter(int busysrc);
+int  tiprintBusyCounters();
 
 /* Some token testing routines */
-int  tiSetTokenTestMode(int mode);
-int  tiSetTokenOutTest(int level);
+int  tipSetTokenTestMode(int mode);
+int  tipSetTokenOutTest(int level);
 
-int  tiRocEnable(int roc);
-int  tiRocEnableMask(int rocmask);
-int  tiGetRocEnableMask();
-#endif /* NOTDONEYET */
+int  tipRocEnable(int roc);
+int  tipRocEnableMask(int rocmask);
+int  tipGetRocEnableMask();
 
 unsigned int tipRead(volatile unsigned int *reg);
 int  tipWrite(volatile unsigned int *reg, unsigned int value);
@@ -728,5 +724,6 @@ int  tipReadBlock(int bar, unsigned int *reg, unsigned int *value, int nreg);
 int  tipWriteBlock(int bar, unsigned int *reg, unsigned int *value, int nreg);
 int  tipOpen();
 int  tipClose();
-#endif /* TILIB_H */
+
+#endif /* TIPLIB_H */
 

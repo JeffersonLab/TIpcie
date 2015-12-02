@@ -23,6 +23,8 @@ main(int argc, char *argv[])
   tipOpen();
   
   tipInit(0,0);
+  tipStatus(1);
+
  CLOSE:
   tipClose();
 
