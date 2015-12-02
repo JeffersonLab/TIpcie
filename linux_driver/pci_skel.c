@@ -526,7 +526,6 @@ pci_skel_ioctl(struct inode *inode, struct file *filp,
 	regs   = (unsigned int*)kmalloc(user_info.nreg*sizeof(user_info.reg), GFP_KERNEL);
 	values = (unsigned int*)kmalloc(user_info.nreg*sizeof(user_info.value), GFP_KERNEL);
 
-
 	stat = copy_from_user(regs, user_info.reg, user_info.nreg*sizeof(user_info.reg));
 	if(stat)
 	  {
@@ -540,9 +539,18 @@ pci_skel_ioctl(struct inode *inode, struct file *filp,
 	    return -EFAULT;
 	  }
 
+
 	printk("%s:\n",__FUNCTION__);
 	printk("   mem_region = 0x%x\n",user_info.mem_region);
 	printk(" command_type = 0x%x\n",user_info.command_type);
+	for(ireg=0; ireg<user_info.nreg; ireg++)
+	  {
+	    printk("          reg = 0x%x\n",regs[ireg]);
+	    if(user_info.command_type==PCI_SKEL_RW_WRITE)
+	      {
+		printk("        value = 0x%x\n",values[ireg]);
+	      }
+	  }
 
 	if(user_info.command_type==PCI_SKEL_RW_WRITE)
 	  {

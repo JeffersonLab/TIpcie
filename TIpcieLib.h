@@ -132,436 +132,435 @@ struct TIPCIE_RegStruct
                                      TS  trigger - Interrupt mode   1
                                      Ext trigger - polling  mode    2 
                                      TS  trigger - polling  mode    3  */
-#define TI_READOUT_EXT_INT    0
-#define TI_READOUT_TS_INT     1
-#define TI_READOUT_EXT_POLL   2
-#define TI_READOUT_TS_POLL    3
+#define TIP_READOUT_EXT_INT    0
+#define TIP_READOUT_TS_INT     1
+#define TIP_READOUT_EXT_POLL   2
+#define TIP_READOUT_TS_POLL    3
 
 /* Supported firmware version */
-#define TI_SUPPORTED_FIRMWARE 0x023
-#define TI_SUPPORTED_TYPE     3
+#define TIP_SUPPORTED_FIRMWARE 0x023
+#define TIP_SUPPORTED_TYPE     3
 
 /* Firmware Masks */
-#define TI_FIRMWARE_ID_MASK              0xFFFF0000
-#define TI_FIRMWARE_TYPE_MASK            0x0000F000
-#define TI_FIRMWARE_TYPE_REV2            0
-#define TI_FIRMWARE_TYPE_PROD            1
-#define TI_FIRMWARE_TYPE_MODTI           2
-#define TI_FIRMWARE_TYPE_PROD2           3
-#define TI_FIRMWARE_MAJOR_VERSION_MASK   0x00000FF0
-#define TI_FIRWMARE_MINOR_VERSION_MASK   0x0000000F
+#define TIP_FIRMWARE_ID_MASK              0xFFFF0000
+#define TIP_FIRMWARE_TYPE_MASK            0x0000F000
+#define TIP_FIRMWARE_TYPE_REV2            0
+#define TIP_FIRMWARE_TYPE_PROD            1
+#define TIP_FIRMWARE_TYPE_MODTI           2
+#define TIP_FIRMWARE_TYPE_PROD2           3
+#define TIP_FIRMWARE_MAJOR_VERSION_MASK   0x00000FF0
+#define TIP_FIRWMARE_MINOR_VERSION_MASK   0x0000000F
 
 /* 0x0 boardID bits and masks */
-#define TI_BOARDID_TYPE_TIDS         0x71D5
-#define TI_BOARDID_TYPE_TI           0x7100
-#define TI_BOARDID_TYPE_TS           0x7500
-#define TI_BOARDID_TYPE_TD           0x7D00
-#define TI_BOARDID_TYPE_MASK     0xFF000000
-#define TI_BOARDID_PROD_MASK     0x00FF0000
-#define TI_BOARDID_GEOADR_MASK   0x00001F00
-#define TI_BOARDID_CRATEID_MASK  0x000000FF
+#define TIP_BOARDID_TYPE_TIDS         0x71D5
+#define TIP_BOARDID_TYPE_TI           0x7100
+#define TIP_BOARDID_TYPE_TS           0x7500
+#define TIP_BOARDID_TYPE_TD           0x7D00
+#define TIP_BOARDID_TYPE_MASK     0xFF000000
+#define TIP_BOARDID_PROD_MASK     0x00FF0000
+#define TIP_BOARDID_GEOADR_MASK   0x00001F00
+#define TIP_BOARDID_CRATEID_MASK  0x000000FF
 
 /* 0x4 fiber bits and masks */
-#define TI_FIBER_1                        (1<<0)
-#define TI_FIBER_2                        (1<<1)
-#define TI_FIBER_3                        (1<<2)
-#define TI_FIBER_4                        (1<<3)
-#define TI_FIBER_5                        (1<<4)
-#define TI_FIBER_6                        (1<<5)
-#define TI_FIBER_7                        (1<<6)
-#define TI_FIBER_8                        (1<<7)
-#define TI_FIBER_ENABLE_P0                (1<<8)
-#define TI_FIBER_ENABLED(x)           (1<<(x+1))
-#define TI_FIBER_MASK                 0x000000FF
-#define TI_FIBER_CONNECTED_1             (1<<16)
-#define TI_FIBER_CONNECTED_2             (1<<17)
-#define TI_FIBER_CONNECTED_3             (1<<18)
-#define TI_FIBER_CONNECTED_4             (1<<19)
-#define TI_FIBER_CONNECTED_5             (1<<20)
-#define TI_FIBER_CONNECTED_6             (1<<21)
-#define TI_FIBER_CONNECTED_7             (1<<22)
-#define TI_FIBER_CONNECTED_8             (1<<23)
-#define TI_FIBER_CONNECTED_TI(x)     (1<<(x+15))
-#define TI_FIBER_CONNECTED_MASK       0x00FF0000
-#define TI_FIBER_TRIGSRC_ENABLED_1       (1<<24)
-#define TI_FIBER_TRIGSRC_ENABLED_2       (1<<25)
-#define TI_FIBER_TRIGSRC_ENABLED_3       (1<<26)
-#define TI_FIBER_TRIGSRC_ENABLED_4       (1<<27)
-#define TI_FIBER_TRIGSRC_ENABLED_5       (1<<28)
-#define TI_FIBER_TRIGSRC_ENABLED_6       (1<<29)
-#define TI_FIBER_TRIGSRC_ENABLED_7       (1<<30)
-#define TI_FIBER_TRIGSRC_ENABLED_8       (1<<31)
-#define TI_FIBER_TRIGSRC_ENABLED_TI(x) (1<<(x+23))
-#define TI_FIBER_TRIGSRC_ENABLED_MASK 0xFF000000
+#define TIP_FIBER_1                        (1<<0)
+#define TIP_FIBER_2                        (1<<1)
+#define TIP_FIBER_3                        (1<<2)
+#define TIP_FIBER_4                        (1<<3)
+#define TIP_FIBER_5                        (1<<4)
+#define TIP_FIBER_6                        (1<<5)
+#define TIP_FIBER_7                        (1<<6)
+#define TIP_FIBER_8                        (1<<7)
+#define TIP_FIBER_ENABLE_P0                (1<<8)
+#define TIP_FIBER_ENABLED(x)           (1<<(x+1))
+#define TIP_FIBER_MASK                 0x000000FF
+#define TIP_FIBER_CONNECTED_1             (1<<16)
+#define TIP_FIBER_CONNECTED_2             (1<<17)
+#define TIP_FIBER_CONNECTED_3             (1<<18)
+#define TIP_FIBER_CONNECTED_4             (1<<19)
+#define TIP_FIBER_CONNECTED_5             (1<<20)
+#define TIP_FIBER_CONNECTED_6             (1<<21)
+#define TIP_FIBER_CONNECTED_7             (1<<22)
+#define TIP_FIBER_CONNECTED_8             (1<<23)
+#define TIP_FIBER_CONNECTED_TI(x)     (1<<(x+15))
+#define TIP_FIBER_CONNECTED_MASK       0x00FF0000
+#define TIP_FIBER_TRIGSRC_ENABLED_1       (1<<24)
+#define TIP_FIBER_TRIGSRC_ENABLED_2       (1<<25)
+#define TIP_FIBER_TRIGSRC_ENABLED_3       (1<<26)
+#define TIP_FIBER_TRIGSRC_ENABLED_4       (1<<27)
+#define TIP_FIBER_TRIGSRC_ENABLED_5       (1<<28)
+#define TIP_FIBER_TRIGSRC_ENABLED_6       (1<<29)
+#define TIP_FIBER_TRIGSRC_ENABLED_7       (1<<30)
+#define TIP_FIBER_TRIGSRC_ENABLED_8       (1<<31)
+#define TIP_FIBER_TRIGSRC_ENABLED_TI(x) (1<<(x+23))
+#define TIP_FIBER_TRIGSRC_ENABLED_MASK 0xFF000000
 
 /* 0x8 intsetup bits and masks */
-#define TI_INTSETUP_VECTOR_MASK   0x000000FF
-#define TI_INTSETUP_LEVEL_MASK    0x00000F00
-#define TI_INTSETUP_ENABLE        (1<<16)
+#define TIP_INTSETUP_VECTOR_MASK   0x000000FF
+#define TIP_INTSETUP_LEVEL_MASK    0x00000F00
+#define TIP_INTSETUP_ENABLE        (1<<16)
 
 /* 0xC trigDelay bits and masks */
-#define TI_TRIGDELAY_TRIG1_DELAY_MASK 0x000000FF
-#define TI_TRIGDELAY_TRIG1_WIDTH_MASK 0x0000FF00
-#define TI_TRIGDELAY_TRIG2_DELAY_MASK 0x00FF0000
-#define TI_TRIGDELAY_TRIG2_WIDTH_MASK 0xFF000000
-#define TI_TRIGDELAY_TRIG1_64NS_STEP  (1<<7)
-#define TI_TRIGDELAY_TRIG2_64NS_STEP  (1<<23)
+#define TIP_TRIGDELAY_TRIG1_DELAY_MASK 0x000000FF
+#define TIP_TRIGDELAY_TRIG1_WIDTH_MASK 0x0000FF00
+#define TIP_TRIGDELAY_TRIG2_DELAY_MASK 0x00FF0000
+#define TIP_TRIGDELAY_TRIG2_WIDTH_MASK 0xFF000000
+#define TIP_TRIGDELAY_TRIG1_64NS_STEP  (1<<7)
+#define TIP_TRIGDELAY_TRIG2_64NS_STEP  (1<<23)
 
 /* 0x10 adr32 bits and masks */
-#define TI_ADR32_MBLK_ADDR_MAX_MASK  0x000003FE
-#define TI_ADR32_MBLK_ADDR_MIN_MASK  0x003FC000
-#define TI_ADR32_BASE_MASK       0xFF800000
+#define TIP_ADR32_MBLK_ADDR_MAX_MASK  0x000003FE
+#define TIP_ADR32_MBLK_ADDR_MIN_MASK  0x003FC000
+#define TIP_ADR32_BASE_MASK       0xFF800000
 
 /* 0x14 blocklevel bits and masks */
-#define TI_BLOCKLEVEL_MASK           0x000000FF
-#define TI_BLOCKLEVEL_CURRENT_MASK   0x00FF0000
-#define TI_BLOCKLEVEL_RECEIVED_MASK  0xFF000000
+#define TIP_BLOCKLEVEL_MASK           0x000000FF
+#define TIP_BLOCKLEVEL_CURRENT_MASK   0x00FF0000
+#define TIP_BLOCKLEVEL_RECEIVED_MASK  0xFF000000
 
 
 /* 0x18 dataFormat bits and masks */
-#define TI_DATAFORMAT_TWOBLOCK_PLACEHOLDER (1<<0)
-#define TI_DATAFORMAT_TIMING_WORD          (1<<1)
-#define TI_DATAFORMAT_HIGHERBITS_WORD      (1<<2)
+#define TIP_DATAFORMAT_TWOBLOCK_PLACEHOLDER (1<<0)
+#define TIP_DATAFORMAT_TIMING_WORD          (1<<1)
+#define TIP_DATAFORMAT_HIGHERBITS_WORD      (1<<2)
 
 /* 0x1C vmeControl bits and masks */
-#define TI_VMECONTROL_BERR           (1<<0)
-#define TI_VMECONTROL_TOKEN_TESTMODE (1<<1)
-#define TI_VMECONTROL_MBLK           (1<<2)
-#define TI_VMECONTROL_A32M           (1<<3)
-#define TI_VMECONTROL_A32            (1<<4)
-#define TI_VMECONTROL_ERROR_INT      (1<<7)
-#define TI_VMECONTROL_I2CDEV_HACK    (1<<8)
-#define TI_VMECONTROL_TOKENOUT_HI    (1<<9)
-#define TI_VMECONTROL_FIRST_BOARD    (1<<10)
-#define TI_VMECONTROL_LAST_BOARD     (1<<11)
-#define TI_VMECONTROL_BUFFER_DISABLE (1<<15)
-#define TI_VMECONTROL_BLOCKLEVEL_UPDATE (1<<21)
+#define TIP_VMECONTROL_BERR           (1<<0)
+#define TIP_VMECONTROL_TOKEN_TESTMODE (1<<1)
+#define TIP_VMECONTROL_MBLK           (1<<2)
+#define TIP_VMECONTROL_A32M           (1<<3)
+#define TIP_VMECONTROL_A32            (1<<4)
+#define TIP_VMECONTROL_ERROR_INT      (1<<7)
+#define TIP_VMECONTROL_I2CDEV_HACK    (1<<8)
+#define TIP_VMECONTROL_TOKENOUT_HI    (1<<9)
+#define TIP_VMECONTROL_FIRST_BOARD    (1<<10)
+#define TIP_VMECONTROL_LAST_BOARD     (1<<11)
+#define TIP_VMECONTROL_BUFFER_DISABLE (1<<15)
+#define TIP_VMECONTROL_BLOCKLEVEL_UPDATE (1<<21)
 
 /* 0x20 trigsrc bits and masks */
-#define TI_TRIGSRC_SOURCEMASK       0x0000F3FF
-#define TI_TRIGSRC_P0               (1<<0)
-#define TI_TRIGSRC_HFBR1            (1<<1)
-#define TI_TRIGSRC_LOOPBACK         (1<<2)
-#define TI_TRIGSRC_FPTRG            (1<<3)
-#define TI_TRIGSRC_VME              (1<<4)
-#define TI_TRIGSRC_TSINPUTS         (1<<5)
-#define TI_TRIGSRC_TSREV2           (1<<6)
-#define TI_TRIGSRC_PULSER           (1<<7)
-#define TI_TRIGSRC_HFBR5            (1<<10)
-#define TI_TRIGSRC_TRIG21           (1<<11)
-#define TI_TRIGSRC_PART_1           (1<<12)
-#define TI_TRIGSRC_PART_2           (1<<13)
-#define TI_TRIGSRC_PART_3           (1<<14)
-#define TI_TRIGSRC_PART_4           (1<<15)
-#define TI_TRIGSRC_MONITOR_MASK     0xFFFF0000
+#define TIP_TRIGSRC_SOURCEMASK       0x0000F3FF
+#define TIP_TRIGSRC_P0               (1<<0)
+#define TIP_TRIGSRC_HFBR1            (1<<1)
+#define TIP_TRIGSRC_LOOPBACK         (1<<2)
+#define TIP_TRIGSRC_FPTRG            (1<<3)
+#define TIP_TRIGSRC_VME              (1<<4)
+#define TIP_TRIGSRC_TSINPUTS         (1<<5)
+#define TIP_TRIGSRC_TSREV2           (1<<6)
+#define TIP_TRIGSRC_PULSER           (1<<7)
+#define TIP_TRIGSRC_HFBR5            (1<<10)
+#define TIP_TRIGSRC_TRIG21           (1<<11)
+#define TIP_TRIGSRC_PART_1           (1<<12)
+#define TIP_TRIGSRC_PART_2           (1<<13)
+#define TIP_TRIGSRC_PART_3           (1<<14)
+#define TIP_TRIGSRC_PART_4           (1<<15)
+#define TIP_TRIGSRC_MONITOR_MASK     0xFFFF0000
 
 /* 0x24 sync bits and masks */
-#define TI_SYNC_SOURCEMASK              0x000000FF
-#define TI_SYNC_P0                      (1<<0)
-#define TI_SYNC_HFBR1                   (1<<1)
-#define TI_SYNC_HFBR5                   (1<<2)
-#define TI_SYNC_FP                      (1<<3)
-#define TI_SYNC_LOOPBACK                (1<<4)
-#define TI_SYNC_USER_SYNCRESET_ENABLED  (1<<7)
-#define TI_SYNC_HFBR1_CODE_MASK         0x00000F00
-#define TI_SYNC_HFBR5_CODE_MASK         0x0000F000
-#define TI_SYNC_LOOPBACK_CODE_MASK      0x000F0000
-#define TI_SYNC_HISTORY_FIFO_MASK       0x00700000
-#define TI_SYNC_HISTORY_FIFO_EMPTY      (1<<20)
-#define TI_SYNC_HISTORY_FIFO_HALF_FULL  (1<<21)
-#define TI_SYNC_HISTORY_FIFO_FULL       (1<<22)
-#define TI_SYNC_MONITOR_MASK            0xFF000000
+#define TIP_SYNC_SOURCEMASK              0x000000FF
+#define TIP_SYNC_P0                      (1<<0)
+#define TIP_SYNC_HFBR1                   (1<<1)
+#define TIP_SYNC_HFBR5                   (1<<2)
+#define TIP_SYNC_FP                      (1<<3)
+#define TIP_SYNC_LOOPBACK                (1<<4)
+#define TIP_SYNC_USER_SYNCRESET_ENABLED  (1<<7)
+#define TIP_SYNC_HFBR1_CODE_MASK         0x00000F00
+#define TIP_SYNC_HFBR5_CODE_MASK         0x0000F000
+#define TIP_SYNC_LOOPBACK_CODE_MASK      0x000F0000
+#define TIP_SYNC_HISTORY_FIFO_MASK       0x00700000
+#define TIP_SYNC_HISTORY_FIFO_EMPTY      (1<<20)
+#define TIP_SYNC_HISTORY_FIFO_HALF_FULL  (1<<21)
+#define TIP_SYNC_HISTORY_FIFO_FULL       (1<<22)
+#define TIP_SYNC_MONITOR_MASK            0xFF000000
 
 /* 0x28 busy bits and masks */
-#define TI_BUSY_SOURCEMASK      0x0000FFFF
-#define TI_BUSY_SWA              (1<<0)
-#define TI_BUSY_SWB              (1<<1)
-#define TI_BUSY_P2               (1<<2)
-#define TI_BUSY_FP_FTDC          (1<<3)
-#define TI_BUSY_FP_FADC          (1<<4)
-#define TI_BUSY_FP               (1<<5)
-#define TI_BUSY_TRIGGER_LOCK     (1<<6)
-#define TI_BUSY_LOOPBACK         (1<<7)
-#define TI_BUSY_HFBR1            (1<<8)
-#define TI_BUSY_HFBR2            (1<<9)
-#define TI_BUSY_HFBR3            (1<<10)
-#define TI_BUSY_HFBR4            (1<<11)
-#define TI_BUSY_HFBR5            (1<<12)
-#define TI_BUSY_HFBR6            (1<<13)
-#define TI_BUSY_HFBR7            (1<<14)
-#define TI_BUSY_HFBR8            (1<<15)
-#define TI_BUSY_MONITOR_MASK     0xFFFF0000
-#define TI_BUSY_MONITOR_SWA      (1<<16)
-#define TI_BUSY_MONITOR_SWB      (1<<17)
-#define TI_BUSY_MONITOR_P2       (1<<18)
-#define TI_BUSY_MONITOR_FP_FTDC  (1<<19)
-#define TI_BUSY_MONITOR_FP_FADC  (1<<20)
-#define TI_BUSY_MONITOR_FP       (1<<21)
-#define TI_BUSY_MONITOR_TRIG_LOST (1<<22)
-#define TI_BUSY_MONITOR_LOOPBACK (1<<23)
-#define TI_BUSY_MONITOR_FIBER_BUSY(x) (1<<(x+23))
-#define TI_BUSY_MONITOR_HFBR1    (1<<24)
-#define TI_BUSY_MONITOR_HFBR2    (1<<25)
-#define TI_BUSY_MONITOR_HFBR3    (1<<26)
-#define TI_BUSY_MONITOR_HFBR4    (1<<27)
-#define TI_BUSY_MONITOR_HFBR5    (1<<28)
-#define TI_BUSY_MONITOR_HFBR6    (1<<29)
-#define TI_BUSY_MONITOR_HFBR7    (1<<30)
-#define TI_BUSY_MONITOR_HFBR8    (1<<31)
+#define TIP_BUSY_SOURCEMASK      0x0000FFFF
+#define TIP_BUSY_SWA              (1<<0)
+#define TIP_BUSY_SWB              (1<<1)
+#define TIP_BUSY_P2               (1<<2)
+#define TIP_BUSY_FP_FTDC          (1<<3)
+#define TIP_BUSY_FP_FADC          (1<<4)
+#define TIP_BUSY_FP               (1<<5)
+#define TIP_BUSY_TRIGGER_LOCK     (1<<6)
+#define TIP_BUSY_LOOPBACK         (1<<7)
+#define TIP_BUSY_HFBR1            (1<<8)
+#define TIP_BUSY_HFBR2            (1<<9)
+#define TIP_BUSY_HFBR3            (1<<10)
+#define TIP_BUSY_HFBR4            (1<<11)
+#define TIP_BUSY_HFBR5            (1<<12)
+#define TIP_BUSY_HFBR6            (1<<13)
+#define TIP_BUSY_HFBR7            (1<<14)
+#define TIP_BUSY_HFBR8            (1<<15)
+#define TIP_BUSY_MONITOR_MASK     0xFFFF0000
+#define TIP_BUSY_MONITOR_SWA      (1<<16)
+#define TIP_BUSY_MONITOR_SWB      (1<<17)
+#define TIP_BUSY_MONITOR_P2       (1<<18)
+#define TIP_BUSY_MONITOR_FP_FTDC  (1<<19)
+#define TIP_BUSY_MONITOR_FP_FADC  (1<<20)
+#define TIP_BUSY_MONITOR_FP       (1<<21)
+#define TIP_BUSY_MONITOR_TRIG_LOST (1<<22)
+#define TIP_BUSY_MONITOR_LOOPBACK (1<<23)
+#define TIP_BUSY_MONITOR_FIBER_BUSY(x) (1<<(x+23))
+#define TIP_BUSY_MONITOR_HFBR1    (1<<24)
+#define TIP_BUSY_MONITOR_HFBR2    (1<<25)
+#define TIP_BUSY_MONITOR_HFBR3    (1<<26)
+#define TIP_BUSY_MONITOR_HFBR4    (1<<27)
+#define TIP_BUSY_MONITOR_HFBR5    (1<<28)
+#define TIP_BUSY_MONITOR_HFBR6    (1<<29)
+#define TIP_BUSY_MONITOR_HFBR7    (1<<30)
+#define TIP_BUSY_MONITOR_HFBR8    (1<<31)
 
 /* 0x2C clock bits and mask  */
-#define TI_CLOCK_INTERNAL    (0)
-#define TI_CLOCK_HFBR5       (1)
-#define TI_CLOCK_HFBR1       (2)
-#define TI_CLOCK_FP          (3)
-#define TI_CLOCK_MASK        0x0000000F
+#define TIP_CLOCK_INTERNAL    (0)
+#define TIP_CLOCK_HFBR5       (1)
+#define TIP_CLOCK_HFBR1       (2)
+#define TIP_CLOCK_FP          (3)
+#define TIP_CLOCK_MASK        0x0000000F
 
 /* 0x30 trig1Prescale bits and masks */
-#define TI_TRIG1PRESCALE_MASK          0x0000FFFF
+#define TIP_TRIG1PRESCALE_MASK          0x0000FFFF
 
 /* 0x34 blockBuffer bits and masks */
-#define TI_BLOCKBUFFER_BUFFERLEVEL_MASK      0x000000FF
-#define TI_BLOCKBUFFER_BLOCKS_READY_MASK     0x0000FF00
-#define TI_BLOCKBUFFER_TRIGGERS_IN_BLOCK     0x00FF0000
-#define TI_BLOCKBUFFER_RO_NEVENTS_MASK       0x07000000
-#define TI_BLOCKBUFFER_BLOCKS_NEEDACK_MASK   0x7F000000
-#define TI_BLOCKBUFFER_BREADY_INT_MASK       0x0F000000
-#define TI_BLOCKBUFFER_BUSY_ON_BLOCKLIMIT    (1<<28)
-#define TI_BLOCKBUFFER_SYNCRESET_REQUESTED   (1<<30)
-#define TI_BLOCKBUFFER_SYNCEVENT             (1<<31)
+#define TIP_BLOCKBUFFER_BUFFERLEVEL_MASK      0x000000FF
+#define TIP_BLOCKBUFFER_BLOCKS_READY_MASK     0x0000FF00
+#define TIP_BLOCKBUFFER_TRIGGERS_IN_BLOCK     0x00FF0000
+#define TIP_BLOCKBUFFER_RO_NEVENTS_MASK       0x07000000
+#define TIP_BLOCKBUFFER_BLOCKS_NEEDACK_MASK   0x7F000000
+#define TIP_BLOCKBUFFER_BREADY_INT_MASK       0x0F000000
+#define TIP_BLOCKBUFFER_BUSY_ON_BLOCKLIMIT    (1<<28)
+#define TIP_BLOCKBUFFER_SYNCRESET_REQUESTED   (1<<30)
+#define TIP_BLOCKBUFFER_SYNCEVENT             (1<<31)
 
 /* 0x38 triggerRule bits and masks */
-#define TI_TRIGGERRULE_RULE1_MASK 0x000000FF
-#define TI_TRIGGERRULE_RULE2_MASK 0x0000FF00
-#define TI_TRIGGERRULE_RULE3_MASK 0x00FF0000
-#define TI_TRIGGERRULE_RULE4_MASK 0xFF000000
+#define TIP_TRIGGERRULE_RULE1_MASK 0x000000FF
+#define TIP_TRIGGERRULE_RULE2_MASK 0x0000FF00
+#define TIP_TRIGGERRULE_RULE3_MASK 0x00FF0000
+#define TIP_TRIGGERRULE_RULE4_MASK 0xFF000000
 
 /* 0x3C triggerWindow bits and masks */
-#define TI_TRIGGERWINDOW_COINC_MASK   0x000000FF
-#define TI_TRIGGERWINDOW_INHIBIT_MASK 0x0000FF00
-#define TI_TRIGGERWINDOW_TRIG21_MASK  0x01FF0000
+#define TIP_TRIGGERWINDOW_COINC_MASK   0x000000FF
+#define TIP_TRIGGERWINDOW_INHIBIT_MASK 0x0000FF00
+#define TIP_TRIGGERWINDOW_TRIG21_MASK  0x01FF0000
 
 /* 0x48 tsInput bits and masks */
-#define TI_TSINPUT_MASK      0x0000003F
-#define TI_TSINPUT_1         (1<<0)
-#define TI_TSINPUT_2         (1<<1)
-#define TI_TSINPUT_3         (1<<2)
-#define TI_TSINPUT_4         (1<<3)
-#define TI_TSINPUT_5         (1<<4)
-#define TI_TSINPUT_6         (1<<5)
-#define TI_TSINPUT_ALL       (0x3F)
+#define TIP_TSINPUT_MASK      0x0000003F
+#define TIP_TSINPUT_1         (1<<0)
+#define TIP_TSINPUT_2         (1<<1)
+#define TIP_TSINPUT_3         (1<<2)
+#define TIP_TSINPUT_4         (1<<3)
+#define TIP_TSINPUT_5         (1<<4)
+#define TIP_TSINPUT_6         (1<<5)
+#define TIP_TSINPUT_ALL       (0x3F)
 
 
 /* 0x4C output bits and masks */
-#define TI_OUTPUT_MASK                 0x0000FFFF
-#define TI_OUTPUT_BLOCKS_READY_MASK    0x00FF0000
-#define TI_OUTPUT_EVENTS_IN_BLOCK_MASK 0xFF000000
+#define TIP_OUTPUT_MASK                 0x0000FFFF
+#define TIP_OUTPUT_BLOCKS_READY_MASK    0x00FF0000
+#define TIP_OUTPUT_EVENTS_IN_BLOCK_MASK 0xFF000000
 
 /* 0x50 fiberSyncDelay bits and masks */
-#define TI_FIBERSYNCDELAY_HFBR1_SYNCPHASE_MASK    0x000000FF
-#define TI_FIBERSYNCDELAY_HFBR1_SYNCDELAY_MASK    0x0000FF00
-#define TI_FIBERSYNCDELAY_LOOPBACK_SYNCDELAY_MASK 0x00FF0000
-#define TI_FIBERSYNCDELAY_HFBR5_SYNCDELAY_MASK    0xFF000000
+#define TIP_FIBERSYNCDELAY_HFBR1_SYNCPHASE_MASK    0x000000FF
+#define TIP_FIBERSYNCDELAY_HFBR1_SYNCDELAY_MASK    0x0000FF00
+#define TIP_FIBERSYNCDELAY_LOOPBACK_SYNCDELAY_MASK 0x00FF0000
+#define TIP_FIBERSYNCDELAY_HFBR5_SYNCDELAY_MASK    0xFF000000
 
 /* 0x74 inputPrescale bits and masks */
-#define TI_INPUTPRESCALE_FP1_MASK   0x0000000F
-#define TI_INPUTPRESCALE_FP2_MASK   0x000000F0
-#define TI_INPUTPRESCALE_FP3_MASK   0x00000F00
-#define TI_INPUTPRESCALE_FP4_MASK   0x0000F000
-#define TI_INPUTPRESCALE_FP5_MASK   0x000F0000
-#define TI_INPUTPRESCALE_FP6_MASK   0x00F00000
-#define TI_INPUTPRESCALE_FP_MASK(x) (0xF<<4*((x-1)))
+#define TIP_INPUTPRESCALE_FP1_MASK   0x0000000F
+#define TIP_INPUTPRESCALE_FP2_MASK   0x000000F0
+#define TIP_INPUTPRESCALE_FP3_MASK   0x00000F00
+#define TIP_INPUTPRESCALE_FP4_MASK   0x0000F000
+#define TIP_INPUTPRESCALE_FP5_MASK   0x000F0000
+#define TIP_INPUTPRESCALE_FP6_MASK   0x00F00000
+#define TIP_INPUTPRESCALE_FP_MASK(x) (0xF<<4*((x-1)))
 
 /* 0x78 syncCommand bits and masks */
-#define TI_SYNCCOMMAND_VME_CLOCKRESET      0x11
-#define TI_SYNCCOMMAND_CLK250_RESYNC       0x22
-#define TI_SYNCCOMMAND_AD9510_RESYNC       0x33
-#define TI_SYNCCOMMAND_GTP_STATUSB_RESET   0x44
-#define TI_SYNCCOMMAND_TRIGGERLINK_ENABLE  0x55
-#define TI_SYNCCOMMAND_TRIGGERLINK_DISABLE 0x77
-#define TI_SYNCCOMMAND_SYNCRESET_HIGH      0x99
-#define TI_SYNCCOMMAND_TRIGGER_READY_RESET 0xAA
-#define TI_SYNCCOMMAND_RESET_EVNUM         0xBB
-#define TI_SYNCCOMMAND_SYNCRESET_LOW       0xCC
-#define TI_SYNCCOMMAND_SYNCRESET           0xDD
-#define TI_SYNCCOMMAND_SYNCRESET_4US       0xEE
-#define TI_SYNCCOMMAND_SYNCCODE_MASK       0x000000FF
+#define TIP_SYNCCOMMAND_VME_CLOCKRESET      0x11
+#define TIP_SYNCCOMMAND_CLK250_RESYNC       0x22
+#define TIP_SYNCCOMMAND_AD9510_RESYNC       0x33
+#define TIP_SYNCCOMMAND_GTP_STATUSB_RESET   0x44
+#define TIP_SYNCCOMMAND_TRIGGERLINK_ENABLE  0x55
+#define TIP_SYNCCOMMAND_TRIGGERLINK_DISABLE 0x77
+#define TIP_SYNCCOMMAND_SYNCRESET_HIGH      0x99
+#define TIP_SYNCCOMMAND_TRIGGER_READY_RESET 0xAA
+#define TIP_SYNCCOMMAND_RESET_EVNUM         0xBB
+#define TIP_SYNCCOMMAND_SYNCRESET_LOW       0xCC
+#define TIP_SYNCCOMMAND_SYNCRESET           0xDD
+#define TIP_SYNCCOMMAND_SYNCRESET_4US       0xEE
+#define TIP_SYNCCOMMAND_SYNCCODE_MASK       0x000000FF
 
 /* 0x7C syncDelay bits and masks */
-#define TI_SYNCDELAY_MASK              0x0000007F
+#define TIP_SYNCDELAY_MASK              0x0000007F
 
 /* 0x80 syncWidth bits and masks */
-#define TI_SYNCWIDTH_MASK              0x7F
-#define TI_SYNCWIDTH_LONGWIDTH_ENABLE  (1<<7)
+#define TIP_SYNCWIDTH_MASK              0x7F
+#define TIP_SYNCWIDTH_LONGWIDTH_ENABLE  (1<<7)
 
 /* 0x84 triggerCommand bits and masks */
-#define TI_TRIGGERCOMMAND_VALUE_MASK     0x000000FF
-#define TI_TRIGGERCOMMAND_CODE_MASK      0x00000F00
-#define TI_TRIGGERCOMMAND_TRIG1          0x00000100
-#define TI_TRIGGERCOMMAND_TRIG2          0x00000200
-#define TI_TRIGGERCOMMAND_SYNC_EVENT     0x00000300
-#define TI_TRIGGERCOMMAND_SET_BLOCKLEVEL 0x00000800
+#define TIP_TRIGGERCOMMAND_VALUE_MASK     0x000000FF
+#define TIP_TRIGGERCOMMAND_CODE_MASK      0x00000F00
+#define TIP_TRIGGERCOMMAND_TRIG1          0x00000100
+#define TIP_TRIGGERCOMMAND_TRIG2          0x00000200
+#define TIP_TRIGGERCOMMAND_SYNC_EVENT     0x00000300
+#define TIP_TRIGGERCOMMAND_SET_BLOCKLEVEL 0x00000800
 
 /* 0x88 randomPulser bits and masks */
-#define TI_RANDOMPULSER_TRIG1_RATE_MASK 0x0000000F
-#define TI_RANDOMPULSER_TRIG1_ENABLE    (1<<7)
-#define TI_RANDOMPULSER_TRIG2_RATE_MASK 0x00000F00
-#define TI_RANDOMPULSER_TRIG2_ENABLE    (1<<15)
+#define TIP_RANDOMPULSER_TRIG1_RATE_MASK 0x0000000F
+#define TIP_RANDOMPULSER_TRIG1_ENABLE    (1<<7)
+#define TIP_RANDOMPULSER_TRIG2_RATE_MASK 0x00000F00
+#define TIP_RANDOMPULSER_TRIG2_ENABLE    (1<<15)
 
 /* 0x8C fixedPulser1 bits and masks */
-#define TI_FIXEDPULSER1_NTRIGGERS_MASK 0x0000FFFF
-#define TI_FIXEDPULSER1_PERIOD_MASK    0x7FFF0000
-#define TI_FIXEDPULSER1_PERIOD_RANGE   (1<<31)
+#define TIP_FIXEDPULSER1_NTRIGGERS_MASK 0x0000FFFF
+#define TIP_FIXEDPULSER1_PERIOD_MASK    0x7FFF0000
+#define TIP_FIXEDPULSER1_PERIOD_RANGE   (1<<31)
 
 /* 0x90 fixedPulser2 bits and masks */
-#define TI_FIXEDPULSER2_NTRIGGERS_MASK 0x0000FFFF
-#define TI_FIXEDPULSER2_PERIOD_MASK    0x7FFF0000
-#define TI_FIXEDPULSER2_PERIOD_RANGE   (1<<31)
+#define TIP_FIXEDPULSER2_NTRIGGERS_MASK 0x0000FFFF
+#define TIP_FIXEDPULSER2_PERIOD_MASK    0x7FFF0000
+#define TIP_FIXEDPULSER2_PERIOD_RANGE   (1<<31)
 
 /* 0x94 nblocks bits and masks */
-#define TI_NBLOCKS_COUNT_MASK           0x00FFFFFF
-#define TI_NBLOCKS_EVENTS_IN_BLOCK_MASK 0xFF000000
+#define TIP_NBLOCKS_COUNT_MASK           0x00FFFFFF
+#define TIP_NBLOCKS_EVENTS_IN_BLOCK_MASK 0xFF000000
 
 /* 0x98 syncHistory bits and masks */
-#define TI_SYNCHISTORY_HFBR1_CODE_MASK     0x0000000F
-#define TI_SYNCHISTORY_HFBR1_CODE_VALID    (1<<4)
-#define TI_SYNCHISTORY_HFBR5_CODE_MASK     0x000001E0
-#define TI_SYNCHISTORY_HFBR5_CODE_VALID    (1<<9)
-#define TI_SYNCHISTORY_LOOPBACK_CODE_MASK  0x00003C00
-#define TI_SYNCHISTORY_LOOPBACK_CODE_VALID (1<<14)
-#define TI_SYNCHISTORY_TIMESTAMP_OVERFLOW  (1<<15)
-#define TI_SYNCHISTORY_TIMESTAMP_MASK      0xFFFF0000
+#define TIP_SYNCHISTORY_HFBR1_CODE_MASK     0x0000000F
+#define TIP_SYNCHISTORY_HFBR1_CODE_VALID    (1<<4)
+#define TIP_SYNCHISTORY_HFBR5_CODE_MASK     0x000001E0
+#define TIP_SYNCHISTORY_HFBR5_CODE_VALID    (1<<9)
+#define TIP_SYNCHISTORY_LOOPBACK_CODE_MASK  0x00003C00
+#define TIP_SYNCHISTORY_LOOPBACK_CODE_VALID (1<<14)
+#define TIP_SYNCHISTORY_TIMESTAMP_OVERFLOW  (1<<15)
+#define TIP_SYNCHISTORY_TIMESTAMP_MASK      0xFFFF0000
 
 /* 0x9C runningMode settings */
-#define TI_RUNNINGMODE_ENABLE          0x71
-#define TI_RUNNINGMODE_DISABLE         0x0
+#define TIP_RUNNINGMODE_ENABLE          0x71
+#define TIP_RUNNINGMODE_DISABLE         0x0
 
 /* 0xA0 fiberLatencyMeasurement bits and masks */
-#define TI_FIBERLATENCYMEASUREMENT_CARRYCHAIN_MASK 0x0000FFFF
-#define TI_FIBERLATENCYMEASUREMENT_IODELAY_MASK    0x007F0000
-#define TI_FIBERLATENCYMEASUREMENT_DATA_MASK       0xFF800000
+#define TIP_FIBERLATENCYMEASUREMENT_CARRYCHAIN_MASK 0x0000FFFF
+#define TIP_FIBERLATENCYMEASUREMENT_IODELAY_MASK    0x007F0000
+#define TIP_FIBERLATENCYMEASUREMENT_DATA_MASK       0xFF800000
 
 /* 0xA4 fiberAlignment bits and masks */
-#define TI_FIBERALIGNMENT_HFBR1_IODELAY_MASK   0x000000FF
-#define TI_FIBERALIGNMENT_HFBR1_SYNCDELAY_MASK 0x0000FF00
-#define TI_FIBERALIGNMENT_HFBR5_IODELAY_MASK   0x00FF0000
-#define TI_FIBERALIGNMENT_HFBR5_SYNCDELAY_MASK 0xFF000000
+#define TIP_FIBERALIGNMENT_HFBR1_IODELAY_MASK   0x000000FF
+#define TIP_FIBERALIGNMENT_HFBR1_SYNCDELAY_MASK 0x0000FF00
+#define TIP_FIBERALIGNMENT_HFBR5_IODELAY_MASK   0x00FF0000
+#define TIP_FIBERALIGNMENT_HFBR5_SYNCDELAY_MASK 0xFF000000
 
 /* 0xC0 blockStatus bits and masks */
-#define TI_BLOCKSTATUS_NBLOCKS_READY0    0x000000FF
-#define TI_BLOCKSTATUS_NBLOCKS_NEEDACK0  0x0000FF00
-#define TI_BLOCKSTATUS_NBLOCKS_READY1    0x00FF0000
-#define TI_BLOCKSTATUS_NBLOCKS_NEEDACK1  0xFF000000
+#define TIP_BLOCKSTATUS_NBLOCKS_READY0    0x000000FF
+#define TIP_BLOCKSTATUS_NBLOCKS_NEEDACK0  0x0000FF00
+#define TIP_BLOCKSTATUS_NBLOCKS_READY1    0x00FF0000
+#define TIP_BLOCKSTATUS_NBLOCKS_NEEDACK1  0xFF000000
 
 /* 0xD0 adr24 bits and masks */
-#define TI_ADR24_ADDRESS_MASK         0x0000001F
-#define TI_ADR24_HARDWARE_SET_MASK    0x000003E0
-#define TI_ADR24_GEOADDR_MASK         0x00007C00
-#define TI_ADR24_TM_NBLOCKS_READY1    0x00FF0000
-#define TI_ADR24_TM_NBLOCKS_NEEDACK1  0xFF000000
+#define TIP_ADR24_ADDRESS_MASK         0x0000001F
+#define TIP_ADR24_HARDWARE_SET_MASK    0x000003E0
+#define TIP_ADR24_GEOADDR_MASK         0x00007C00
+#define TIP_ADR24_TM_NBLOCKS_READY1    0x00FF0000
+#define TIP_ADR24_TM_NBLOCKS_NEEDACK1  0xFF000000
 
 /* 0xD4 syncEventCtrl bits and masks */
-#define TI_SYNCEVENTCTRL_NBLOCKS_MASK 0x00FFFFFF
+#define TIP_SYNCEVENTCTRL_NBLOCKS_MASK 0x00FFFFFF
 
 /* 0xD8 eventNumber_hi bits and masks */
-#define TI_PROMPT_TRIG_WIDTH_MASK     0x0000007F
-#define TI_EVENTNUMBER_HI_MASK        0xFFFF0000
+#define TIP_PROMPT_TRIG_WIDTH_MASK     0x0000007F
+#define TIP_EVENTNUMBER_HI_MASK        0xFFFF0000
 
 
 /* 0xEC rocEnable bits and masks */
-#define TI_ROCENABLE_MASK             0x000000FF
-#define TI_ROCENABLE_ROC(x)           (1<<(x))
+#define TIP_ROCENABLE_MASK             0x000000FF
+#define TIP_ROCENABLE_ROC(x)           (1<<(x))
 
 /* 0x100 reset bits and masks */
-#define TI_RESET_I2C                  (1<<1)
-#define TI_RESET_JTAG                 (1<<2)
-#define TI_RESET_SFM                  (1<<3)
-#define TI_RESET_SOFT                 (1<<4)
-#define TI_RESET_SYNC_HISTORY         (1<<6)
-#define TI_RESET_BUSYACK              (1<<7)
-#define TI_RESET_CLK250               (1<<8)
-#define TI_RESET_CLK200               (1<<8)
-#define TI_RESET_CLK125               (1<<9)
-#define TI_RESET_MGT                  (1<<10)
-#define TI_RESET_AUTOALIGN_HFBR1_SYNC (1<<11)
-#define TI_RESET_AUTOALIGN_HFBR5_SYNC (1<<12)
-#define TI_RESET_RAM_WRITE            (1<<12)
-#define TI_RESET_FIBER_AUTO_ALIGN     (1<<13)
-#define TI_RESET_IODELAY              (1<<14)
-#define TI_RESET_MEASURE_LATENCY      (1<<15)
-#define TI_RESET_TAKE_TOKEN           (1<<16)
-#define TI_RESET_BLOCK_READOUT        (1<<17)
-#define TI_RESET_FORCE_SYNCEVENT      (1<<20)
-#define TI_RESET_SYNCRESET_REQUEST    (1<<23)
-#define TI_RESET_SCALERS_LATCH        (1<<24)
-#define TI_RESET_SCALERS_RESET        (1<<25)
-#define TI_RESET_FILL_TO_END_BLOCK    (1<<31)
+#define TIP_RESET_I2C                  (1<<1)
+#define TIP_RESET_JTAG                 (1<<2)
+#define TIP_RESET_SFM                  (1<<3)
+#define TIP_RESET_SOFT                 (1<<4)
+#define TIP_RESET_SYNC_HISTORY         (1<<6)
+#define TIP_RESET_BUSYACK              (1<<7)
+#define TIP_RESET_CLK250               (1<<8)
+#define TIP_RESET_CLK200               (1<<8)
+#define TIP_RESET_CLK125               (1<<9)
+#define TIP_RESET_MGT                  (1<<10)
+#define TIP_RESET_AUTOALIGN_HFBR1_SYNC (1<<11)
+#define TIP_RESET_AUTOALIGN_HFBR5_SYNC (1<<12)
+#define TIP_RESET_RAM_WRITE            (1<<12)
+#define TIP_RESET_FIBER_AUTO_ALIGN     (1<<13)
+#define TIP_RESET_IODELAY              (1<<14)
+#define TIP_RESET_MEASURE_LATENCY      (1<<15)
+#define TIP_RESET_TAKE_TOKEN           (1<<16)
+#define TIP_RESET_BLOCK_READOUT        (1<<17)
+#define TIP_RESET_FORCE_SYNCEVENT      (1<<20)
+#define TIP_RESET_SYNCRESET_REQUEST    (1<<23)
+#define TIP_RESET_SCALERS_LATCH        (1<<24)
+#define TIP_RESET_SCALERS_RESET        (1<<25)
+#define TIP_RESET_FILL_TO_END_BLOCK    (1<<31)
 
 /* 0x104 fpDelay Masks */
-#define TI_FPDELAY_MASK(x) (0x1FF<<(10*(x%3)))
+#define TIP_FPDELAY_MASK(x) (0x1FF<<(10*(x%3)))
 
 /* 0x138 triggerRuleMin bits and masks */
-#define TI_TRIGGERRULEMIN_MIN2_MASK  0x00007F00
-#define TI_TRIGGERRULEMIN_MIN2_EN    (1<<15)
-#define TI_TRIGGERRULEMIN_MIN3_MASK  0x007F0000
-#define TI_TRIGGERRULEMIN_MIN3_EN    (1<<23)
-#define TI_TRIGGERRULEMIN_MIN4_MASK  0x7F000000
-#define TI_TRIGGERRULEMIN_MIN4_EN    (1<<31)
+#define TIP_TRIGGERRULEMIN_MIN2_MASK  0x00007F00
+#define TIP_TRIGGERRULEMIN_MIN2_EN    (1<<15)
+#define TIP_TRIGGERRULEMIN_MIN3_MASK  0x007F0000
+#define TIP_TRIGGERRULEMIN_MIN3_EN    (1<<23)
+#define TIP_TRIGGERRULEMIN_MIN4_MASK  0x7F000000
+#define TIP_TRIGGERRULEMIN_MIN4_EN    (1<<31)
 
 /* 0x1D0-0x1F0 TI ID bits and masks */
-#define TI_ID_TRIGSRC_ENABLE_MASK     0x000000FF
-#define TI_ID_CRATEID_MASK            0x0000FF00
-#define TI_ID_BLOCKLEVEL_MASK         0x00FF0000
+#define TIP_ID_TRIGSRC_ENABLE_MASK     0x000000FF
+#define TIP_ID_CRATEID_MASK            0x0000FF00
+#define TIP_ID_BLOCKLEVEL_MASK         0x00FF0000
 
 /* Trigger Sources, used by tiSetTriggerSource  */
-#define TI_TRIGGER_P0        0
-#define TI_TRIGGER_HFBR1     1
-#define TI_TRIGGER_FPTRG     2
-#define TI_TRIGGER_TSINPUTS  3
-#define TI_TRIGGER_TSREV2    4
-#define TI_TRIGGER_RANDOM    5
-#define TI_TRIGGER_PULSER    5
-#define TI_TRIGGER_PART_1    6
-#define TI_TRIGGER_PART_2    7
-#define TI_TRIGGER_PART_3    8
-#define TI_TRIGGER_PART_4    9
-#define TI_TRIGGER_HFBR5    10
-#define TI_TRIGGER_TRIG21   11
+#define TIP_TRIGGER_P0        0
+#define TIP_TRIGGER_HFBR1     1
+#define TIP_TRIGGER_FPTRG     2
+#define TIP_TRIGGER_TSINPUTS  3
+#define TIP_TRIGGER_TSREV2    4
+#define TIP_TRIGGER_RANDOM    5
+#define TIP_TRIGGER_PULSER    5
+#define TIP_TRIGGER_PART_1    6
+#define TIP_TRIGGER_PART_2    7
+#define TIP_TRIGGER_PART_3    8
+#define TIP_TRIGGER_PART_4    9
+#define TIP_TRIGGER_HFBR5    10
+#define TIP_TRIGGER_TRIG21   11
 
 /* Define default Interrupt vector and level */
-#define TI_INT_VEC      0xec
-/* #define TI_INT_VEC      0xc8 */
-#define TI_INT_LEVEL    5
+#define TIP_INT_VEC      0xec
+/* #define TIP_INT_VEC      0xc8 */
+#define TIP_INT_LEVEL    5
 
 /* i2c data masks - 16bit data default */
-#define TI_I2C_DATA_MASK             0x0000ffff
-#define TI_I2C_8BIT_DATA_MASK        0x000000ff
+#define TIP_I2C_DATA_MASK             0x0000ffff
+#define TIP_I2C_8BIT_DATA_MASK        0x000000ff
 
 /* Data buffer bits and masks */
-#define TI_DATA_TYPE_DEFINE_MASK           0x80000000
-#define TI_WORD_TYPE_MASK                  0x78000000
-#define TI_FILLER_WORD_TYPE                0x78000000
-#define TI_BLOCK_HEADER_WORD_TYPE          0x00000000
-#define TI_BLOCK_TRAILER_WORD_TYPE         0x08000000
-#define TI_EMPTY_FIFO                      0xF0BAD0F0
-#define TI_BLOCK_HEADER_CRATEID_MASK       0xFF000000
-#define TI_BLOCK_HEADER_SLOTS_MASK         0x001F0000
-#define TI_BLOCK_TRAILER_CRATEID_MASK      0x00FF0000
-#define TI_BLOCK_TRAILER_SLOTS_MASK        0x1F000000
-#define TI_DATA_BLKNUM_MASK                0x0000FF00
-#define TI_DATA_BLKLEVEL_MASK              0x000000FF
+#define TIP_DATA_TYPE_DEFINE_MASK           0x80000000
+#define TIP_WORD_TYPE_MASK                  0x78000000
+#define TIP_FILLER_WORD_TYPE                0x78000000
+#define TIP_BLOCK_HEADER_WORD_TYPE          0x00000000
+#define TIP_BLOCK_TRAILER_WORD_TYPE         0x08000000
+#define TIP_EMPTY_FIFO                      0xF0BAD0F0
+#define TIP_BLOCK_HEADER_CRATEID_MASK       0xFF000000
+#define TIP_BLOCK_HEADER_SLOTS_MASK         0x001F0000
+#define TIP_BLOCK_TRAILER_CRATEID_MASK      0x00FF0000
+#define TIP_BLOCK_TRAILER_SLOTS_MASK        0x1F000000
+#define TIP_DATA_BLKNUM_MASK                0x0000FF00
+#define TIP_DATA_BLKLEVEL_MASK              0x000000FF
 
 /* tiInit initialization flag bits */
-#define TI_INIT_NO_INIT                 (1<<0)
-#define TI_INIT_SLAVE_FIBER_5           (1<<1)
-#define TI_INIT_SKIP_FIRMWARE_CHECK     (1<<2)
+#define TIP_INIT_NO_INIT                 (1<<0)
+#define TIP_INIT_SKIP_FIRMWARE_CHECK     (1<<1)
 
 /* Some pre-initialization routine prototypes */
 int  tiSetFiberLatencyOffset_preInit(int flo);
 int  tiSetCrateID_prIinit(int cid);
 
 /* Function prototypes */
-int  tiInit(unsigned int mode, int force);
+int  tipInit(unsigned int mode, int force);
 
 #ifdef NOTDONEYET
 int  tiCheckAddresses();
@@ -574,7 +573,9 @@ int  tiReload();
 unsigned int tiGetSerialNumber(char **rSN);
 int  tiClockResync();
 int  tiReset();
-int  tiSetCrateID(unsigned int crateID);
+#endif /* NOTDONEYET */
+int  tipSetCrateID(unsigned int crateID);
+#ifdef NOTDONEYET
 int  tiGetCrateID(int port);
 int  tiGetPortTrigSrcEnabled(int port);
 int  tiGetSlaveBlocklevel(int port);
@@ -587,7 +588,9 @@ int  tiGetInstantBlockLevelChange();
 int  tiSetTriggerSource(int trig);
 int  tiSetTriggerSourceMask(int trigmask);
 int  tiEnableTriggerSource();
-int  tiDisableTriggerSource(int fflag);
+#endif /* NOTDONEYET */
+int  tipDisableTriggerSource(int fflag);
+#ifdef NOTDONEYET
 int  tiSetSyncSource(unsigned int sync);
 int  tiSetEventFormat(int format);
 int  tiSoftTrig(int trigger, unsigned int nevents, unsigned int period_inc, int range);
@@ -682,7 +685,9 @@ int  tiForceSyncEvent();
 int  tiSyncResetRequest();
 int  tiGetSyncResetRequest();
 void tiTriggerReadyReset();
-int  tiFillToEndBlock();
+#endif /* NOTDONEYET */
+int  tipFillToEndBlock();
+#ifdef NOTDONEYET
 int  tiResetMGT();
 int  tiSetTSInputDelay(int chan, int delay);
 int  tiGetTSInputDelay(int chan);
@@ -717,6 +722,11 @@ int  tiGetRocEnableMask();
 
 unsigned int tipRead(volatile unsigned int *reg);
 int  tipWrite(volatile unsigned int *reg, unsigned int value);
+unsigned int tipJTAGRead(unsigned int *reg);
+int  tipJTAGWrite(unsigned int *reg, unsigned int value);
 int  tipReadBlock(int bar, unsigned int *reg, unsigned int *value, int nreg);
 int  tipWriteBlock(int bar, unsigned int *reg, unsigned int *value, int nreg);
+int  tipOpen();
+int  tipClose();
 #endif /* TILIB_H */
+

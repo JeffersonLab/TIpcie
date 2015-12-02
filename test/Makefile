@@ -14,10 +14,10 @@ CROSS_COMPILE		=
 CC			= $(CROSS_COMPILE)gcc
 AR                      = ar
 RANLIB                  = ranlib
-CFLAGS			= -Wall -g -I. -I/usr/include \
-			  -L.
+CFLAGS			= -Wall -g -I. -I../ -I/usr/include \
+			  -L. -L../
 
-PROGS			= pti_test pti_dma_test
+PROGS			= tipLibTest pti_test pti_dma_test
 
 all: $(PROGS)
 
@@ -30,6 +30,6 @@ pti_dma_test: pti_test.c
 
 %: %.c
 	echo "Making $@"
-	$(CC) $(CFLAGS) -o $@ $(@:%=%.c) -lrt
+	$(CC) $(CFLAGS) -o $@ $(@:%=%.c) -lrt -lTIpcie
 
 .PHONY: all clean distclean

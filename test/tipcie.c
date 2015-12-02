@@ -391,6 +391,7 @@ main(int argc, char *argv[])
   //  ptiWrite(0, 0x8c, 0xfff1000); // trigger 0x1000 events in higher speed
   //  ptiWrite(0,0x88, 0x80); // fast random trigger
 
+  FPGAusercode();
   //  change the wait to a usleep
   printf("Press <Enter> to Print\n");
   getchar();
