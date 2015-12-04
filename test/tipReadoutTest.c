@@ -16,13 +16,9 @@
 #include "TIpcieLib.h"
 /* #include "remexLib.h" */
 
-/* DMA_MEM_ID vmeIN,vmeOUT; */
-/* extern DMANODE *the_event; */
-/* extern unsigned int *dma_dabufp; */
-
 #define BLOCKLEVEL 1
 
-/* #define DO_READOUT */
+#define DO_READOUT
 
 /* Interrupt Service routine */
 void
@@ -30,15 +26,14 @@ mytiISR(int arg)
 {
   volatile unsigned short reg;
   int dCnt, len=0,idata;
-  /* DMANODE *outEvent; */
   int tibready=0, timeout=0;
   int printout = 1;
   int dataCheck=0;
+  volatile unsigned int data[120];
 
   unsigned int tiIntCount = tipGetIntCount();
 
 #ifdef DO_READOUT
-  GETEVENT(vmeIN,tiIntCount);
 
 #ifdef DOINT
   tibready = tipBReady();
@@ -60,9 +55,8 @@ mytiISR(int arg)
       return;
     }
 #endif
-  /* *dma_dabufp++; */
 
-/*   dCnt = tiReadBlock(dma_dabufp,3*BLOCKLEVEL+10,1); */
+  dCnt = tipReadBlock((volatile unsigned int *)&data,3*BLOCKLEVEL+10,0);
   /* dCnt = tiReadTriggerBlock(dma_dabufp); */
 
   if(dCnt<=0)
@@ -72,14 +66,12 @@ mytiISR(int arg)
     }
   else
     {
-      dataCheck = tiCheckTriggerBlock(dma_dabufp);
-      dma_dabufp += dCnt;
-      /*       printf("dCnt = %d\n",dCnt); */
+      /* dataCheck = tiCheckTriggerBlock(dma_dabufp); */
+      /* dma_dabufp += dCnt; */
+      printf("dCnt = %d\n",dCnt);
     
     }
-  PUTEVENT(vmeOUT);
 
-  outEvent = dmaPGetItem(vmeOUT);
 #define READOUT
 #ifdef READOUT
   if(tiIntCount%printout==0)
@@ -87,41 +79,29 @@ mytiISR(int arg)
       printf("Received %d triggers...\n",
 	     tiIntCount);
 
-      len = outEvent->length;
+      len = dCnt;
       
       for(idata=0;idata<len;idata++)
 	{
 	  if((idata%5)==0) printf("\n\t");
-	  printf("  0x%08x ",(unsigned int)LSWAP(outEvent->data[idata]));
+	  printf("  0x%08x ",(unsigned int)(data[idata]));
 	}
       printf("\n\n");
     }
 #endif
-  dmaPFreeItem(outEvent);
+
 #else /* DO_READOUT */
-  /*   tiResetBlockReadout(); */
 
 #endif /* DO_READOUT */
   if(tiIntCount%printout==0)
     printf("intCount = %d\n",tiIntCount );
-/*     sleep(1); */
-
-/*   static int bl = BLOCKLEVEL; */
-/*   if(tiGetSyncEventFlag())                                                       */
-/*     {                                                                            */
-/* /\*       tiSetBlockLevel(bl++);                                               *\/ */
-/*       printf("SE: Curr BL = %d\n",tiGetCurrentBlockLevel());                     */
-/*       printf("SE: Next BL = %d\n",tiGetNextBlockLevel());                        */
-/*     }                                                                            */
 
   if(dataCheck!=OK)
     {
       tipSetBlockLimit(1);
     }
 
-  tipResetBlockReadout();
-
-  if(tiIntCount>100)
+  if(tiIntCount>10)
     getchar();
 
 }
@@ -191,7 +171,7 @@ main(int argc, char *argv[])
 
   tipSetBusySource(TIP_BUSY_LOOPBACK,1);
 
-  tipSetBlockBufferLevel(1);
+  tipSetBlockBufferLevel(2);
 
 /*   tiSetFiberDelay(1,2); */
 /*   tiSetSyncDelayWidth(1,0x3f,1); */

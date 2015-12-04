@@ -348,7 +348,6 @@ int main(int argc, char *argv[])
   PROMusercode();
 
 
-  /*
   // load the PROM
   if (argc == 3) 
     { BoardNumb = strtol(argv[2], NULL, 10);  // get the board number for PROMload
@@ -421,7 +420,6 @@ int main(int argc, char *argv[])
   // close the data file
   fclose(fdata);
 
-  */
 
   // close the TIpciexpress
   close(fd);

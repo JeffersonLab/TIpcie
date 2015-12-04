@@ -36,6 +36,13 @@ typedef int             (*FUNCPTR) ();
 #endif
 typedef char            BOOL;
 
+#ifndef LSWAP
+#define LSWAP(x)        ((((x) & 0x000000ff) << 24) | \
+                         (((x) & 0x0000ff00) <<  8) | \
+                         (((x) & 0x00ff0000) >>  8) | \
+                         (((x) & 0xff000000) >> 24))
+#endif
+
 #include <pthread.h>
 
 pthread_mutex_t tiISR_mutex=PTHREAD_MUTEX_INITIALIZER;
@@ -142,8 +149,8 @@ struct TIPCIE_RegStruct
 #define TIP_READOUT_TS_POLL    3
 
 /* Supported firmware version */
-#define TIP_SUPPORTED_FIRMWARE 0x023
-#define TIP_SUPPORTED_TYPE     3
+#define TIP_SUPPORTED_FIRMWARE 0x022
+#define TIP_SUPPORTED_TYPE     2
 
 /* Firmware Masks */
 #define TIP_FIRMWARE_ID_MASK              0xFFFF0000
@@ -595,7 +602,7 @@ int  tipSetEventFormat(int format);
 int  tipSoftTrig(int trigger, unsigned int nevents, unsigned int period_inc, int range);
 int  tipSetRandomTrigger(int trigger, int setting);
 int  tipDisableRandomTrigger();
-/* int  tipReadBlock(volatile unsigned int *data, int nwrds, int rflag); */
+int  tipReadBlock(volatile unsigned int *data, int nwrds, int rflag);
 int  tipReadTriggerBlock(volatile unsigned int *data);
 int  tipCheckTriggerBlock(volatile unsigned int *data);
 int  tipEnableFiber(unsigned int fiber);
@@ -700,9 +707,10 @@ int  tipGetRocEnableMask();
 
 unsigned int tipRead(volatile unsigned int *reg);
 int  tipWrite(volatile unsigned int *reg, unsigned int value);
-unsigned int tipJTAGRead(unsigned int *reg);
-int  tipJTAGWrite(unsigned int *reg, unsigned int value);
-int  tipReadBlock(int bar, unsigned int *reg, unsigned int *value, int nreg);
+unsigned int tipJTAGRead(unsigned int reg);
+int  tipJTAGWrite(unsigned int reg, unsigned int value);
+unsigned int tipDataRead(unsigned int reg);
+int  tipReadBlock2(int bar, unsigned int *reg, unsigned int *value, int nreg);
 int  tipWriteBlock(int bar, unsigned int *reg, unsigned int *value, int nreg);
 int  tipOpen();
 int  tipClose();

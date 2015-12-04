@@ -86,6 +86,8 @@ pthread_mutex_t   tipcieMutex = PTHREAD_MUTEX_INITIALIZER;
 
 /* Global Variables */
 volatile struct TIPCIE_RegStruct  *TIPp=NULL;    /* pointer to TI memory map */
+volatile unsigned int *TIPpd=NULL;             /* pointer to TI DMA memory */
+static unsigned long tipDmaAddrBase=0;
 int tipMaster=1;                               /* Whether or not this TIP is the Master */
 int tipCrateID=0x59;                           /* Crate ID */
 int tipBlockLevel=0;                           /* Current Block level for TIP */
@@ -115,7 +117,7 @@ static int          tipSyncResetType=TIP_SYNCCOMMAND_SYNCRESET_4US;  /* Set defa
 static int          tipVersion     = 0x0;     /* Firmware version */
 int                 tipFiberLatencyOffset = 0xbf; /* Default offset for fiber latency */
 static int tipFD;
-
+static DMA_MAP_INFO tipMapInfo;
 
 static unsigned int tipTrigPatternData[16]=   /* Default Trigger Table to be loaded */
   { /* TS#1,2,3,4,5,6 generates Trigger1 (physics trigger),
@@ -252,9 +254,13 @@ tipInit(unsigned int mode, int iFlag)
   /* Open up file descriptor if not yet opened */
 
   /* Set Up pointer */
-  TIPp = (struct TIPCIE_RegStruct *)0;
+  TIPp  = (struct TIPCIE_RegStruct *)0;
+  TIPpd = (volatile unsigned int*) tipMapInfo.map_addr;
 
-  tipSetCrateID(0x11);
+  
+  tipWrite(0x54, 0x21000000);  // set up the DMA, 32-bit, 256 byte packet, 1 MB, 
+  tipWrite(0x58, tipDmaAddrBase);  // load the DMA starting address
+
   /* Check if TI board is readable */
   /* Read the boardID reg */
   rval = tipRead(&TIPp->boardID);
@@ -1150,6 +1156,7 @@ tipGetFirmwareVersion()
       return ERROR;
     }
 
+#define BROKEN
 #ifdef BROKEN 
   TIPLOCK;
   /* reset the VME_to_JTAG engine logic */
@@ -1236,10 +1243,10 @@ tipGetSerialNumber(char **rSN)
 
   TIPLOCK;
   tipWrite(&TIPp->reset,TIP_RESET_JTAG);           /* reset */
-  tipJTAGWrite((unsigned int*)0x83c,0);     /* Reset_idle */
-  tipJTAGWrite((unsigned int*)0xbec,0xFD); /* load the UserCode Enable */
-  tipJTAGWrite((unsigned int*)0xfdc,0);   /* shift in 32-bit of data */
-  rval = tipJTAGRead((unsigned int*)0x800);
+  tipJTAGWrite(0x83c,0);     /* Reset_idle */
+  tipJTAGWrite(0xbec,0xFD); /* load the UserCode Enable */
+  tipJTAGWrite(0xfdc,0);   /* shift in 32-bit of data */
+  rval = tipJTAGRead(0x800);
   TIPUNLOCK;
 
   if(rSN!=NULL)
@@ -2142,8 +2149,6 @@ tipDisableRandomTrigger()
   return OK;
 }
 
-#ifdef NOTDONEYET
-
 /**
  * @ingroup Readout
  * @brief Read a block of events from the TI
@@ -2159,7 +2164,7 @@ tipDisableRandomTrigger()
  *
  */
 int
-tiReadBlock(volatile unsigned int *data, int nwrds, int rflag)
+tipReadBlock(volatile unsigned int *data, int nwrds, int rflag)
 {
   int ii, dummy=0;
   int dCnt, retVal, xferCount;
@@ -2168,33 +2173,19 @@ tiReadBlock(volatile unsigned int *data, int nwrds, int rflag)
 
   if(tipFD<=0)
     {
-      printf("\ntiReadBlock: ERROR: TI not initialized\n",1,2,3,4,5,6);
-      return ERROR;
-    }
-
-  if(TIPpd==NULL)
-    {
-      printf("\ntiReadBlock: ERROR: TI A32 not initialized\n",1,2,3,4,5,6);
+      printf("\n%s: ERROR: TI not initialized\n",__FUNCTION__);
       return ERROR;
     }
 
   if(data==NULL) 
     {
-      printf("\ntiReadBlock: ERROR: Invalid Destination address\n",0,0,0,0,0,0);
+      printf("\n%s: ERROR: Invalid Destination address\n",__FUNCTION__);
       return(ERROR);
     }
 
   TIPLOCK;
   if(rflag >= 1)
     { /* Block transfer */
-      if(tiBusError==0)
-	{
-	  printf("tiReadBlock: WARN: Bus Error Block Termination was disabled.  Re-enabling\n",
-		 1,2,3,4,5,6);
-	  TIPUNLOCK;
-	  tiEnableBusError();
-	  TIPLOCK;
-	}
       /* Assume that the DMA programming is already setup. 
 	 Don't Bother checking if there is valid data - that should be done prior
 	 to calling the read routine */
@@ -2202,11 +2193,7 @@ tiReadBlock(volatile unsigned int *data, int nwrds, int rflag)
       /* Check for 8 byte boundary for address - insert dummy word (Slot 0 FADC Dummy DATA)*/
       if((unsigned long) (data)&0x7)
 	{
-#ifdef VXWORKS
-	  *data = (TIP_DATA_TYPE_DEFINE_MASK) | (TIP_FILLER_WORD_TYPE) | (tiSlotNumber<<22);
-#else
-	  *data = LSWAP((TIP_DATA_TYPE_DEFINE_MASK) | (TIP_FILLER_WORD_TYPE) | (tiSlotNumber<<22));
-#endif
+	  *data = LSWAP((TIP_DATA_TYPE_DEFINE_MASK) | (TIP_FILLER_WORD_TYPE) );
 	  dummy = 1;
 	  laddr = (data + 1);
 	} 
@@ -2215,115 +2202,89 @@ tiReadBlock(volatile unsigned int *data, int nwrds, int rflag)
 	  dummy = 0;
 	  laddr = data;
 	}
-      
+
+#ifdef BLOCKTRANSFER      
       vmeAdr = (unsigned long)TIPpd - tiA32Offset;
 
-#ifdef VXWORKS
-      retVal = sysVmeDmaSend((UINT32)laddr, vmeAdr, (nwrds<<2), 0);
-#else
       retVal = vmeDmaSend((unsigned long)laddr, vmeAdr, (nwrds<<2));
-#endif
       if(retVal != 0) 
 	{
-	  printf("\ntiReadBlock: ERROR in DMA transfer Initialization 0x%x\n",retVal,0,0,0,0,0);
+	  printf("\n%s: ERROR in DMA transfer Initialization 0x%x\n",
+		 __FUNCTION__,retVal);
 	  TIPUNLOCK;
 	  return(retVal);
 	}
 
       /* Wait until Done or Error */
-#ifdef VXWORKS
-      retVal = sysVmeDmaDone(10000,1);
-#else
       retVal = vmeDmaDone();
-#endif
 
       if(retVal > 0)
 	{
-#ifdef VXWORKS
-	  xferCount = (nwrds - (retVal>>2) + dummy); /* Number of longwords transfered */
-#else
 	  xferCount = ((retVal>>2) + dummy); /* Number of longwords transfered */
-#endif
 	  TIPUNLOCK;
 	  return(xferCount);
 	}
       else if (retVal == 0) 
 	{
-#ifdef VXWORKS
-	  printf("\ntiReadBlock: WARN: DMA transfer terminated by word count 0x%x\n",
-		 nwrds,0,0,0,0,0);
-#else
-	  printf("\ntiReadBlock: WARN: DMA transfer returned zero word count 0x%x\n",
-		 nwrds,0,0,0,0,0,0);
-#endif
+	  printf("\n%s: WARN: DMA transfer returned zero word count 0x%x\n",
+		 __FUNCTION__,nwrds);
 	  TIPUNLOCK;
 	  return(nwrds);
 	}
       else 
 	{  /* Error in DMA */
-#ifdef VXWORKS
-	  printf("\ntiReadBlock: ERROR: sysVmeDmaDone returned an Error\n",
-		 0,0,0,0,0,0);
-#else
-	  printf("\ntiReadBlock: ERROR: vmeDmaDone returned an Error\n",
-		 0,0,0,0,0,0);
-#endif
+	  printf("\n%s: ERROR: vmeDmaDone returned an Error\n",
+		 __FUNCTION__);
 	  TIPUNLOCK;
 	  return(retVal>>2);
 	  
 	}
+#else /* BLOCKTRANSFER */
+      printf("\n%s: ERROR: Block transfer not yet supported\n",__FUNCTION__);
+      TIPUNLOCK;
+      return ERROR;
+#endif /* BLOCKTRANSFER */
     }
   else
     { /* Programmed IO */
-      if(tiBusError==1)
-	{
-	  printf("tiReadBlock: WARN: Bus Error Block Termination was enabled.  Disabling\n",
-		 1,2,3,4,5,6);
-	  TIPUNLOCK;
-	  tiDisableBusError();
-	  TIPLOCK;
-	}
-
       dCnt = 0;
       ii=0;
 
+      printf("%s: TIPpd = 0x%lx \n",__FUNCTION__,TIPpd);
       while(ii<nwrds) 
 	{
-	  val = (unsigned int) *TIPpd;
-#ifndef VXWORKS
-	  val = LSWAP(val);
-#endif
+	  val = *TIPpd++;
+
 	  if(val == (TIP_DATA_TYPE_DEFINE_MASK | TIP_BLOCK_TRAILER_WORD_TYPE 
-		     | (tiSlotNumber<<22) | (ii+1)) )
+		     | (ii)) )
 	    {
-#ifndef VXWORKS
-	      val = LSWAP(val);
-#endif
 	      data[ii] = val;
-	      if(((ii+1)%2)!=0)
-		{
-		  /* Read out an extra word (filler) in the fifo */
-		  val = (unsigned int) *TIPpd;
-#ifndef VXWORKS
-		  val = LSWAP(val);
+#ifdef READOUTFILLER
+	      if(((ii)%2)!=0)
+	      	{
+	      	  /* Read out an extra word (filler) in the fifo */
+	      	  val = *TIPpd++;
+	      	  if(((val & TIP_DATA_TYPE_DEFINE_MASK) != TIP_DATA_TYPE_DEFINE_MASK) ||
+	      	     ((val & TIP_WORD_TYPE_MASK) != TIP_FILLER_WORD_TYPE))
+	      	    {
+	      	      printf("\n%s: ERROR: Unexpected word after block trailer (0x%08x)\n",
+	      		     __FUNCTION__,val);
+	      	    }
+	      	}
 #endif
-		  if(((val & TIP_DATA_TYPE_DEFINE_MASK) != TIP_DATA_TYPE_DEFINE_MASK) ||
-		     ((val & TIP_WORD_TYPE_MASK) != TIP_FILLER_WORD_TYPE))
-		    {
-		      printf("\ntiReadBlock: ERROR: Unexpected word after block trailer (0x%08x)\n",
-			     val,2,3,4,5,6);
-		    }
-		}
 	      break;
 	    }
-#ifndef VXWORKS
-	  val = LSWAP(val);
-#endif
 	  data[ii] = val;
 	  ii++;
 	}
       ii++;
       dCnt += ii;
+
+      int blocksize = 0x1000;
+      static int bump = 0;
+      TIPpd = tipMapInfo.map_addr + blocksize*(++bump);
+      printf("%s: TIPpd = 0x%lx  bump = 0x%x (%d)\n",__FUNCTION__,TIPpd,
+	     bump,bump);
 
       TIPUNLOCK;
       return(dCnt);
@@ -2334,6 +2295,7 @@ tiReadBlock(volatile unsigned int *data, int nwrds, int rflag)
   return OK;
 }
 
+#ifdef NOTDONEYET
 /**
  * @ingroup Readout
  * @brief Read a block from the TI and form it into a CODA Trigger Bank
@@ -2487,6 +2449,7 @@ tiReadTriggerBlock(volatile unsigned int *data)
   return rval;
 
 }
+#endif /* NOTDONEYET */
 
 int
 tiCheckTriggerBlock(volatile unsigned int *data)
@@ -2607,7 +2570,6 @@ tiCheckTriggerBlock(volatile unsigned int *data)
   printf("--------------------------------------------------------------------------------\n");
   return rval;
 }
-#endif /* NOTDONEYET */
 
 /**
  * @ingroup Config
@@ -6423,7 +6385,7 @@ tipWrite(volatile unsigned int *reg, unsigned int value)
 }
 
 unsigned int
-tipJTAGRead(unsigned int *reg)
+tipJTAGRead(unsigned int reg)
 {
   unsigned int value=0;
   int stat=0;
@@ -6446,7 +6408,7 @@ tipJTAGRead(unsigned int *reg)
 }
 
 int
-tipJTAGWrite(unsigned int *reg, unsigned int value)
+tipJTAGWrite(unsigned int reg, unsigned int value)
 {
   int stat=0;
   PCI_IOCTL_INFO info =
@@ -6463,9 +6425,32 @@ tipJTAGWrite(unsigned int *reg, unsigned int value)
   return stat;
 }
 
+unsigned int
+tipDataRead(unsigned int reg)
+{
+  unsigned int value=0;
+  int stat=0;
+
+  PCI_IOCTL_INFO info =
+    {
+      .command_type = PCI_SKEL_READ,
+      .mem_region   = 2,
+      .nreg         = 1,
+      .reg          = (volatile unsigned int *)&reg,
+      .value        = &value
+    };
+
+  stat = tipRW(info);
+
+  if(stat!=OK)
+    return ERROR;
+
+  return value;
+}
+
 
 int
-tipReadBlock(int bar, unsigned int *reg, unsigned int *value, int nreg)
+tipReadBlock2(int bar, unsigned int *reg, unsigned int *value, int nreg)
 {
   int stat=0;
   PCI_IOCTL_INFO info =
@@ -6503,6 +6488,9 @@ tipWriteBlock(int bar, unsigned int *reg, unsigned int *value, int nreg)
 int
 tipOpen()
 {
+  unsigned int size=0x100000;
+  unsigned long phys_addr=0;
+
   if(tipFD>0)
     {
       printf("%s: ERROR: TIpcie already opened.\n",
@@ -6518,6 +6506,13 @@ tipOpen()
       return ERROR;
     }
 
+  tipMapInfo = tipAllocDmaMemory(size, &phys_addr);
+  printf("      dmaHdl = 0x%lx\n", tipMapInfo.dmaHdl);
+  printf("   phys_addr = 0x%lx\n", phys_addr);
+  printf("    map_addr = 0x%lx\n", tipMapInfo.map_addr);
+
+  tipDmaAddrBase = phys_addr;
+
   return OK;
 }
 
@@ -6530,6 +6525,8 @@ tipClose()
 	     __FUNCTION__);
       return ERROR;
     }
+
+  tipFreeDmaMemory(tipMapInfo);
   
   close(tipFD);
   return OK;
