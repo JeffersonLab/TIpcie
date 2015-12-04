@@ -65,7 +65,7 @@ struct TIPCIE_RegStruct
   /** 0x00004 */ volatile unsigned int fiber;
   /** 0x00008 */ volatile unsigned int intsetup;
   /** 0x0000C */ volatile unsigned int trigDelay;
-  /** 0x00010 */ volatile unsigned int adr32;
+  /** 0x00010 */ volatile unsigned int __adr32;      // NOT HERE
   /** 0x00014 */ volatile unsigned int blocklevel;
   /** 0x00018 */ volatile unsigned int dataFormat;
   /** 0x0001C */ volatile unsigned int vmeControl;
@@ -82,9 +82,14 @@ struct TIPCIE_RegStruct
   /** 0x00048 */          unsigned int blank1;
   /** 0x0004C */ volatile unsigned int output;
   /** 0x00050 */ volatile unsigned int fiberSyncDelay;
-  /** 0x00054 */          unsigned int blank2[(0x64-0x54)/4];
+  /** 0x00054 */ volatile unsigned int dmaSetting;
+  /** 0x00058 */ volatile unsigned int dmaAddr;
+  /** 0x0005C */ volatile unsigned int pcieConfigLink;
+  /** 0x00060 */ volatile unsigned int pcieConfigStatus;
   /** 0x00064 */          unsigned int inputPrescale;
-  /** 0x00068 */          unsigned int blank3[(0x74-0x68)/4];
+  /** 0x00068 */          unsigned int blank3;
+  /** 0x0006C */ volatile unsigned int pcieConfig;
+  /** 0x00070 */ volatile unsigned int pcieDevConfig;
   /** 0x00074 */ volatile unsigned int pulserEvType;
   /** 0x00078 */ volatile unsigned int syncCommand;
   /** 0x0007C */ volatile unsigned int syncDelay;
@@ -97,7 +102,7 @@ struct TIPCIE_RegStruct
   /** 0x00098 */ volatile unsigned int syncHistory;
   /** 0x0009C */ volatile unsigned int runningMode;
   /** 0x000A0 */ volatile unsigned int fiberLatencyMeasurement;
-  /** 0x000A4 */ volatile unsigned int fiberAlignment;
+  /** 0x000A4 */ volatile unsigned int __fiberAlignment; // NOT HERE
   /** 0x000A8 */ volatile unsigned int livetime;
   /** 0x000AC */ volatile unsigned int busytime;
   /** 0x000B0 */ volatile unsigned int GTPStatusA;
@@ -105,7 +110,7 @@ struct TIPCIE_RegStruct
   /** 0x000B8 */ volatile unsigned int GTPtriggerBufferLength;
   /** 0x000BC */ volatile unsigned int inputCounter;
   /** 0x000C0 */ volatile unsigned int blockStatus[4];
-  /** 0x000D0 */ volatile unsigned int adr24;
+  /** 0x000D0 */ volatile unsigned int adr24; // CHANGE NAME
   /** 0x000D4 */ volatile unsigned int syncEventCtrl;
   /** 0x000D8 */ volatile unsigned int eventNumber_hi;
   /** 0x000DC */ volatile unsigned int eventNumber_lo;
@@ -116,27 +121,17 @@ struct TIPCIE_RegStruct
   /** 0x00100 */ volatile unsigned int reset;
   /** 0x00104 */ volatile unsigned int fpDelay[2];
   /** 0x0010C */          unsigned int blank6[(0x110-0x10C)/4];
-  /** 0x00110 */          unsigned int busy_scaler1[7];
+  /** 0x00110 */          unsigned int __busy_scaler1[7]; // NOT HERE
   /** 0x0012C */          unsigned int blank7[(0x138-0x12C)/4];
   /** 0x00138 */ volatile unsigned int triggerRuleMin;
   /** 0x0013C */          unsigned int blank8;
   /** 0x00140 */ volatile unsigned int trigTable[(0x180-0x140)/4];
   /** 0x00180 */ volatile unsigned int ts_scaler[6];
   /** 0x00198 */          unsigned int blank9;
-  /** 0x0019C */ volatile unsigned int busy_scaler2[9];
+  /** 0x0019C */ volatile unsigned int __busy_scaler2[9]; // NOT HERE
   /** 0x001C0 */          unsigned int blank10[(0x1D0-0x1C0)/4];
   /** 0x001D0 */ volatile unsigned int hfbr_tiID[8];
   /** 0x001F0 */ volatile unsigned int master_tiID;
-  /** 0x001F4 */          unsigned int blank11[(0x2000-0x1F4)/4];
-  /** 0x02000 */ volatile unsigned int SWB_status[(0x2200-0x2000)/4];
-  /** 0x02200 */          unsigned int blank12[(0x2800-0x2200)/4];
-  /** 0x02800 */ volatile unsigned int SWA_status[(0x3000-0x2800)/4];
-  /** 0x03000 */          unsigned int blank13[(0xFFFC-0x3000)/4];
-  /** 0x0FFFC */ volatile unsigned int eJTAGLoad;
-  /** 0x10000 */ volatile unsigned int JTAGPROMBase[(0x20000-0x10000)/4];
-  /** 0x20000 */ volatile unsigned int JTAGFPGABase[(0x30000-0x20000)/4];
-  /** 0x30000 */ volatile unsigned int SWA[(0x40000-0x30000)/4];
-  /** 0x40000 */ volatile unsigned int SWB[(0x50000-0x40000)/4];
 };
 
 /* Define TI Modes of operation:     Ext trigger - Interrupt mode   0
@@ -373,6 +368,15 @@ struct TIPCIE_RegStruct
 #define TIP_FIBERSYNCDELAY_HFBR1_SYNCDELAY_MASK    0x0000FF00
 #define TIP_FIBERSYNCDELAY_LOOPBACK_SYNCDELAY_MASK 0x00FF0000
 #define TIP_FIBERSYNCDELAY_HFBR5_SYNCDELAY_MASK    0xFF000000
+
+/* 0x54 dmaSetting bits and masks */
+#define TIP_DMASETTING_PHYS_ADDR_HI_MASK    0x0000FFFF
+#define TIP_DMASETTING_DMA_SIZE_MASK        0x03000000
+#define TIP_DMASETTING_MAX_PACKET_SIZE_MASK 0x70000000
+#define TIP_DMASETTING_ADDR_MODE_MASK       0x80000000
+
+/* 0x58 dmaAddr masks */
+#define TIP_DMAADDR_PHYS_ADDR_LO_MASK       0xFFFFFFFF
 
 /* 0x74 inputPrescale bits and masks */
 #define TIP_INPUTPRESCALE_FP1_MASK   0x0000000F
@@ -687,6 +691,11 @@ int  tipSetTSInputDelay(int chan, int delay);
 int  tipGetTSInputDelay(int chan);
 int  tiprintTSInputDelay();
 unsigned int tipGetGTPBufferLength(int pflag);
+int  tipGetConnectedFiberMask();
+int  tipGetTrigSrcEnabledFiberMask();
+int  tipDmaConfig(int packet_size, int adr_mode, int dma_size);
+int  tipDmaSetAddr(unsigned int phys_addr_lo, unsigned int phys_addr_hi);
+int  tipPCIEStatus(int pflag);
 
 /* Library Interrupt/Polling routine prototypes */
 int  tipIntConnect(unsigned int vector, VOIDFUNCPTR routine, unsigned int arg);

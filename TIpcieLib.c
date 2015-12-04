@@ -235,10 +235,8 @@ tipSetCrateID_preInit(int cid)
 int
 tipInit(unsigned int mode, int iFlag)
 {
-  unsigned long laddr=0;
-  unsigned int rval, boardID, prodID, i2cread=0;
+  unsigned int rval, prodID;
   unsigned int firmwareInfo;
-  int stat;
   int noBoardInit=0, noFirmwareCheck=0;
   
 
@@ -258,15 +256,13 @@ tipInit(unsigned int mode, int iFlag)
   TIPpd = (volatile unsigned int*) tipMapInfo.map_addr;
 
   
-  tipWrite(0x54, 0x21000000);  // set up the DMA, 32-bit, 256 byte packet, 1 MB, 
-  tipWrite(0x58, tipDmaAddrBase);  // load the DMA starting address
+  // FIXME Put this somewhere else.
+  tipDmaConfig(1, 0, 2); /* set up the DMA, 1MB, 32-bit, 256 byte packet */
+  tipDmaSetAddr(tipDmaAddrBase,0);
 
   /* Check if TI board is readable */
   /* Read the boardID reg */
   rval = tipRead(&TIPp->boardID);
-
-  printf("%s: rval = 0x%08x\n",
-	 __FUNCTION__,rval);
 
   if (rval == ERROR) 
     {
@@ -522,42 +518,6 @@ tipCheckAddresses()
     printf("%s: ERROR TIPp->reset not at offset = 0x%lx (@ 0x%lx)\n",
 	   __FUNCTION__,expected,offset);
     
-  offset = ((unsigned long) &TIPp->SWB_status) - base;
-  expected = 0x2000;
-  if(offset != expected)
-    printf("%s: ERROR TIPp->SWB_status not at offset = 0x%lx (@ 0x%lx)\n",
-	   __FUNCTION__,expected,offset);
-    
-  offset = ((unsigned long) &TIPp->SWA_status) - base;
-  expected = 0x2800;
-  if(offset != expected)
-    printf("%s: ERROR TIPp->SWA_status not at offset = 0x%lx (@ 0x%lx)\n",
-	   __FUNCTION__,expected,offset);
-    
-  offset = ((unsigned long) &TIPp->JTAGPROMBase[0]) - base;
-  expected = 0x10000;
-  if(offset != expected)
-    printf("%s: ERROR TIPp->JTAGPROMBase[0] not at offset = 0x%lx (@ 0x%lx)\n",
-	   __FUNCTION__,expected,offset);
-    
-  offset = ((unsigned long) &TIPp->JTAGFPGABase[0]) - base;
-  expected = 0x20000;
-  if(offset != expected)
-    printf("%s: ERROR TIPp->JTAGFPGABase[0] not at offset = 0x%lx (@ 0x%lx)\n",
-	   __FUNCTION__,expected,offset);
-    
-  offset = ((unsigned long) &TIPp->SWA) - base;
-  expected = 0x30000;
-  if(offset != expected)
-    printf("%s: ERROR TIPp->SWA not at offset = 0x%lx (@ 0x%lx)\n",
-	   __FUNCTION__,expected,offset);
-    
-  offset = ((unsigned long) &TIPp->SWB) - base;
-  expected = 0x40000;
-  if(offset != expected)
-    printf("%s: ERROR TIPp->SWB not at offset = 0x%lx (@ 0x%lx)\n",
-	   __FUNCTION__,expected,offset);
-
   return OK;
 }
 
@@ -595,7 +555,6 @@ tipStatus(int pflag)
   ro.fiber        = tipRead(&TIPp->fiber);
   ro.intsetup     = tipRead(&TIPp->intsetup);
   ro.trigDelay    = tipRead(&TIPp->trigDelay);
-  ro.adr32        = tipRead(&TIPp->adr32);
   ro.blocklevel   = tipRead(&TIPp->blocklevel);
   ro.vmeControl   = tipRead(&TIPp->vmeControl);
   ro.trigsrc      = tipRead(&TIPp->trigsrc);
@@ -665,7 +624,6 @@ tipStatus(int pflag)
       printf("  fiber          (0x%04lx) = 0x%08x\n", (unsigned long)(&TIPp->fiber) - TIBase, ro.fiber);
       printf("  intsetup       (0x%04lx) = 0x%08x\t", (unsigned long)(&TIPp->intsetup) - TIBase, ro.intsetup);
       printf("  trigDelay      (0x%04lx) = 0x%08x\n", (unsigned long)(&TIPp->trigDelay) - TIBase, ro.trigDelay);
-      printf("  adr32          (0x%04lx) = 0x%08x\t", (unsigned long)(&TIPp->adr32) - TIBase, ro.adr32);
       printf("  blocklevel     (0x%04lx) = 0x%08x\n", (unsigned long)(&TIPp->blocklevel) - TIBase, ro.blocklevel);
       printf("  vmeControl     (0x%04lx) = 0x%08x\n", (unsigned long)(&TIPp->vmeControl) - TIBase, ro.vmeControl);
       printf("  trigger        (0x%04lx) = 0x%08x\t", (unsigned long)(&TIPp->trigsrc) - TIBase, ro.trigsrc);
@@ -883,11 +841,6 @@ tipStatus(int pflag)
   printf("   Level = %d   Vector = 0x%02x\n",
 	 (ro.intsetup&TIP_INTSETUP_LEVEL_MASK)>>8, (ro.intsetup&TIP_INTSETUP_VECTOR_MASK));
   
-  if(ro.vmeControl&TIP_VMECONTROL_BERR)
-    printf(" Bus Errors Enabled\n");
-  else
-    printf(" Bus Errors Disabled\n");
-
   printf(" Blocks ready for readout: %d\n",(ro.blockBuffer&TIP_BLOCKBUFFER_BLOCKS_READY_MASK)>>8);
   if(tipMaster)
     {
@@ -2167,9 +2120,9 @@ int
 tipReadBlock(volatile unsigned int *data, int nwrds, int rflag)
 {
   int ii, dummy=0;
-  int dCnt, retVal, xferCount;
+  int dCnt;
   volatile unsigned int *laddr;
-  unsigned int vmeAdr, val;
+  unsigned int val;
 
   if(tipFD<=0)
     {
@@ -2250,7 +2203,7 @@ tipReadBlock(volatile unsigned int *data, int nwrds, int rflag)
       dCnt = 0;
       ii=0;
 
-      printf("%s: TIPpd = 0x%lx \n",__FUNCTION__,TIPpd);
+      printf("%s: TIPpd = 0x%lx \n",__FUNCTION__,(long unsigned int)TIPpd);
       while(ii<nwrds) 
 	{
 	  val = *TIPpd++;
@@ -2282,8 +2235,8 @@ tipReadBlock(volatile unsigned int *data, int nwrds, int rflag)
 
       int blocksize = 0x1000;
       static int bump = 0;
-      TIPpd = tipMapInfo.map_addr + blocksize*(++bump);
-      printf("%s: TIPpd = 0x%lx  bump = 0x%x (%d)\n",__FUNCTION__,TIPpd,
+      TIPpd = (unsigned int *)(tipMapInfo.map_addr + (blocksize*(++bump)));
+      printf("%s: TIPpd = 0x%lx  bump = 0x%x (%d)\n",__FUNCTION__,(long unsigned int)TIPpd,
 	     bump,bump);
 
       TIPUNLOCK;
@@ -4084,6 +4037,7 @@ tipGetTriggerHoldoffMin(int rule, int pflag)
   return rval & ~(1<<8);
 }
 
+#ifdef NOTIMPLEMENTED
 /**
  *  @ingroup Config
  *  @brief Disable the necessity to readout the TI for every block.
@@ -4140,6 +4094,7 @@ tipEnableDataReadout()
 
   return OK;
 }
+#endif /* NOTIMPLEMENTED */
 
 /**
  *  @ingroup Readout
@@ -5649,6 +5604,165 @@ tipGetTrigSrcEnabledFiberMask()
   return rval;
 }
 
+/**
+ * @ingroup Config
+ * @brief Configure the Direct Memory Access (DMA) for the TI
+ *
+ * @param packet_size TLP Maximum Packet Size
+ *   1 - 128 B
+ *   2 - 256 B
+ *   4 - 512 B
+ *
+ * @param adr_mode TLP Address Mode
+ *   0 - 32bit/3 header mode
+ *   1 - 64bit/4 header mode
+ *
+ * @param dma_size DMA memory size to allocate
+ *   1 - 1 MB
+ *   2 - 2 MB
+ *   3 - 4 MB
+ *
+ * @return OK if successful, otherwise ERROR
+ */
+int
+tipDmaConfig(int packet_size, int adr_mode, int dma_size)
+{
+  if(tipFD<=0)
+    {
+      printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
+      return ERROR;
+    }
+
+  if( (packet_size!=1) && (packet_size!=2) && (packet_size!=4) )
+    {
+      printf("%s: ERROR: Invalid packet_size (%d)\n",
+	     __FUNCTION__,packet_size);
+      return ERROR;
+    }
+
+  TIPLOCK;
+  tipWrite(&TIPp->dmaSetting,
+	   (tipRead(&TIPp->dmaSetting) & TIP_DMASETTING_PHYS_ADDR_HI_MASK) |
+	   (packet_size<<24) | 
+	   (dma_size<<28) |
+	   (adr_mode<<31) );
+  TIPUNLOCK;
+
+  return OK;
+}
+
+/**
+ * @ingroup Config
+ * @brief Set the physical memory address for DMA
+ *
+ * @param phys_addr_lo Low 32 bits of memory address
+ *
+ * @param phys_addr_hi High 16 bits of memory address
+ *
+ * @return OK if successful, otherwise ERROR
+ */
+int
+tipDmaSetAddr(unsigned int phys_addr_lo, unsigned int phys_addr_hi)
+{
+  if(tipFD<=0)
+    {
+      printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
+      return ERROR;
+    }
+
+  TIPLOCK;
+  if(phys_addr_hi>0)
+    {
+      tipWrite(&TIPp->dmaSetting,
+	       (tipRead(&TIPp->dmaSetting) & ~TIP_DMASETTING_PHYS_ADDR_HI_MASK) |
+	       (phys_addr_hi & TIP_DMASETTING_PHYS_ADDR_HI_MASK));
+    }
+
+  tipWrite(&TIPp->dmaAddr, phys_addr_lo);
+  TIPUNLOCK;
+
+  return OK;
+}
+
+/**
+ * @ingroup Status
+ * @brief Show the PCIE status
+ *
+ * @param pflag Print Flag
+ *   !0 - Print out raw registers
+ *
+ * @return OK if successful, otherwise ERROR
+ */
+int
+tipPCIEStatus(int pflag)
+{
+  unsigned int dmaSetting, dmaAddr, 
+    pcieConfigLink, pcieConfigStatus, pcieConfig, pcieDevConfig;
+
+  if(tipFD<=0)
+    {
+      printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
+      return ERROR;
+    }
+
+  TIPLOCK;
+  dmaSetting       = tipRead(&TIPp->dmaSetting);
+  dmaAddr          = tipRead(&TIPp->dmaAddr);
+  pcieConfigLink   = tipRead(&TIPp->pcieConfigLink);
+  pcieConfigStatus = tipRead(&TIPp->pcieConfigStatus);
+  pcieConfig       = tipRead(&TIPp->pcieConfig);
+  pcieDevConfig    = tipRead(&TIPp->pcieDevConfig);
+  TIPUNLOCK;
+
+  printf("\n");
+  printf("PCIE STATUS for TIpcie\n");
+  printf("--------------------------------------------------------------------------------\n");
+  printf("\n");
+
+  if(pflag)
+    {
+      printf(" Registers (offset):\n");
+
+      printf(" dmaSetting       (0x%04lx) = 0x%08x ", 
+	     (unsigned long)&TIPp->dmaSetting, dmaSetting);
+      printf(" dmaAddr          (0x%04lx) = 0x%08x\n", 
+	     (unsigned long)&TIPp->dmaAddr, dmaAddr);
+
+      printf(" pcieConfigLink   (0x%04lx) = 0x%08x ", 
+	     (unsigned long)&TIPp->pcieConfigLink, pcieConfigLink);
+      printf(" pcieConfigStatus (0x%04lx) = 0x%08x\n", 
+	     (unsigned long)&TIPp->pcieConfigStatus, pcieConfigStatus);
+
+      printf(" pcieConfig       (0x%04lx) = 0x%08x ", 
+	     (unsigned long)&TIPp->pcieConfig, pcieConfig);
+      printf(" pcieDevConfig    (0x%04lx) = 0x%08x\n", 
+	     (unsigned long)&TIPp->pcieDevConfig, pcieDevConfig);
+      printf("\n");
+    }
+
+  printf("  Physical Memory Address = 0x%04x %08x \n",
+	 dmaSetting&TIP_DMASETTING_PHYS_ADDR_HI_MASK,
+	 dmaAddr);
+  printf("  DMA Size = %d MB\n",
+	 ((dmaSetting&TIP_DMASETTING_DMA_SIZE_MASK)>>24)==1?1:
+	 ((dmaSetting&TIP_DMASETTING_DMA_SIZE_MASK)>>24)==2?2:
+	 ((dmaSetting&TIP_DMASETTING_DMA_SIZE_MASK)>>24)==3?4:0);
+  printf("  TLP:  Address Mode = %s   Packet Size = %d\n",
+	 (dmaSetting&TIP_DMASETTING_ADDR_MODE_MASK)?
+	 "64 bit / 4 header":
+	 "32 bit / 3 header",
+	 ((dmaSetting&TIP_DMASETTING_MAX_PACKET_SIZE_MASK)>>28)==1?128:
+	 ((dmaSetting&TIP_DMASETTING_MAX_PACKET_SIZE_MASK)>>28)==2?256:
+	 ((dmaSetting&TIP_DMASETTING_MAX_PACKET_SIZE_MASK)>>28)==4?512:0);
+
+  printf("\n");
+  
+  printf("--------------------------------------------------------------------------------\n");
+  printf("\n\n");
+
+  return OK;
+}
+
 #ifdef NOTDONEYET
 
 /*************************************************************
@@ -6167,103 +6281,6 @@ tipGetAckCount()
   return(rval);
 }
 
-/**
- * @ingroup Status
- * @brief Return BUSY counter for specified Busy Source
- * @param busysrc
- *  - 0: SWA
- *  - 1: SWB
- *  - 2: P2
- *  - 3: FP-FTDC
- *  - 4: FP-FADC
- *  - 5: FP
- *  - 6: Unused
- *  - 7: Loopack
- *  - 8-15: Fiber 1-8
- * @return
- *   - Busy counter for specified busy source
- */
-unsigned int
-tipGetBusyCounter(int busysrc)
-{
-  unsigned int rval=0;
-  
-  if(tipFD <= 0) 
-    {
-      printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
-      return ERROR;
-    }
-  
-  TIPLOCK;
-  if(busysrc<7)
-    rval = tipRead(&TIPp->busy_scaler1[busysrc]);
-  else
-    rval = tipRead(&TIPp->busy_scaler2[busysrc-7]);
-  TIPUNLOCK;
-  
-  return rval;
-}
-
-/**
- * @ingroup Status
- * @brief Print the BUSY counters for all busy sources
- * @return
- *   - OK if successful, otherwise ERROR;
- */
-int
-tipPrintBusyCounters()
-{
-  unsigned int counter[16];
-  const char *scounter[16] =
-    {
-      "SWA    ",
-      "SWB    ",
-      "P2     ",
-      "FP-FTDC",
-      "FP-FADC",
-      "FP     ",
-      "Unused ",
-      "Loopack",
-      "Fiber 1",
-      "Fiber 2",
-      "Fiber 3",
-      "Fiber 4",
-      "Fiber 5",
-      "Fiber 6",
-      "Fiber 7",
-      "Fiber 8"
-    };
-  int icnt=0;
-
-  if(tipFD <= 0) 
-    {
-      printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
-      return ERROR;
-    }
-
-  TIPLOCK;
-  for(icnt=0; icnt<16; icnt++)
-    {
-      if(icnt<7)
-	counter[icnt] = tipRead(&TIPp->busy_scaler1[icnt]);
-      else
-	counter[icnt] = tipRead(&TIPp->busy_scaler2[icnt-7]);
-    }
-  TIPUNLOCK;
-
-  printf("\n\n");
-  printf(" Busy Counters \n");
-  printf("--------------------------------------------------------------------------------\n");
-  for(icnt=0; icnt<16; icnt++)
-    {
-      printf("%s   0x%08x (%10d)\n",
-	     scounter[icnt], counter[icnt], counter[icnt]);
-    }
-  printf("--------------------------------------------------------------------------------\n");
-  printf("\n\n");
-
-  return OK;
-}
 
 /* Module TI Routines */
 int

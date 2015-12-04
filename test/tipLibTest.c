@@ -25,6 +25,8 @@ main(int argc, char *argv[])
   tipInit(0,0);
   tipStatus(1);
 
+  tipPCIEStatus(1);
+
  CLOSE:
   tipClose();
 
