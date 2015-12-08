@@ -40,6 +40,9 @@ int vmeFreeDmaHandles(void);
 
 dmaHandle_t *dma_handle_list = NULL;
 
+unsigned int pci_bar0=0;
+unsigned int pci_bar1=0;
+unsigned int pci_bar2=0;
 char* pti_resaddr0=0;
 char* pti_resaddr1=0;
 char* pti_resaddr2=0;
@@ -150,6 +153,7 @@ mapInPTI(struct pci_dev *vme_pci_dev)
     }
 
   printk("  map PTI Mem0 to Kernel Space, physical_address: %0lx\n", (unsigned long)ba);
+  pci_bar0 = ba;
 
   pti_resaddr0 = (char *)ioremap_nocache(ba,PCI_SKEL_MEM0_SIZE);
 
@@ -169,6 +173,7 @@ mapInPTI(struct pci_dev *vme_pci_dev)
       return -1;
     }
 
+  pci_bar1 = ba;
   printk("  map PTI Mem1 to Kernel Space, physical_address: %0lx\n", (unsigned long)ba);
 
   pti_resaddr1 = (char *)ioremap_nocache(ba,PCI_SKEL_MEM1_SIZE);
@@ -191,6 +196,7 @@ mapInPTI(struct pci_dev *vme_pci_dev)
 
   printk("  map PTI Mem2 to Kernel Space, physical_address: %0lx\n", (unsigned long)ba);
 
+  pci_bar2 = ba;
   pti_resaddr2 = (char *)ioremap_nocache(ba,PCI_SKEL_MEM2_SIZE);
 
   if (!pti_resaddr2) {
@@ -455,6 +461,10 @@ pci_skel_procinfo(char *buf, char **start, off_t fpos, int lenght, int *eof, voi
   p = buf;
   p += sprintf(p,"  PCIexpress TI Driver\n");
 
+  p += sprintf(p,"  pci0 addr = %0lx\n",(unsigned long)pci_bar0);
+  p += sprintf(p,"  pci1 addr = %0lx\n",(unsigned long)pci_bar1);
+  p += sprintf(p,"  pci2 addr = %0lx\n",(unsigned long)pci_bar2);
+
   p += sprintf(p,"  mem0 addr = %0lx\n",(unsigned long)pti_resaddr0);
   p += sprintf(p,"  mem1 addr = %0lx\n",(unsigned long)pti_resaddr1);
   p += sprintf(p,"  mem2 addr = %0lx\n",(unsigned long)pti_resaddr2);
@@ -661,6 +671,12 @@ pci_skel_ioctl(struct inode *inode, struct file *filp,
 		}
 	      }
 
+	  }
+	else if(user_info.command_type==PCI_SKEL_RW_STAT)
+	  {
+	    values[0] = pci_bar0;
+	    values[1] = pci_bar1;
+	    values[2] = pci_bar2;
 	  }
 	else
 	  {

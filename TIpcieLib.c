@@ -44,10 +44,11 @@
 #define PCI_SKEL_IOC_MAGIC  'k'
 #define PCI_SKEL_IOC_RW         _IO(PCI_SKEL_IOC_MAGIC, 1)
 #define PCI_SKEL_IOC_MEM        _IO(PCI_SKEL_IOC_MAGIC, 2)
+#define PCI_SKEL_IOC_STAT       _IO(PCI_SKEL_IOC_MAGIC, 3)
 
 #define PCI_SKEL_WRITE 0
 #define PCI_SKEL_READ  1
-#define PCI_SKEL_DUMMY 2
+#define PCI_SKEL_STAT 2
 
 #define PCI_SKEL_MEM_ALLOC 0
 #define PCI_SKEL_MEM_FREE  1
@@ -87,8 +88,10 @@ pthread_mutex_t   tipcieMutex = PTHREAD_MUTEX_INITIALIZER;
 /* Global Variables */
 volatile struct TIPCIE_RegStruct  *TIPp=NULL;    /* pointer to TI memory map */
 volatile unsigned int *TIPpd=NULL;             /* pointer to TI DMA memory */
+volatile unsigned int *TIPpj=NULL;             /* pointer to TI JTAG memory */
 static unsigned long tipDmaAddrBase=0;
 static void          *tipMappedBase;
+static void          *tipJTAGMappedBase;
 
 int tipMaster=1;                               /* Whether or not this TIP is the Master */
 int tipCrateID=0x59;                           /* Crate ID */
@@ -135,7 +138,7 @@ static unsigned int tipTrigPatternData[16]=   /* Default Trigger Table to be loa
 static int  tipRW(PCI_IOCTL_INFO info);
 static DMA_MAP_INFO tipAllocDmaMemory(int size, unsigned long *phys_addr);
 static int  tipFreeDmaMemory(DMA_MAP_INFO mapInfo);
-
+static int  tipGetPciBar(unsigned int *regs);
 
 /* Interrupt/Polling routine prototypes (static) */
 #ifdef NOTDONEYET
@@ -6514,6 +6517,7 @@ unsigned int
 tipJTAGRead(unsigned int reg)
 {
   unsigned int value=0;
+#ifdef OLDWAY
   int stat=0;
 
   PCI_IOCTL_INFO info =
@@ -6529,7 +6533,9 @@ tipJTAGRead(unsigned int reg)
 
   if(stat!=OK)
     return ERROR;
-
+#else
+  value = *(TIPpj+reg);
+#endif
   return value;
 }
 
@@ -6537,6 +6543,7 @@ int
 tipJTAGWrite(unsigned int reg, unsigned int value)
 {
   int stat=0;
+#ifdef OLDWAY
   PCI_IOCTL_INFO info =
     {
       .command_type = PCI_SKEL_WRITE,
@@ -6547,7 +6554,9 @@ tipJTAGWrite(unsigned int reg, unsigned int value)
     };
 
   stat = tipRW(info);
-
+#else
+  *(TIPpj+reg) = value;
+#endif
   return stat;
 }
 
@@ -6614,9 +6623,10 @@ tipWriteBlock(int bar, unsigned int *reg, unsigned int *value, int nreg)
 int
 tipOpen()
 {
-  unsigned int size=0x100000;
+  unsigned int  size=0x100000;
   unsigned long phys_addr=0;
-  off_t          dev_base = 0xf7e01000;
+  off_t         dev_base;
+  unsigned int  bars[3]={0,0,0};
 
   if(tipFD>0)
     {
@@ -6640,6 +6650,13 @@ tipOpen()
 
   tipDmaAddrBase = phys_addr;
 
+  tipGetPciBar((unsigned int *)&bars);
+  int i=0;
+  for(i=0; i<3; i++)
+    printf("bar[%d] = 0x%08x\n",i,bars[i]);
+
+  dev_base = bars[0];
+
   tipMappedBase = mmap(0, sizeof(struct TIPCIE_RegStruct), 
 		     PROT_READ|PROT_WRITE, MAP_SHARED, tipFD, dev_base);
   if (tipMappedBase == MAP_FAILED)
@@ -6649,6 +6666,18 @@ tipOpen()
     }
   
   TIPp = (volatile struct TIPCIE_RegStruct *)tipMappedBase;
+
+  dev_base = bars[1];
+
+  tipJTAGMappedBase = mmap(0, 0x1000, 
+		     PROT_READ|PROT_WRITE, MAP_SHARED, tipFD, dev_base);
+  if (tipJTAGMappedBase == MAP_FAILED)
+    {
+      perror("mmap");
+      return ERROR;
+    }
+  
+  TIPpj = (volatile unsigned int *)tipJTAGMappedBase;
 
   return OK;
 }
@@ -6670,6 +6699,26 @@ tipClose()
   
   close(tipFD);
   return OK;
+}
+
+static int
+tipGetPciBar(unsigned int *value)
+{
+  int stat=0;
+  unsigned int reg[3]={0,0,0};
+  int nreg = 3;
+  PCI_IOCTL_INFO info =
+    {
+      .command_type = PCI_SKEL_STAT,
+      .mem_region   = 0,
+      .nreg         = nreg,
+      .reg          = reg,
+      .value        = value
+    };
+
+  stat = tipRW(info);
+
+  return stat;
 }
 
 static int

@@ -26,7 +26,7 @@
 
 #define PCI_SKEL_WRITE 0
 #define PCI_SKEL_READ  1
-#define PCI_SKEL_DUMMY 2
+#define PCI_SKEL_STAT 2
 
 #define PCI_SKEL_MEM_ALLOC 0
 #define PCI_SKEL_MEM_FREE  1
@@ -69,6 +69,11 @@ typedef struct DMA_MAP_STRUCT
   unsigned int             size;
 } DMA_MAP_INFO;
 
+volatile unsigned int  *TIPp=NULL;    /* pointer to TI memory map */
+volatile unsigned int *TIPpj=NULL;             /* pointer to TI JTAG memory */
+static void          *tipMappedBase;
+static void          *tipJTAGMappedBase;
+
 int
 ptiRW(PTI_IOCTL_INFO info)
 {
@@ -85,6 +90,7 @@ int
 ptiRead(int bar, unsigned int reg, unsigned int *value)
 {
   int stat=0;
+#ifdef OLDWAY
   PTI_IOCTL_INFO info =
     {
       .command_type = PCI_SKEL_READ,
@@ -95,7 +101,27 @@ ptiRead(int bar, unsigned int reg, unsigned int *value)
     };
 
   stat = ptiRW(info);
-
+#else
+    switch(bar)
+      {
+      case 0:
+	{
+	  *value = *(TIPp+reg);
+	  break;
+	}
+      case 1:
+	{
+	  *value = *(TIPpj+reg);
+	  break;
+	}
+      default:
+	{
+	  printf("%s: bar %d read not supported\n",
+		 __FUNCTION__,bar);
+	}
+      }
+    
+#endif
   return stat;
 }
 
@@ -103,6 +129,7 @@ int
 ptiWrite(int bar, unsigned int reg, unsigned int value)
 {
   int stat=0;
+#ifdef OLDWAY
   PTI_IOCTL_INFO info =
     {
       .command_type = PCI_SKEL_WRITE,
@@ -110,6 +137,45 @@ ptiWrite(int bar, unsigned int reg, unsigned int value)
       .nreg         = 1,
       .reg          = &reg,
       .value        = &value
+    };
+
+  stat = ptiRW(info);
+#else
+  switch(bar)
+    {
+    case 0:
+      {
+	*(TIPp+reg) = value;
+	break;
+      }
+    case 1:
+      {
+	*(TIPpj+reg) = value;
+	break;
+      }
+      default:
+	{
+	  printf("%s: bar %d write not supported\n",
+		 __FUNCTION__,bar);
+	}
+    }
+#endif
+  return stat;
+}
+
+int
+ptiGetPciBar(unsigned int *value)
+{
+  int stat=0;
+  unsigned int reg[3]={0,0,0};
+  int nreg = 3;
+  PTI_IOCTL_INFO info =
+    {
+      .command_type = PCI_SKEL_STAT,
+      .mem_region   = 0,
+      .nreg         = nreg,
+      .reg          = reg,
+      .value        = value
     };
 
   stat = ptiRW(info);
@@ -342,6 +408,34 @@ int main(int argc, char *argv[])
 	  goto CLOSE;
 	}
 
+  unsigned int bars[3];
+  unsigned int dev_base;
+  ptiGetPciBar((unsigned int *)&bars);
+  
+  dev_base = bars[0];
+  
+  tipMappedBase = mmap(0, 512, 
+		       PROT_READ|PROT_WRITE, MAP_SHARED, fd, dev_base);
+  if (tipMappedBase == MAP_FAILED)
+    {
+      perror("mmap");
+      return -1;
+    }
+  
+  TIPp = (volatile struct TIPCIE_RegStruct *)tipMappedBase;
+  
+  dev_base = bars[1];
+  
+  tipJTAGMappedBase = mmap(0, 0x1000, 
+			   PROT_READ|PROT_WRITE, MAP_SHARED, fd, dev_base);
+  if (tipJTAGMappedBase == MAP_FAILED)
+    {
+      perror("mmap");
+      return -1;
+    }
+  
+  TIPpj = (volatile unsigned int *)tipJTAGMappedBase;
+
   // FPGA usercode
   FPGAusercode();
   //PROM usercode
@@ -419,6 +513,12 @@ int main(int argc, char *argv[])
 
   // close the data file
   fclose(fdata);
+
+  if(munmap(tipMappedBase,512)<0)
+    perror("munmap");
+  
+  if(munmap(tipJTAGMappedBase,0x1000)<0)
+    perror("munmap");
 
 
   // close the TIpciexpress

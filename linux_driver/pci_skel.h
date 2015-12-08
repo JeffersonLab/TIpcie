@@ -16,6 +16,7 @@
 
 #define PCI_SKEL_RW_WRITE 0
 #define PCI_SKEL_RW_READ  1
+#define PCI_SKEL_RW_STAT  2
 
 #define PCI_SKEL_MEM_ALLOC 0
 #define PCI_SKEL_MEM_FREE  1

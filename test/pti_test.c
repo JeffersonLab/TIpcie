@@ -26,13 +26,17 @@
 
 #define PCI_SKEL_WRITE 0
 #define PCI_SKEL_READ  1
-#define PCI_SKEL_DUMMY 2
+#define PCI_SKEL_STAT  2
 
 #define PCI_SKEL_MEM_ALLOC 0
 #define PCI_SKEL_MEM_FREE  1
 
 char *progName;
 int fd;
+volatile unsigned int  *TIPp=NULL;    /* pointer to TI memory map */
+volatile unsigned int *TIPpj=NULL;             /* pointer to TI JTAG memory */
+static void          *tipMappedBase;
+static void          *tipJTAGMappedBase;
 
 void usage();
 
@@ -78,6 +82,7 @@ int
 ptiRead(int bar, unsigned int reg, unsigned int *value)
 {
   int stat=0;
+#ifdef OLDWAY
   PTI_IOCTL_INFO info =
     {
       .command_type = PCI_SKEL_READ,
@@ -88,6 +93,17 @@ ptiRead(int bar, unsigned int reg, unsigned int *value)
     };
 
   stat = ptiRW(info);
+#else
+  switch(bar)
+    {
+    case 0:
+    default:
+      printf("bingo\n");
+      *value = *(TIPp+reg);
+      break;
+
+    }
+#endif
 
   return stat;
 }
@@ -228,6 +244,26 @@ ptiFreeDmaMemory(DMA_MAP_INFO mapInfo)
   return stat;
 }
 
+int
+ptiGetPciBar(unsigned int *value)
+{
+  int stat=0;
+  unsigned int reg[3]={0,0,0};
+  int nreg = 3;
+  PTI_IOCTL_INFO info =
+    {
+      .command_type = PCI_SKEL_STAT,
+      .mem_region   = 0,
+      .nreg         = nreg,
+      .reg          = reg,
+      .value        = value
+    };
+
+  stat = ptiRW(info);
+
+  return stat;
+}
+
 int 
 main(int argc, char *argv[]) 
 {
@@ -349,8 +385,40 @@ main(int argc, char *argv[])
 	  goto CLOSE;
 	}
 
+      unsigned int bars[3];
+      unsigned int dev_base;
+      ptiGetPciBar((unsigned int *)&bars);
+      
+      dev_base = bars[0];
+      
+      tipMappedBase = mmap(0, 512, 
+			   PROT_READ|PROT_WRITE, MAP_SHARED, fd, dev_base);
+      if (tipMappedBase == MAP_FAILED)
+	{
+	  perror("mmap");
+	  return -1;
+	}
+      
+      TIPp = (volatile struct TIPCIE_RegStruct *)tipMappedBase;
+      
+      dev_base = bars[1];
+      
+      tipJTAGMappedBase = mmap(0, 0x1000, 
+			       PROT_READ|PROT_WRITE, MAP_SHARED, fd, dev_base);
+      if (tipJTAGMappedBase == MAP_FAILED)
+	{
+	  perror("mmap");
+	  return -1;
+	}
+      
+      TIPpj = (volatile unsigned int *)tipJTAGMappedBase;
+      
+
       /*   stat = ioctl(fd, PCI_SKEL_IOC_RW, &info); */
-      stat = ptiRW(info);
+      /* stat = ptiRW(info); */
+      unsigned int bum=0;
+      ptiRead(info.mem_region, regs[0], &bum);
+      printf("bum = 0x%08x\n",bum);
 
       if(stat!=0)
 	{
@@ -404,7 +472,13 @@ main(int argc, char *argv[])
       getchar();
       stat = ptiFreeDmaMemory(mapInfo);
     }
-    
+
+  if(munmap(tipMappedBase,512)<0)
+    perror("munmap");
+  
+  if(munmap(tipJTAGMappedBase,0x1000)<0)
+    perror("munmap");
+
 
   close(fd);
 
