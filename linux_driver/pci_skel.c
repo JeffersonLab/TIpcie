@@ -540,6 +540,7 @@ pci_skel_ioctl(struct inode *inode, struct file *filp,
 	  }
 
 
+#ifdef DEBUGDRIVER
 	printk("%s:\n",__FUNCTION__);
 	printk("   mem_region = 0x%x\n",user_info.mem_region);
 	printk(" command_type = 0x%x\n",user_info.command_type);
@@ -551,6 +552,7 @@ pci_skel_ioctl(struct inode *inode, struct file *filp,
 		printk("        value = 0x%x\n",values[ireg]);
 	      }
 	  }
+#endif /* DEBUGDRIVER */
 
 	if(user_info.command_type==PCI_SKEL_RW_WRITE)
 	  {

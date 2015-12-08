@@ -19,6 +19,7 @@ extern int nfadc;
 int 
 main(int argc, char *argv[]) 
 {
+  int i=0;
 
   tipOpen();
   
@@ -26,6 +27,12 @@ main(int argc, char *argv[])
   tipStatus(1);
 
   tipPCIEStatus(1);
+
+  /* for(i=0; i<10000; i++) */
+  /*   { */
+  /*     tipLatchTimers(); */
+  /*     printf("%x\n",tipGetLiveTime()); */
+  /*   } */
 
  CLOSE:
   tipClose();

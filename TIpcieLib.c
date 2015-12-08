@@ -75,7 +75,7 @@ typedef struct DMA_BUF_INFO_STRUCT
 typedef struct DMA_MAP_STRUCT
 {
   unsigned long          dmaHdl;
-  unsigned long        map_addr;
+  volatile unsigned long        map_addr;
   unsigned int             size;
 } DMA_MAP_INFO;
 
@@ -88,6 +88,8 @@ pthread_mutex_t   tipcieMutex = PTHREAD_MUTEX_INITIALIZER;
 volatile struct TIPCIE_RegStruct  *TIPp=NULL;    /* pointer to TI memory map */
 volatile unsigned int *TIPpd=NULL;             /* pointer to TI DMA memory */
 static unsigned long tipDmaAddrBase=0;
+static void          *tipMappedBase;
+
 int tipMaster=1;                               /* Whether or not this TIP is the Master */
 int tipCrateID=0x59;                           /* Crate ID */
 int tipBlockLevel=0;                           /* Current Block level for TIP */
@@ -252,7 +254,7 @@ tipInit(unsigned int mode, int iFlag)
   /* Open up file descriptor if not yet opened */
 
   /* Set Up pointer */
-  TIPp  = (struct TIPCIE_RegStruct *)0;
+  /* TIPp  = (struct TIPCIE_RegStruct *)0; */
   TIPpd = (volatile unsigned int*) tipMapInfo.map_addr;
 
   
@@ -402,6 +404,7 @@ tipInit(unsigned int mode, int iFlag)
     }
   tipReadoutMode = mode;
 
+#ifdef SKIPTHIS
   /* Setup some Other Library Defaults */
   if(tipMaster!=1)
     {
@@ -447,6 +450,8 @@ tipInit(unsigned int mode, int iFlag)
   if(tipMaster==1)
     tipWrite(&TIPp->fiberSyncDelay,
 	       (tipFiberLatencyOffset<<16)&TIP_FIBERSYNCDELAY_LOOPBACK_SYNCDELAY_MASK);
+
+#endif /* SKIPTHIS */
 
   /* Set Default Block Level to 1, and default crateID */
   if(tipMaster==1)
@@ -2120,9 +2125,12 @@ int
 tipReadBlock(volatile unsigned int *data, int nwrds, int rflag)
 {
   int ii, dummy=0;
-  int dCnt;
+  int dCnt, wCnt=0;
   volatile unsigned int *laddr;
-  unsigned int val;
+  volatile unsigned int val;
+  static int bump = 0;
+  int blocksize = 0x1000;
+  unsigned long newaddr=0;
 
   if(tipFD<=0)
     {
@@ -2204,12 +2212,86 @@ tipReadBlock(volatile unsigned int *data, int nwrds, int rflag)
       ii=0;
 
       printf("%s: TIPpd = 0x%lx \n",__FUNCTION__,(long unsigned int)TIPpd);
+      printf("%s: 0x10 = 0x%08x\n",
+	     __FUNCTION__,tipRead(&TIPp->__adr32));
+      
+      val = (volatile unsigned int)*TIPpd;
+      printf("%s: val = 0x%08x\n",
+	     __FUNCTION__,val);
+
+      int counter=0, ncount=1000;
+      while((val & 0x12)!=(0x12))
+	{
+	  val = (volatile unsigned int)*TIPpd;
+	  usleep(10);
+	  counter++;
+	  if(counter==ncount)
+	    break;
+	}
+
+      if(counter==ncount)
+	{
+	  printf("%s: counter = %d.. give up\n",__FUNCTION__,counter);
+	  /* TIPpd = (volatile unsigned int*)tipMapInfo.map_addr; */
+	  TIPUNLOCK;
+	  return -1;
+	}
+
+      /* First word should be the 64bit word count from PCIE */
+      wCnt = ((val>>16)&0xFFF)*2;
+
+      
+
+      if(wCnt<nwrds)
+      	nwrds=wCnt;
+      else
+      	printf("%s: WARN: Data words (%d) > requested max (%d)   0x%08x\n",
+      	       __FUNCTION__,wCnt,nwrds,val);
+
+#ifdef SKIPTHIS
+      if(val==0)
+	{
+	  /* Chase until we find a non-zero value */
+	  unsigned long chase = tipMapInfo.map_addr + 0x100000;
+	  int ichase=0;
+	  TIPpd = (volatile unsigned int*)tipMapInfo.map_addr;
+	  while((unsigned long)TIPpd < chase)
+	    {
+	      if(ichase==0)
+		{
+		  printf("starting the chase\n");
+		}
+	      ichase++;
+
+	      val = (volatile unsigned int)*TIPpd;
+	      if(val != 0)
+		{
+		  printf("%s: 0x%lx: Found 0x%08x\n",
+			 __FUNCTION__,
+			 (unsigned long)((unsigned long)TIPpd - tipMapInfo.map_addr),
+			 *TIPpd);
+		}
+	      *TIPpd++;
+	    }
+	  printf("ichase = %d\n",ichase);
+	  printf("%s: TIPpd = 0x%lx \n",__FUNCTION__,(unsigned long)TIPpd);
+
+	  /* if(((unsigned long)TIPpd - tipMapInfo.map_addr)>=0x100000) */
+	  TIPpd = (volatile unsigned int*)tipMapInfo.map_addr;
+
+	  bump=0;
+	  TIPUNLOCK;
+	  return dCnt;
+	}
+#endif
+      
+      *TIPpd++;      
       while(ii<nwrds) 
 	{
-	  val = *TIPpd++;
+	  val = (volatile unsigned int)*TIPpd++;
 
-	  if(val == (TIP_DATA_TYPE_DEFINE_MASK | TIP_BLOCK_TRAILER_WORD_TYPE 
-		     | (ii)) )
+	  if(val == (TIP_DATA_TYPE_DEFINE_MASK | TIP_BLOCK_TRAILER_WORD_TYPE
+	  	     | (ii)) )
 	    {
 	      data[ii] = val;
 #ifdef READOUTFILLER
@@ -2230,12 +2312,25 @@ tipReadBlock(volatile unsigned int *data, int nwrds, int rflag)
 	  data[ii] = val;
 	  ii++;
 	}
-      ii++;
+      /* ii++; */
       dCnt += ii;
 
-      int blocksize = 0x1000;
-      static int bump = 0;
-      TIPpd = (unsigned int *)(tipMapInfo.map_addr + (blocksize*(++bump)));
+      newaddr = (tipMapInfo.map_addr + (blocksize*(++bump)));
+      if((newaddr - tipMapInfo.map_addr)>=0x100000)
+	{
+	  newaddr = tipMapInfo.map_addr;
+	  bump=0;
+	}
+					   
+      /* TIPpd = (unsigned int *)newaddr; */
+      TIPpd = (volatile unsigned int*)newaddr;
+
+      if(dCnt==0)
+	{
+	  TIPpd = (volatile unsigned int*)tipMapInfo.map_addr;
+	  bump--;
+	}
+
       printf("%s: TIPpd = 0x%lx  bump = 0x%x (%d)\n",__FUNCTION__,(long unsigned int)TIPpd,
 	     bump,bump);
 
@@ -3354,6 +3449,9 @@ tipBReady()
 
   TIPUNLOCK;
 
+  if(blockBuffer==ERROR)
+    return ERROR;
+
   return rval;
 }
 
@@ -3618,12 +3716,15 @@ tipSetClockSource(unsigned int source)
 
   TIPLOCK;
   tipWrite(&TIPp->clock, clkset);
+
+#ifdef SKIPTHIS
   /* Reset DCM (Digital Clock Manager) - 250/200MHz */
   tipWrite(&TIPp->reset,TIP_RESET_CLK250);
   usleep(10000);
   /* Reset DCM (Digital Clock Manager) - 125MHz */
   tipWrite(&TIPp->reset,TIP_RESET_CLK125);
   usleep(10000);
+#endif
 
   if(source==1) /* Turn on running mode for External Clock verification */
     {
@@ -5724,19 +5825,19 @@ tipPCIEStatus(int pflag)
       printf(" Registers (offset):\n");
 
       printf(" dmaSetting       (0x%04lx) = 0x%08x ", 
-	     (unsigned long)&TIPp->dmaSetting, dmaSetting);
+	     (unsigned long)(&TIPp->dmaSetting - &TIPp->boardID), dmaSetting);
       printf(" dmaAddr          (0x%04lx) = 0x%08x\n", 
-	     (unsigned long)&TIPp->dmaAddr, dmaAddr);
+	     (unsigned long)(&TIPp->dmaAddr - &TIPp->boardID), dmaAddr);
 
       printf(" pcieConfigLink   (0x%04lx) = 0x%08x ", 
-	     (unsigned long)&TIPp->pcieConfigLink, pcieConfigLink);
+	     (unsigned long)(&TIPp->pcieConfigLink - &TIPp->boardID), pcieConfigLink);
       printf(" pcieConfigStatus (0x%04lx) = 0x%08x\n", 
-	     (unsigned long)&TIPp->pcieConfigStatus, pcieConfigStatus);
+	     (unsigned long)(&TIPp->pcieConfigStatus - &TIPp->boardID), pcieConfigStatus);
 
       printf(" pcieConfig       (0x%04lx) = 0x%08x ", 
-	     (unsigned long)&TIPp->pcieConfig, pcieConfig);
+	     (unsigned long)(&TIPp->pcieConfig - &TIPp->boardID), pcieConfig);
       printf(" pcieDevConfig    (0x%04lx) = 0x%08x\n", 
-	     (unsigned long)&TIPp->pcieDevConfig, pcieDevConfig);
+	     (unsigned long)(&TIPp->pcieDevConfig - &TIPp->boardID), pcieDevConfig);
       printf("\n");
     }
 
@@ -5862,7 +5963,6 @@ tipPoll(void)
 
   while(1) 
     {
-
       pthread_testcancel();
 
       /* If still need Ack, don't test the Trigger Status */
@@ -6160,6 +6260,7 @@ tipIntAck()
       TIPUNLOCK;
     }
 
+
 }
 
 /**
@@ -6364,6 +6465,7 @@ unsigned int
 tipRead(volatile unsigned int *reg)
 {
   unsigned int value=0;
+#ifdef OLDWAY
   int stat=0;
 
   PCI_IOCTL_INFO info =
@@ -6379,6 +6481,9 @@ tipRead(volatile unsigned int *reg)
 
   if(stat!=OK)
     return ERROR;
+#else
+  value = *reg;
+#endif
 
   return value;
 }
@@ -6387,6 +6492,7 @@ int
 tipWrite(volatile unsigned int *reg, unsigned int value)
 {
   int stat=0;
+#ifdef OLDWAY
   PCI_IOCTL_INFO info =
     {
       .command_type = PCI_SKEL_WRITE,
@@ -6397,6 +6503,9 @@ tipWrite(volatile unsigned int *reg, unsigned int value)
     };
 
   stat = tipRW(info);
+#else
+  *reg = value;
+#endif
 
   return stat;
 }
@@ -6507,6 +6616,7 @@ tipOpen()
 {
   unsigned int size=0x100000;
   unsigned long phys_addr=0;
+  off_t          dev_base = 0xf7e01000;
 
   if(tipFD>0)
     {
@@ -6530,6 +6640,16 @@ tipOpen()
 
   tipDmaAddrBase = phys_addr;
 
+  tipMappedBase = mmap(0, sizeof(struct TIPCIE_RegStruct), 
+		     PROT_READ|PROT_WRITE, MAP_SHARED, tipFD, dev_base);
+  if (tipMappedBase == MAP_FAILED)
+    {
+      perror("mmap");
+      return ERROR;
+    }
+  
+  TIPp = (volatile struct TIPCIE_RegStruct *)tipMappedBase;
+
   return OK;
 }
 
@@ -6544,6 +6664,9 @@ tipClose()
     }
 
   tipFreeDmaMemory(tipMapInfo);
+
+  if(munmap(tipMappedBase,sizeof(struct TIPCIE_RegStruct))<0)
+     perror("munmap");
   
   close(tipFD);
   return OK;
@@ -6578,7 +6701,7 @@ tipAllocDmaMemory(int size, unsigned long *phys_addr)
       .virt_addr      = 0,
       .size           = size
     };
-  char *tmp_addr;
+  volatile char *tmp_addr;
 
   stat = tipDmaMem(&info);
 
@@ -6587,7 +6710,7 @@ tipAllocDmaMemory(int size, unsigned long *phys_addr)
   *phys_addr = info.phys_addr;
 
   /* Do an mmap here */
-  tmp_addr = mmap(0, size, PROT_READ | PROT_WRITE, 
+  tmp_addr = (volatile char *)mmap(0, size, PROT_READ | PROT_WRITE, 
 		  MAP_SHARED, tipFD, info.phys_addr);
 
   if(tmp_addr == (void*) -1)
@@ -6597,7 +6720,7 @@ tipAllocDmaMemory(int size, unsigned long *phys_addr)
     }
 
   rval.dmaHdl = dmaHandle;
-  rval.map_addr = (unsigned long)tmp_addr;
+  rval.map_addr = (volatile unsigned long)tmp_addr;
   rval.size = size;
 
   return rval;

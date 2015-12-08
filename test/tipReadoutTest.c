@@ -16,7 +16,7 @@
 #include "TIpcieLib.h"
 /* #include "remexLib.h" */
 
-#define BLOCKLEVEL 1
+#define BLOCKLEVEL 0x1
 
 #define DO_READOUT
 
@@ -99,10 +99,8 @@ mytiISR(int arg)
   if(dataCheck!=OK)
     {
       tipSetBlockLimit(1);
+      getchar();
     }
-
-  if(tiIntCount>10)
-    getchar();
 
 }
 
@@ -128,11 +126,11 @@ main(int argc, char *argv[])
   tipInit(TIP_READOUT_EXT_POLL,0);
   tipCheckAddresses();
 
-  tipDefinePulserEventType(0xAA,0xCD);
+  /* tipDefinePulserEventType(0xAA,0xCD); */
 
-  tipSetSyncEventInterval(10);
+  /* tipSetSyncEventInterval(10); */
 
-  tipSetEventFormat(3);
+  /* tipSetEventFormat(3); */
 
   /* char mySN[20]; */
   /* printf("0x%08x\n",tiGetSerialNumber((char **)&mySN)); */
@@ -144,8 +142,8 @@ main(int argc, char *argv[])
 
   tipLoadTriggerTable(0);
     
-  tipSetTriggerHoldoff(1,4,0);
-  tipSetTriggerHoldoff(2,4,0);
+  /* tipSetTriggerHoldoff(1,4,0); */
+  /* tipSetTriggerHoldoff(2,4,0); */
 
   tipSetPrescale(0);
   tipSetBlockLevel(BLOCKLEVEL);
@@ -169,20 +167,20 @@ main(int argc, char *argv[])
   /*     tiSetGenInput(0xffff); */
   /*     tiSetGTPInput(0x0); */
 
-  tipSetBusySource(TIP_BUSY_LOOPBACK,1);
+  tipSetBusySource(TIP_BUSY_LOOPBACK ,1);
 
-  tipSetBlockBufferLevel(2);
+  tipSetBlockBufferLevel(1);
 
 /*   tiSetFiberDelay(1,2); */
 /*   tiSetSyncDelayWidth(1,0x3f,1); */
     
-  tipSetBlockLimit(10);
+  /* tipSetBlockLimit(10); */
 
   printf("Hit enter to reset stuff\n");
   getchar();
 
-  tipClockReset();
-  usleep(10000);
+  /* tipClockReset(); */
+  /* usleep(10000); */
   tipTrigLinkReset();
   usleep(10000);
 
@@ -194,22 +192,25 @@ main(int argc, char *argv[])
   usleep(10000);
     
   tipStatus(1);
+  tipPCIEStatus(1);
 
   printf("Hit enter to start triggers\n");
   getchar();
 
   tipIntEnable(0);
   tipStatus(1);
+  tipPCIEStatus(1);
 #define SOFTTRIG
 #ifdef SOFTTRIG
   tipSetRandomTrigger(1,0xf);
-/*   taskDelay(10); */
-/*   tiSoftTrig(1,0x1000,0x700,0); */
+  /* taskDelay(10); */
+  /* tipSoftTrig(1,1,0xffff/2,1); */
 #endif
 
   printf("Hit any key to Disable TID and exit.\n");
   getchar();
   tipStatus(1);
+  tipPCIEStatus(1);
 
 #ifdef SOFTTRIG
   /* No more soft triggers */

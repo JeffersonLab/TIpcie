@@ -393,9 +393,9 @@ int main(int argc, char *argv[])
   ptiWrite(0, 0x20, 0x24); // enable the front panel in, and loopback
 
   // start trigger
-  //  ptiWrite(0, 0x8c, 0xffffffff); // trigger 0x100 events in low speed
-  //  ptiWrite(0, 0x8c, 0xfff1000); // trigger 0x1000 events in higher speed
-  //  ptiWrite(0,0x88, 0x80); // fast random trigger
+   ptiWrite(0, 0x8c, 0xffffffff); // trigger 0x100 events in low speed
+   ptiWrite(0, 0x8c, 0xfff1000); // trigger 0x1000 events in higher speed
+   ptiWrite(0,0x88, 0x80); // fast random trigger
 
   //  change the wait to a usleep
   printf("Press <Enter> to Print\n");
@@ -409,8 +409,8 @@ int main(int argc, char *argv[])
   maxblock = size/4096;
   for (jreg =0; jreg < maxblock; jreg++)
      {
-       for(ireg=0; ireg<1024; ireg++)
-	 fprintf(fdata, "0x%04x: (hex) value = %8x\n",4*(jreg*1024+ireg),regs[jreg*1024+ireg]);
+	 for(ireg=0; ireg<1024; ireg++)
+	   fprintf(fdata, "0x%04x: (hex) value = %8x\n",4*(jreg*1024+ireg),regs[jreg*1024+ireg]);
      }
 
   printf("Press <Enter> to Free\n");
