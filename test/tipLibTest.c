@@ -28,6 +28,8 @@ main(int argc, char *argv[])
 
   tipPCIEStatus(1);
 
+  tipGetSerialNumber(NULL);
+
   /* for(i=0; i<10000; i++) */
   /*   { */
   /*     tipLatchTimers(); */

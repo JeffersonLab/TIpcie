@@ -30,7 +30,6 @@
 
 #define PCI_SKEL_MEM_ALLOC 0
 #define PCI_SKEL_MEM_FREE  1
-
 // function definition
 unsigned long FPGAusercode(void);
 unsigned long PROMusercode(void);
@@ -106,12 +105,12 @@ ptiRead(int bar, unsigned int reg, unsigned int *value)
       {
       case 0:
 	{
-	  *value = *(TIPp+reg);
+	  *value = *(TIPp+(reg>>2));
 	  break;
 	}
       case 1:
 	{
-	  *value = *(TIPpj+reg);
+	  *value = *(TIPpj+(reg>>2));
 	  break;
 	}
       default:
@@ -145,12 +144,12 @@ ptiWrite(int bar, unsigned int reg, unsigned int value)
     {
     case 0:
       {
-	*(TIPp+reg) = value;
+	*(TIPp+(reg>>2)) = value;
 	break;
       }
     case 1:
       {
-	*(TIPpj+reg) = value;
+	*(TIPpj+(reg>>2)) = value;
 	break;
       }
       default:

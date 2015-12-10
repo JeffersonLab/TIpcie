@@ -41,17 +41,17 @@
 #include <errno.h>
 #include "TIpcieLib.h"
 
-#define PCI_SKEL_IOC_MAGIC  'k'
-#define PCI_SKEL_IOC_RW         _IO(PCI_SKEL_IOC_MAGIC, 1)
-#define PCI_SKEL_IOC_MEM        _IO(PCI_SKEL_IOC_MAGIC, 2)
-#define PCI_SKEL_IOC_STAT       _IO(PCI_SKEL_IOC_MAGIC, 3)
+#define TIPCIE_IOC_MAGIC  'k'
+#define TIPCIE_IOC_RW         _IO(TIPCIE_IOC_MAGIC, 1)
+#define TIPCIE_IOC_MEM        _IO(TIPCIE_IOC_MAGIC, 2)
+#define TIPCIE_IOC_STAT       _IO(TIPCIE_IOC_MAGIC, 3)
 
-#define PCI_SKEL_WRITE 0
-#define PCI_SKEL_READ  1
-#define PCI_SKEL_STAT 2
+#define TIPCIE_WRITE 0
+#define TIPCIE_READ  1
+#define TIPCIE_STAT 2
 
-#define PCI_SKEL_MEM_ALLOC 0
-#define PCI_SKEL_MEM_FREE  1
+#define TIPCIE_MEM_ALLOC 0
+#define TIPCIE_MEM_FREE  1
 
 
 typedef struct pci_ioctl_struct
@@ -139,6 +139,10 @@ static int  tipRW(PCI_IOCTL_INFO info);
 static DMA_MAP_INFO tipAllocDmaMemory(int size, unsigned long *phys_addr);
 static int  tipFreeDmaMemory(DMA_MAP_INFO mapInfo);
 static int  tipGetPciBar(unsigned int *regs);
+
+static int tipMemCount=0;
+
+static int tipWaitForData();
 
 /* Interrupt/Polling routine prototypes (static) */
 #ifdef NOTDONEYET
@@ -330,7 +334,7 @@ tipInit(unsigned int mode, int iFlag)
 	    }
 	}
 
-      if(tipVersion < supportedVersion)
+      if(tipVersion != supportedVersion)
 	{
 	  if(noFirmwareCheck)
 	    {
@@ -563,6 +567,7 @@ tipStatus(int pflag)
   ro.fiber        = tipRead(&TIPp->fiber);
   ro.intsetup     = tipRead(&TIPp->intsetup);
   ro.trigDelay    = tipRead(&TIPp->trigDelay);
+  ro.__adr32      = tipRead(&TIPp->__adr32);
   ro.blocklevel   = tipRead(&TIPp->blocklevel);
   ro.vmeControl   = tipRead(&TIPp->vmeControl);
   ro.trigsrc      = tipRead(&TIPp->trigsrc);
@@ -632,6 +637,7 @@ tipStatus(int pflag)
       printf("  fiber          (0x%04lx) = 0x%08x\n", (unsigned long)(&TIPp->fiber) - TIBase, ro.fiber);
       printf("  intsetup       (0x%04lx) = 0x%08x\t", (unsigned long)(&TIPp->intsetup) - TIBase, ro.intsetup);
       printf("  trigDelay      (0x%04lx) = 0x%08x\n", (unsigned long)(&TIPp->trigDelay) - TIBase, ro.trigDelay);
+      printf("  __adr32        (0x%04lx) = 0x%08x\t", (unsigned long)(&TIPp->__adr32) - TIBase, ro.__adr32);
       printf("  blocklevel     (0x%04lx) = 0x%08x\n", (unsigned long)(&TIPp->blocklevel) - TIBase, ro.blocklevel);
       printf("  vmeControl     (0x%04lx) = 0x%08x\n", (unsigned long)(&TIPp->vmeControl) - TIBase, ro.vmeControl);
       printf("  trigger        (0x%04lx) = 0x%08x\t", (unsigned long)(&TIPp->trigsrc) - TIBase, ro.trigsrc);
@@ -1111,73 +1117,36 @@ int
 tipGetFirmwareVersion()
 {
   unsigned int rval=0;
+  int delay=10000;
   if(tipFD<=0)
     {
       printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
       return ERROR;
     }
 
-#define BROKEN
-#ifdef BROKEN 
   TIPLOCK;
   /* reset the VME_to_JTAG engine logic */
   tipWrite(&TIPp->reset,TIP_RESET_JTAG);
-  usleep(10000);
+  usleep(delay);
 
   /* Reset FPGA JTAG to "reset_idle" state */
   tipJTAGWrite(0x3c,0);
-  usleep(10000);
+  usleep(delay);
 
   /* enable the user_code readback */
   tipJTAGWrite(0x26c,0x3c8);
-  usleep(10000);
+  usleep(delay);
 
   /* shift in 32-bit to FPGA JTAG */
   tipJTAGWrite(0x7dc,0);
-  usleep(10000);
+  usleep(delay);
   
   /* Readback the firmware version */
   rval = tipJTAGRead(0x00);
   TIPUNLOCK;
-#else
-  rval = 0x71e03023;
-#endif
-
-  printf("%s: rval = 0x%08x\n",
-	 __FUNCTION__,rval);
 
   return rval;
 }
-
-#ifdef NOTDONEYET
-/**
- * @ingroup Config
- * @brief Reload the firmware on the FPGA
- *
- * @return OK if successful, ERROR otherwise
- *
- */
-
-int
-tipReload()
-{
-  if(tipFD<=0)
-    {
-      printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
-      return ERROR;
-    }
-
-  TIPLOCK;
-  tipWrite(&TIPp->reset,TIP_RESET_JTAG);
-  tipWrite(&TIPp->JTAGPROMBase[(0x3c)>>2],0);
-  tipWrite(&TIPp->JTAGPROMBase[(0xf2c)>>2],0xEE);
-  TIPUNLOCK;
-
-  printf ("%s: \n FPGA Re-Load ! \n",__FUNCTION__);
-  return OK;
-  
-}
-#endif /* NOTDONEYET */
 
 /**
  * @ingroup Status
@@ -1193,6 +1162,7 @@ tipGetSerialNumber(char **rSN)
 {
   unsigned int rval=0;
   char retSN[10];
+  int delay=10000;
 
   memset(retSN,0,sizeof(retSN));
   
@@ -1204,9 +1174,13 @@ tipGetSerialNumber(char **rSN)
 
   TIPLOCK;
   tipWrite(&TIPp->reset,TIP_RESET_JTAG);           /* reset */
+  usleep(delay);
   tipJTAGWrite(0x83c,0);     /* Reset_idle */
+  usleep(delay);
   tipJTAGWrite(0xbec,0xFD); /* load the UserCode Enable */
+  usleep(delay);
   tipJTAGWrite(0xfdc,0);   /* shift in 32-bit of data */
+  usleep(delay);
   rval = tipJTAGRead(0x800);
   TIPUNLOCK;
 
@@ -2223,7 +2197,7 @@ tipReadBlock(volatile unsigned int *data, int nwrds, int rflag)
 	     __FUNCTION__,val);
 
       int counter=0, ncount=1000;
-      while((val & 0x12)!=(0x12))
+      while(val==0)
 	{
 	  val = (volatile unsigned int)*TIPpd;
 	  usleep(10);
@@ -2236,6 +2210,25 @@ tipReadBlock(volatile unsigned int *data, int nwrds, int rflag)
 	{
 	  printf("%s: counter = %d.. give up\n",__FUNCTION__,counter);
 	  /* TIPpd = (volatile unsigned int*)tipMapInfo.map_addr; */
+#ifdef SKIPTHIS
+	  printf("Dump the memory\n");
+	  TIPpd = (volatile unsigned int*)tipMapInfo.map_addr;
+	  int imem=0;
+	  for(imem=0; imem<(0x100000)/4; imem++)
+	    {
+	      if((imem%5)==0) {
+		if(wordcount
+		printf("\n%05x:   ",imem);
+	      }
+	      val = *TIPpd++;
+	      if(val!=0)
+		{
+		  printf("  0x%08x ",val);
+		  wordcount++;
+		}
+	    }
+	  printf("\n");
+#endif
 	  TIPUNLOCK;
 	  return -1;
 	}
@@ -2333,6 +2326,8 @@ tipReadBlock(volatile unsigned int *data, int nwrds, int rflag)
 	  TIPpd = (volatile unsigned int*)tipMapInfo.map_addr;
 	  bump--;
 	}
+      else
+	tipMemCount--;
 
       printf("%s: TIPpd = 0x%lx  bump = 0x%x (%d)\n",__FUNCTION__,(long unsigned int)TIPpd,
 	     bump,bump);
@@ -5901,6 +5896,62 @@ tiInt(void)
 }
 #endif /* NOTDONEYET */
 
+static int
+tipWaitForData()
+{
+  static unsigned int prev_mem=0;
+  static unsigned int base=0;
+  volatile unsigned int mem=0;
+  int iwait=0, maxwait=500;
+
+  if(tipMemCount>0)
+    return tipMemCount;
+
+  mem = tipRead(&TIPp->__adr32) & 0xfffff000;
+  if(mem==0xfffff000)
+    {
+      printf("%s: 1: __adr32 returned ERROR\n",__FUNCTION__);
+      return ERROR;
+    }
+
+  if(prev_mem==0)
+    {
+      if(mem < (tipRead(&TIPp->dmaAddr) & 0xfffff000))
+	mem = tipRead(&TIPp->dmaAddr) & 0xfffff000;
+      prev_mem=mem;
+      printf("mem = 0x%08x\tprev_mem = 0x%08x\n",
+	     mem,prev_mem);
+    }
+
+  while((mem==prev_mem) && (iwait<maxwait))
+    {
+      iwait++;
+      tipWrite(&TIPp->vmeControl,1<<22);
+      usleep(1000);
+      tipWrite(&TIPp->vmeControl,0);
+      usleep(10);
+      mem = tipRead(&TIPp->__adr32) & 0xfffff000;
+      if(mem==0xfffff000)
+	{
+	  printf("%s: 2: __adr32 returned ERROR.  prev_mem = 0x%08x\n",
+		 __FUNCTION__,prev_mem);
+	  return ERROR;
+	}
+      if(mem < (tipRead(&TIPp->dmaAddr) & 0xfffff000))
+	mem = tipRead(&TIPp->dmaAddr) & 0xfffff000;
+    }
+
+  if(mem>prev_mem)
+    tipMemCount = (mem-prev_mem)/0x1000;
+  else if(mem==base)
+    tipMemCount = ((mem+0x100000)-(prev_mem))/0x1000;
+
+  printf("%3d (%2d): prev_mem = 0x%08x   mem = 0x%08x\n",
+	 iwait++,tipMemCount,prev_mem, mem);
+  prev_mem = mem;
+  return tipMemCount;
+}
+
 /*******************************************************************************
  *
  *  tipPoll
@@ -5989,9 +6040,28 @@ tipPoll(void)
 	  tipDaqCount = tidata;
 	  tipIntCount++;
 
+	  int data = tipWaitForData();
+
+	  if(data==ERROR)
+	    {
+	      printf("%s: tipWaitForData() returned ERROR.\n",__FUNCTION__);
+	      break;
+	    }
+	  else if(data>0)
+	    {
+	      printf("%s: Data ready\n",__FUNCTION__);
+	    }
+	  else
+	    {
+	      printf("**************************************************\n");
+	      printf("%s: Data NOT ready\n",__FUNCTION__);
+	      printf("**************************************************\n");
+	    }
+	  
 	  if (tipIntRoutine != NULL)	/* call user routine */
 	    (*tipIntRoutine) (tipIntArg);
 	
+
 	  /* Write to TI to Acknowledge Interrupt */	  
 	  if(tipDoAck==1) 
 	    {
@@ -6452,6 +6522,7 @@ tipGetRocEnableMask()
 }
 
 
+
 static int
 tipRW(PCI_IOCTL_INFO info)
 {
@@ -6461,7 +6532,7 @@ tipRW(PCI_IOCTL_INFO info)
   //printf("       reg[0] = %d\n",info.reg[0]);
   // printf("     value[0] = 0x%x\n\n",info.value[0]);
 
-  return ioctl(tipFD, PCI_SKEL_IOC_RW, &info);
+  return ioctl(tipFD, TIPCIE_IOC_RW, &info);
 }
 
 unsigned int
@@ -6473,7 +6544,7 @@ tipRead(volatile unsigned int *reg)
 
   PCI_IOCTL_INFO info =
     {
-      .command_type = PCI_SKEL_READ,
+      .command_type = TIPCIE_READ,
       .mem_region   = 0,
       .nreg         = 1,
       .reg          = (volatile unsigned int *)&reg,
@@ -6498,7 +6569,7 @@ tipWrite(volatile unsigned int *reg, unsigned int value)
 #ifdef OLDWAY
   PCI_IOCTL_INFO info =
     {
-      .command_type = PCI_SKEL_WRITE,
+      .command_type = TIPCIE_WRITE,
       .mem_region   = 0,
       .nreg         = 1,
       .reg          = (volatile unsigned int *)&reg,
@@ -6517,12 +6588,12 @@ unsigned int
 tipJTAGRead(unsigned int reg)
 {
   unsigned int value=0;
-#ifdef OLDWAY
+#ifdef OLDWAY2
   int stat=0;
 
   PCI_IOCTL_INFO info =
     {
-      .command_type = PCI_SKEL_READ,
+      .command_type = TIPCIE_READ,
       .mem_region   = 1,
       .nreg         = 1,
       .reg          = (volatile unsigned int *)&reg,
@@ -6534,7 +6605,7 @@ tipJTAGRead(unsigned int reg)
   if(stat!=OK)
     return ERROR;
 #else
-  value = *(TIPpj+reg);
+  value = *(TIPpj+(reg>>2));
 #endif
   return value;
 }
@@ -6543,10 +6614,10 @@ int
 tipJTAGWrite(unsigned int reg, unsigned int value)
 {
   int stat=0;
-#ifdef OLDWAY
+#ifdef OLDWAY2
   PCI_IOCTL_INFO info =
     {
-      .command_type = PCI_SKEL_WRITE,
+      .command_type = TIPCIE_WRITE,
       .mem_region   = 1,
       .nreg         = 1,
       .reg          = (volatile unsigned int *)&reg,
@@ -6555,7 +6626,7 @@ tipJTAGWrite(unsigned int reg, unsigned int value)
 
   stat = tipRW(info);
 #else
-  *(TIPpj+reg) = value;
+  *(TIPpj+(reg>>2)) = value;
 #endif
   return stat;
 }
@@ -6568,7 +6639,7 @@ tipDataRead(unsigned int reg)
 
   PCI_IOCTL_INFO info =
     {
-      .command_type = PCI_SKEL_READ,
+      .command_type = TIPCIE_READ,
       .mem_region   = 2,
       .nreg         = 1,
       .reg          = (volatile unsigned int *)&reg,
@@ -6590,7 +6661,7 @@ tipReadBlock2(int bar, unsigned int *reg, unsigned int *value, int nreg)
   int stat=0;
   PCI_IOCTL_INFO info =
     {
-      .command_type = PCI_SKEL_READ,
+      .command_type = TIPCIE_READ,
       .mem_region   = bar,
       .nreg         = nreg,
       .reg          = reg,
@@ -6608,7 +6679,7 @@ tipWriteBlock(int bar, unsigned int *reg, unsigned int *value, int nreg)
   int stat=0;
   PCI_IOCTL_INFO info =
     {
-      .command_type = PCI_SKEL_WRITE,
+      .command_type = TIPCIE_WRITE,
       .mem_region   = bar,
       .nreg         = nreg,
       .reg          = reg,
@@ -6635,7 +6706,7 @@ tipOpen()
       return ERROR;
     }
 
-  tipFD = open("/dev/pci_skel",O_RDWR);
+  tipFD = open("/dev/TIpcie",O_RDWR);
 
   if(tipFD<0)
     {
@@ -6666,6 +6737,7 @@ tipOpen()
     }
   
   TIPp = (volatile struct TIPCIE_RegStruct *)tipMappedBase;
+  printf("TIPp  = 0x%lx\n",(unsigned long)TIPp);
 
   dev_base = bars[1];
 
@@ -6678,6 +6750,7 @@ tipOpen()
     }
   
   TIPpj = (volatile unsigned int *)tipJTAGMappedBase;
+  printf("TIPpj = 0x%lx\n",(unsigned long)TIPpj);
 
   return OK;
 }
@@ -6709,7 +6782,7 @@ tipGetPciBar(unsigned int *value)
   int nreg = 3;
   PCI_IOCTL_INFO info =
     {
-      .command_type = PCI_SKEL_STAT,
+      .command_type = TIPCIE_STAT,
       .mem_region   = 0,
       .nreg         = nreg,
       .reg          = reg,
@@ -6726,7 +6799,7 @@ tipDmaMem(DMA_BUF_INFO *info)
 {
   int rval=0;
 
-  rval = ioctl(tipFD, PCI_SKEL_IOC_MEM, info);
+  rval = ioctl(tipFD, TIPCIE_IOC_MEM, info);
 
   printf("   command_type = %d\n",info->command_type);
   printf(" dma_osspec_hdl = %lx\n",info->dma_osspec_hdl);
@@ -6745,7 +6818,7 @@ tipAllocDmaMemory(int size, unsigned long *phys_addr)
   DMA_BUF_INFO info =
     {
       .dma_osspec_hdl = 0,
-      .command_type   = PCI_SKEL_MEM_ALLOC,
+      .command_type   = TIPCIE_MEM_ALLOC,
       .phys_addr      = 0,
       .virt_addr      = 0,
       .size           = size
@@ -6782,7 +6855,7 @@ tipFreeDmaMemory(DMA_MAP_INFO mapInfo)
   DMA_BUF_INFO info =
     {
       .dma_osspec_hdl = mapInfo.dmaHdl,
-      .command_type   = PCI_SKEL_MEM_FREE,
+      .command_type   = TIPCIE_MEM_FREE,
       .phys_addr      = 0,
       .virt_addr      = 0,
       .size           = 0

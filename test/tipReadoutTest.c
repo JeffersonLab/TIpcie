@@ -16,7 +16,7 @@
 #include "TIpcieLib.h"
 /* #include "remexLib.h" */
 
-#define BLOCKLEVEL 0x1
+#define BLOCKLEVEL 0x10
 
 #define DO_READOUT
 
@@ -61,7 +61,9 @@ mytiISR(int arg)
 
   if(dCnt<=0)
     {
+      printf("**************************************************\n");
       printf("No data or error.  dCnt = %d\n",dCnt);
+      printf("**************************************************\n");
       dataCheck=ERROR;
     }
   else
@@ -98,7 +100,6 @@ mytiISR(int arg)
 
   if(dataCheck!=OK)
     {
-      tipSetBlockLimit(1);
       getchar();
     }
 
@@ -174,7 +175,7 @@ main(int argc, char *argv[])
 /*   tiSetFiberDelay(1,2); */
 /*   tiSetSyncDelayWidth(1,0x3f,1); */
     
-  /* tipSetBlockLimit(10); */
+  tipSetBlockLimit(0);
 
   printf("Hit enter to reset stuff\n");
   getchar();
@@ -202,7 +203,7 @@ main(int argc, char *argv[])
   tipPCIEStatus(1);
 #define SOFTTRIG
 #ifdef SOFTTRIG
-  tipSetRandomTrigger(1,0xf);
+  tipSetRandomTrigger(1,0x7);
   /* taskDelay(10); */
   /* tipSoftTrig(1,1,0xffff/2,1); */
 #endif

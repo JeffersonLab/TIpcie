@@ -1,18 +1,18 @@
 #!/bin/bash
 #
-# Reload the pci_skel driver
+# Reload the TIpcie driver
 #
 
 #cd /home/moffit/work/pti/linux_driver/
 
-if [ ! -e /dev/pci_skel ] ; then
-    /bin/mknod /dev/pci_skel c 210 32
-    /bin/chown root /dev/pci_skel
-    /bin/chgrp users /dev/pci_skel
-    /bin/chmod 666 /dev/pci_skel
+if [ ! -e /dev/TIpcie ] ; then
+    /bin/mknod /dev/TIpcie c 210 32
+    /bin/chown root /dev/TIpcie
+    /bin/chgrp users /dev/TIpcie
+    /bin/chmod 666 /dev/TIpcie
 else
-    /sbin/rmmod pci_skel.ko
+    /sbin/rmmod TIpcie.ko
 fi
 
-/sbin/insmod pci_skel.ko
+/sbin/insmod TIpcie.ko
 
