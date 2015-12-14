@@ -83,9 +83,9 @@ mytiISR(int arg)
 
       len = dCnt;
       
-      for(idata=0;idata<len;idata++)
+      for(idata=0;idata<(len);idata++)
 	{
-	  if((idata%5)==0) printf("\n\t");
+	  if((idata%4)==0) printf("\n\t");
 	  printf("  0x%08x ",(unsigned int)(data[idata]));
 	}
       printf("\n\n");
@@ -100,7 +100,7 @@ mytiISR(int arg)
 
   if(dataCheck!=OK)
     {
-      getchar();
+      sleep(1);
     }
 
 }
@@ -170,12 +170,12 @@ main(int argc, char *argv[])
 
   tipSetBusySource(TIP_BUSY_LOOPBACK ,1);
 
-  tipSetBlockBufferLevel(1);
+  tipSetBlockBufferLevel(2);
 
 /*   tiSetFiberDelay(1,2); */
 /*   tiSetSyncDelayWidth(1,0x3f,1); */
     
-  tipSetBlockLimit(0);
+  tipSetBlockLimit(1000);
 
   printf("Hit enter to reset stuff\n");
   getchar();

@@ -175,6 +175,17 @@ static void FiberMeas();
  * @defgroup Deprec Deprecated - To be removed
  */
 
+unsigned long long int rdtsc(void)
+{
+  /*    unsigned long long int x; */
+  unsigned a, d;
+   
+  __asm__ volatile("rdtsc" : "=a" (a), "=d" (d));
+
+  return ((unsigned long long)a) | (((unsigned long long)d) << 32);
+}
+
+
 /**
  * @ingroup PreInit
  * @brief Set the Fiber Latency Offset to be used during initialization
@@ -241,13 +252,15 @@ tipSetCrateID_preInit(int cid)
  *
  */
 
+float demon=0;
+
 int
 tipInit(unsigned int mode, int iFlag)
 {
   unsigned int rval, prodID;
   unsigned int firmwareInfo;
   int noBoardInit=0, noFirmwareCheck=0;
-  
+  unsigned long long before=0, after=0;
 
   if(iFlag&TIP_INIT_NO_INIT)
     {
@@ -258,6 +271,13 @@ tipInit(unsigned int mode, int iFlag)
       noFirmwareCheck=1;
     }
 
+  before = rdtsc();
+  sleep(1);
+  after = rdtsc();
+
+  demon = (float)(after - before);
+  printf("%s: demon = %f\n",__FUNCTION__,demon);
+
   /* Open up file descriptor if not yet opened */
 
   /* Set Up pointer */
@@ -265,10 +285,6 @@ tipInit(unsigned int mode, int iFlag)
   TIPpd = (volatile unsigned int*) tipMapInfo.map_addr;
 
   
-  // FIXME Put this somewhere else.
-  tipDmaConfig(1, 0, 2); /* set up the DMA, 1MB, 32-bit, 256 byte packet */
-  tipDmaSetAddr(tipDmaAddrBase,0);
-
   /* Check if TI board is readable */
   /* Read the boardID reg */
   rval = tipRead(&TIPp->boardID);
@@ -362,6 +378,13 @@ tipInit(unsigned int mode, int iFlag)
     {
       return OK;
     }
+
+  tipReset();
+
+  // FIXME Put this somewhere else.
+  tipDmaConfig(1, 0, 2); /* set up the DMA, 1MB, 32-bit, 256 byte packet */
+  tipDmaSetAddr(tipDmaAddrBase,0);
+
 
   /* Set some defaults, dependent on Master/Slave status */
   switch(mode)
@@ -2200,7 +2223,7 @@ tipReadBlock(volatile unsigned int *data, int nwrds, int rflag)
       while(val==0)
 	{
 	  val = (volatile unsigned int)*TIPpd;
-	  usleep(10);
+	  usleep(1000);
 	  counter++;
 	  if(counter==ncount)
 	    break;
@@ -2210,25 +2233,26 @@ tipReadBlock(volatile unsigned int *data, int nwrds, int rflag)
 	{
 	  printf("%s: counter = %d.. give up\n",__FUNCTION__,counter);
 	  /* TIPpd = (volatile unsigned int*)tipMapInfo.map_addr; */
-#ifdef SKIPTHIS
+
 	  printf("Dump the memory\n");
-	  TIPpd = (volatile unsigned int*)tipMapInfo.map_addr;
-	  int imem=0;
-	  for(imem=0; imem<(0x100000)/4; imem++)
+	  int imem=0, wcount=0;
+	  for(imem=0; imem<(0x1000)/4; imem++)
 	    {
-	      if((imem%5)==0) {
-		if(wordcount
-		printf("\n%05x:   ",imem);
-	      }
 	      val = *TIPpd++;
 	      if(val!=0)
 		{
 		  printf("  0x%08x ",val);
-		  wordcount++;
+		  wcount++;
 		}
+	      if(((imem-7)%8)==0) {
+		if(wcount) 
+		  printf("[%04x]\n",(imem-7)<<2);
+
+		wcount=0;
+	      }
 	    }
 	  printf("\n");
-#endif
+	  tipMemCount--;
 	  TIPUNLOCK;
 	  return -1;
 	}
@@ -2239,7 +2263,7 @@ tipReadBlock(volatile unsigned int *data, int nwrds, int rflag)
       
 
       if(wCnt<nwrds)
-      	nwrds=wCnt;
+      	nwrds=(wCnt+20);
       else
       	printf("%s: WARN: Data words (%d) > requested max (%d)   0x%08x\n",
       	       __FUNCTION__,wCnt,nwrds,val);
@@ -2303,13 +2327,32 @@ tipReadBlock(volatile unsigned int *data, int nwrds, int rflag)
 	      	    }
 	      	}
 #endif
-	      break;
+	      /* break; */
 	    }
 	  data[ii] = val;
 	  ii++;
 	}
       /* ii++; */
       dCnt += ii;
+
+	  /* printf("Dump the memory\n"); */
+	  /* int imem=0, wcount=0; */
+	  /* for(imem=0; imem<(0x1000)/4; imem++) */
+	  /*   { */
+	  /*     val = *TIPpd++; */
+	  /*     if(val!=0) */
+	  /* 	{ */
+	  /* 	  printf("  0x%08x ",val); */
+	  /* 	  wcount++; */
+	  /* 	} */
+	  /*     if(((imem-7)%8)==0) { */
+	  /* 	if(wcount)  */
+	  /* 	  printf("[%04x]\n",(imem-7)<<2); */
+
+	  /* 	wcount=0; */
+	  /*     } */
+	  /*   } */
+	  /* printf("\n"); */
 
       newaddr = (tipMapInfo.map_addr + (blocksize*(++bump)));
       if((newaddr - tipMapInfo.map_addr)>=0x100000)
@@ -5899,10 +5942,14 @@ tiInt(void)
 static int
 tipWaitForData()
 {
+#define OLDWAY3
+#ifdef OLDWAY3
   static unsigned int prev_mem=0;
   static unsigned int base=0;
   volatile unsigned int mem=0;
   int iwait=0, maxwait=500;
+  unsigned int buf=0;
+  unsigned long long before=0, after=0;
 
   if(tipMemCount>0)
     return tipMemCount;
@@ -5926,10 +5973,13 @@ tipWaitForData()
   while((mem==prev_mem) && (iwait<maxwait))
     {
       iwait++;
+      before = rdtsc();
       tipWrite(&TIPp->vmeControl,1<<22);
-      usleep(1000);
-      tipWrite(&TIPp->vmeControl,0);
-      usleep(10);
+
+      read(tipFD,&buf,4);
+      printf("%s: buf = 0x%x\n",__FUNCTION__,buf);
+      after = rdtsc();
+      /* tipWrite(&TIPp->vmeControl,0); */
       mem = tipRead(&TIPp->__adr32) & 0xfffff000;
       if(mem==0xfffff000)
 	{
@@ -5948,8 +5998,29 @@ tipWaitForData()
 
   printf("%3d (%2d): prev_mem = 0x%08x   mem = 0x%08x\n",
 	 iwait++,tipMemCount,prev_mem, mem);
+  printf("diff = %lld   calc = %lf\n",after-before, 
+	 1E9*((float)(after-before))/((float)(demon)));
   prev_mem = mem;
   return tipMemCount;
+#else
+  int iwait=0, maxwait=1000000;
+  volatile unsigned int data=0;
+
+  tipWrite(&TIPp->vmeControl,1<<22);
+  data = *TIPpd;
+  while((data==0) && (iwait<maxwait))
+    {
+      usleep(1);
+      data = *TIPpd;
+      iwait++;
+    }
+  tipWrite(&TIPp->vmeControl,0);
+
+  if(*TIPpd==0)
+    return 0;
+    
+  return 1;
+#endif
 }
 
 /*******************************************************************************
@@ -6040,6 +6111,8 @@ tipPoll(void)
 	  tipDaqCount = tidata;
 	  tipIntCount++;
 
+	  *(TIPpd+10) = 0xcebaf111;
+
 	  int data = tipWaitForData();
 
 	  if(data==ERROR)
@@ -6059,7 +6132,9 @@ tipPoll(void)
 	    }
 	  
 	  if (tipIntRoutine != NULL)	/* call user routine */
-	    (*tipIntRoutine) (tipIntArg);
+	    {
+	      (*tipIntRoutine) (tipIntArg);
+	    }
 	
 
 	  /* Write to TI to Acknowledge Interrupt */	  
@@ -6694,7 +6769,7 @@ tipWriteBlock(int bar, unsigned int *reg, unsigned int *value, int nreg)
 int
 tipOpen()
 {
-  unsigned int  size=0x100000;
+  unsigned int  size=0x200000;
   unsigned long phys_addr=0;
   off_t         dev_base;
   unsigned int  bars[3]={0,0,0};

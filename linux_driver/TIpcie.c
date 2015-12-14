@@ -10,8 +10,14 @@
 #include <linux/ioctl.h>
 #include <linux/proc_fs.h>
 #include <asm/uaccess.h>
+#include <linux/fs.h>
 #include <linux/interrupt.h>
+#include <linux/wait.h>
+#include <linux/semaphore.h>
+#include <linux/cdev.h>
+#include <linux/sched.h>
 #include "TIpcie.h"
+
 
 #define PCI_VENDOR_ID_DOE 0xD0E1
 #define PCI_DEVICE_ID_TIPCIE 0x71E0
@@ -38,6 +44,7 @@ int TIpcieFreeDmaBuf(DMA_BUF_INFO *dma_buf_info);
 static int dmaHandleListAdd(dmaHandle_t *dmahandle);
 static int dmaHandleListRemove(dmaHandle_t *dmahandle);
 int TIpcieFreeDmaHandles(void);
+int TIpcie_read(void);
 
 dmaHandle_t *dma_handle_list = NULL;
 
@@ -51,9 +58,12 @@ struct pci_dev *ti_pci_dev;
 struct resource *tipcimem;
 int ti_revision;
 int ti_irq;
+int TIpcie_interrupt_count;
+int irq_flag=0;
+int read_open=0;
 
 struct semaphore dma_buffer_lock;
-
+wait_queue_head_t  irq_queue;
 
 /* static struct resource *iores1; */
 /* static struct resource *iores2; */
@@ -61,7 +71,8 @@ static struct proc_dir_entry *TIpcie_procdir;
 static struct file_operations TIpcie_fops = 
 {
   ioctl:    TIpcie_ioctl,
-  mmap:     TIpcie_mmap
+  mmap:     TIpcie_mmap,
+  read:     TIpcie_read,
 /*   open:     TIpcie_open, */
 /*   release:  TIpcie_release  */
 };
@@ -88,12 +99,32 @@ skel_get_revision(struct pci_dev *dev)
 irqreturn_t
 ti_irqhandler(int irq, void *dev_id)
 {
-  static int count=0;
+  ++TIpcie_interrupt_count;
+  irq_flag=1;
+  if(TIpcie_resaddr0)
+    iowrite32(0, TIpcie_resaddr0 + 0x1C);
 
-  /* if((count%100000)==0) */
-    printk("%s(%d): I've got this %d\n",__FUNCTION__,irq,++count);
+  if(read_open)
+    wake_up_interruptible(&irq_queue);
 
   return IRQ_HANDLED;
+}
+
+int
+TIpcie_read()
+{
+  unsigned long long before=0, after=0;
+  read_open=1;
+  
+  rdtscl(before);
+  wait_event_interruptible(irq_queue,irq_flag!=0);
+  irq_flag=0;
+  rdtscl(after);
+
+  printk("%s:\n\tbefore = %lld\n\t after = %lld\n\tdiff = %lld\n",__FUNCTION__,
+	 before,after,after-before);
+
+  return 1;
 }
 
 static
@@ -158,7 +189,8 @@ findTIpcie(void)
 	     __FUNCTION__,ti_irq);
       return(0);
     } 
-  
+
+  init_waitqueue_head(&irq_queue);
 
   // Ensure Bus mastering, IO Space, and Mem Space are enabled
   pci_read_config_dword(ti_pci_dev, PCI_COMMAND, &pci_command);
@@ -500,6 +532,7 @@ TIpcie_procinfo(char *buf, char **start, off_t fpos, int lenght, int *eof, void 
   p += sprintf(p,"  mem1 addr = %0lx\n",(unsigned long)TIpcie_resaddr1);
   p += sprintf(p,"  mem2 addr = %0lx\n",(unsigned long)TIpcie_resaddr2);
 
+  p += sprintf(p," interrupts = %d\n",TIpcie_interrupt_count);
 
 #ifdef SKIPTHIS
   p += sprintf(p,"  Base Registers: \n");
