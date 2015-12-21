@@ -52,7 +52,7 @@ main(int argc, char *argv[])
     }
   else
     {
-      filename = argv[2];
+      filename = argv[1];
     }
 
   stat = tipOpen();
@@ -458,7 +458,7 @@ tipFirmwareEMload(char *filename)
 		}
 	      else
 		{
-		  printf(" Unknown ENDIR type %s\n",Word[1]);
+		  printf(" Unknown ENDIR type [%s]\n",Word[1]);
 		}
 	    }
 	  else

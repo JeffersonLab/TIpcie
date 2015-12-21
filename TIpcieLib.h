@@ -86,7 +86,7 @@ struct TIPCIE_RegStruct
   /** 0x00058 */ volatile unsigned int dmaAddr;
   /** 0x0005C */ volatile unsigned int pcieConfigLink;
   /** 0x00060 */ volatile unsigned int pcieConfigStatus;
-  /** 0x00064 */          unsigned int inputPrescale;
+  /** 0x00064 */ volatile unsigned int inputPrescale;
   /** 0x00068 */ volatile unsigned int fifo;
   /** 0x0006C */ volatile unsigned int pcieConfig;
   /** 0x00070 */ volatile unsigned int pcieDevConfig;

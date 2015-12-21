@@ -389,11 +389,13 @@ tipInit(unsigned int mode, int iFlag)
   // FIXME Put this somewhere else.
   if(tipUseDma)
     {
+      printf("%s: Configuring DMA\n",__FUNCTION__);
       tipDmaConfig(1, 0, 2); /* set up the DMA, 1MB, 32-bit, 256 byte packet */
       tipDmaSetAddr(tipDmaAddrBase,0);
     }
   else
     {
+      printf("%s: Configuring FIFO\n",__FUNCTION__);
       tipEnableFifo();
     }
 
@@ -635,6 +637,8 @@ tipStatus(int pflag)
   ro.nblocks      = tipRead(&TIPp->nblocks);
 
   ro.GTPtriggerBufferLength = tipRead(&TIPp->GTPtriggerBufferLength);
+
+  ro.rocEnable    = tipRead(&TIPp->rocEnable);
   TIPUNLOCK;
 
   TIBase = (unsigned long)TIPp;
@@ -689,6 +693,7 @@ tipStatus(int pflag)
       printf("  livetime       (0x%04lx) = 0x%08x\t", (unsigned long)(&TIPp->livetime) - TIBase, ro.livetime);
       printf("  busytime       (0x%04lx) = 0x%08x\n", (unsigned long)(&TIPp->busytime) - TIBase, ro.busytime);
       printf("  GTPTrgBufLen   (0x%04lx) = 0x%08x\t", (unsigned long)(&TIPp->GTPtriggerBufferLength) - TIBase, ro.GTPtriggerBufferLength);
+      printf("  rocEnable      (0x%04lx) = 0x%08x\n", (unsigned long)(&TIPp->rocEnable) - TIBase, ro.rocEnable);
     }
   printf("\n");
 
@@ -2268,6 +2273,7 @@ tipReadBlock(volatile unsigned int *data, int nwrds, int rflag)
 	  	     | (ii)) )
 	    {
 	      data[ii] = val;
+#define READOUTFILLER
 #ifdef READOUTFILLER
 	      if(((ii)%2)!=0)
 	      	{
@@ -2334,41 +2340,105 @@ tipReadBlock(volatile unsigned int *data, int nwrds, int rflag)
     }
   else
     { /* Programmed IO */
-
+      int blocklevel=0;
+      int iev=0, idata=0;
+      int ev_nwords=0;
       dCnt = 0;
       ii=0;
-
-      val = tipRead(&TIPp->fifo);
-      printf("%s: val = 0x%08x\n",
-	     __FUNCTION__,val);
       
-      while(ii<nwrds) 
+      /* Read Block header - should be first word */
+      val = tipRead(&TIPp->fifo);
+      data[dCnt++] = val;
+
+      if((val & TIP_DATA_TYPE_DEFINE_MASK) && 
+	 ((val & TIP_WORD_TYPE_MASK) == TIP_BLOCK_HEADER_WORD_TYPE))
+	{
+	  /* data[dCnt++] = val; */
+	}
+      else
+	{
+	  printf("%s: ERROR: Invalid Block Header Word 0x%08x\n",
+		 __FUNCTION__,val);
+	  TIPUNLOCK;
+	  return(dCnt);
+	}
+
+      /* Read trigger bank header - 2nd word */
+      val = tipRead(&TIPp->fifo);
+
+      if( ((val & 0xFF100000)>>16 == 0xFF10) && 
+	  ((val & 0xFF00)>>8 == 0x20) )
+	{
+	  data[dCnt++] = val;
+	}
+      else
+	{
+	  printf("%s: ERROR: Invalid Trigger Bank Header Word 0x%08x\n",
+		 __FUNCTION__,val);
+	  TIPUNLOCK;
+	  return(ERROR);
+	}
+
+      blocklevel = val & TIP_DATA_BLKLEVEL_MASK;
+
+      /* Loop through each event in the block */
+      for(iev=0; iev<blocklevel; iev++)
+	{
+	  /* Event header */
+	  val = tipRead(&TIPp->fifo);
+	  data[dCnt++] = val;
+
+	  if((val & 0xFF0000)>>16 == 0x01)
+	    {
+	      ev_nwords = val & 0xffff;
+	      for(idata=0; idata<ev_nwords; idata++)
+		{
+		  val = tipRead(&TIPp->fifo);
+		  data[dCnt++] = val;
+		}
+	    }
+	  else
+	    {
+	      printf("%s: ERROR: Invalid Event Header Word 0x%08x\n",
+		     __FUNCTION__,val);
+	      TIPUNLOCK;
+	      return dCnt;
+	    }
+	}
+
+      /* Read Block header */
+      val = tipRead(&TIPp->fifo);
+
+      if((val & TIP_DATA_TYPE_DEFINE_MASK) &&
+	 (val & TIP_WORD_TYPE_MASK)==TIP_BLOCK_TRAILER_WORD_TYPE)
+	{
+	  data[dCnt++] = val;
+	}
+      else
+	{
+	  printf("%s: ERROR: Invalid Block Trailer Word 0x%08x\n",
+		 __FUNCTION__,val);
+	  TIPUNLOCK;
+	  return ERROR;
+	}
+
+      /* Readout an extra filler word, if we need an even word count */
+      if((dCnt%2)!=0)
 	{
 	  val = tipRead(&TIPp->fifo);
-
-	  if(val == (TIP_DATA_TYPE_DEFINE_MASK | TIP_BLOCK_TRAILER_WORD_TYPE
-	  	     | (ii)) )
+	  if((val & TIP_DATA_TYPE_DEFINE_MASK) &&
+	     (val & TIP_WORD_TYPE_MASK)==TIP_FILLER_WORD_TYPE)
 	    {
-	      data[ii] = val;
-
-	      if(((ii)%2)!=0)
-	      	{
-	      	  /* Read out an extra word (filler) in the fifo */
-	      	  val = tipRead(&TIPp->fifo);
-	      	  if(((val & TIP_DATA_TYPE_DEFINE_MASK) != TIP_DATA_TYPE_DEFINE_MASK) ||
-	      	     ((val & TIP_WORD_TYPE_MASK) != TIP_FILLER_WORD_TYPE))
-	      	    {
-	      	      printf("\n%s: ERROR: Unexpected word after block trailer (0x%08x)\n",
-	      		     __FUNCTION__,val);
-	      	    }
-	      	}
-	      break;
+	      data[dCnt++] = val;
 	    }
-	  data[ii] = val;
-	  ii++;
+	  else
+	    {
+	      printf("%s: ERROR: Invalid Filler Word 0x%08x\n",
+		     __FUNCTION__,val);
+	      TIPUNLOCK;
+	      return ERROR;
+	    }
 	}
-      ii++;
-      dCnt += ii;
 
       TIPUNLOCK;
       return(dCnt);
@@ -2379,7 +2449,6 @@ tipReadBlock(volatile unsigned int *data, int nwrds, int rflag)
   return OK;
 }
 
-#ifdef NOTDONEYET
 /**
  * @ingroup Readout
  * @brief Read a block from the TI and form it into a CODA Trigger Bank
@@ -2390,7 +2459,7 @@ tipReadBlock(volatile unsigned int *data, int nwrds, int rflag)
  *
  */
 int
-tiReadTriggerBlock(volatile unsigned int *data)
+tipReadTriggerBlock(volatile unsigned int *data)
 {
   int rval=0, nwrds=0, rflag=0;
   int iword=0;
@@ -2400,15 +2469,16 @@ tiReadTriggerBlock(volatile unsigned int *data)
 
   if(data==NULL) 
     {
-      printf("\ntiReadTriggerBlock: ERROR: Invalid Destination address\n",0,0,0,0,0,0);
+      printf("\n%s: ERROR: Invalid Destination address\n",
+	     __FUNCTION__);
       return(ERROR);
     }
 
   /* Determine the maximum number of words to expect, from the block level */
-  nwrds = (4*tiBlockLevel) + 8;
+  nwrds = (4*tipBlockLevel) + 8;
 
   /* Optimize the transfer type based on the blocklevel */
-  if(tiBlockLevel>2)
+  if(tipBlockLevel>2)
     { /* Use DMA */
       rflag = 1;
     }
@@ -2418,19 +2488,19 @@ tiReadTriggerBlock(volatile unsigned int *data)
     }
 
   /* Obtain the trigger bank by just making a call the tiReadBlock */
-  rval = tiReadBlock(data, nwrds, rflag);
+  rval = tipReadBlock(data, nwrds, rflag);
   if(rval < 0)
     {
       /* Error occurred */
-      printf("tiReadTriggerBlock: ERROR: tiReadBlock returned ERROR\n",
-	     1,2,3,4,5,6);
+      printf("%s: ERROR: tiReadBlock returned ERROR\n",
+	     __FUNCTION__);
       return ERROR;
     }
   else if (rval == 0)
     {
       /* No data returned */
-      printf("tiReadTriggerBlock: WARN: No data available\n",
-	     1,2,3,4,5,6);
+      printf("%s: WARN: No data available\n",
+	     __FUNCTION__);
       return 0; 
     }
 
@@ -2439,9 +2509,6 @@ tiReadTriggerBlock(volatile unsigned int *data)
     { 
 
       word = data[iword];
-#ifndef VXWORKS
-      word = LSWAP(word);
-#endif
 
       if(word & TIP_DATA_TYPE_DEFINE_MASK)
 	{
@@ -2457,14 +2524,15 @@ tiReadTriggerBlock(volatile unsigned int *data)
   /* Check if the index is valid */
   if(iblkhead == -1)
     {
-      printf("tiReadTriggerBlock: ERROR: Failed to find TI Block Header\n",
-	     1,2,3,4,5,6);
+      printf("%s: ERROR: Failed to find TI Block Header\n",
+	     __FUNCTION__);
       return ERROR;
     }
   if(iblkhead != 0)
     {
-      printf("tiReadTriggerBlock: WARN: Invalid index (%d) for the TI Block header.\n",
-	     iblkhead,2,3,4,5,6);
+      printf("%s: WARN: Invalid index (%d) for the TI Block header.\n",
+	     __FUNCTION__,
+	     iblkhead);
     }
 
   /* Work up to find index of block trailer */
@@ -2473,9 +2541,6 @@ tiReadTriggerBlock(volatile unsigned int *data)
     { 
 
       word = data[iword];
-#ifndef VXWORKS
-      word = LSWAP(word);
-#endif
       if(word & TIP_DATA_TYPE_DEFINE_MASK)
 	{
 	  if(((word & TIP_WORD_TYPE_MASK)) == TIP_BLOCK_TRAILER_WORD_TYPE)
@@ -2494,20 +2559,18 @@ tiReadTriggerBlock(volatile unsigned int *data)
   /* Check if the index is valid */
   if(iblktrl == -1)
     {
-      printf("tiReadTriggerBlock: ERROR: Failed to find TI Block Trailer\n",
-	     1,2,3,4,5,6);
+      printf("%s: ERROR: Failed to find TI Block Trailer\n",
+	     __FUNCTION__);
       return ERROR;
     }
 
   /* Get the block trailer, and check the number of words contained in it */
   word = data[iblktrl];
-#ifndef VXWORKS
-  word = LSWAP(word);
-#endif
   if((iblktrl - iblkhead + 1) != (word & 0x3fffff))
     {
-      printf("tiReadTriggerBlock: Number of words inconsistent (index count = %d, block trailer count = %d\n",
-	     (iblktrl - iblkhead + 1), word & 0x3fffff,3,4,5,6);
+      printf("%s: Number of words inconsistent (index count = %d, block trailer count = %d\n",
+	     __FUNCTION__,
+	     (iblktrl - iblkhead + 1), word & 0x3fffff);
       return ERROR;
     }
 
@@ -2515,25 +2578,12 @@ tiReadTriggerBlock(volatile unsigned int *data)
   rval = iblktrl - iblkhead;
 
   /* Write in the Trigger Bank Length */
-#ifdef VXWORKS
   data[iblkhead] = rval-1;
-#else
-  data[iblkhead] = LSWAP(rval-1);
-#endif
-
-  if(tiSwapTriggerBlock==1)
-    {
-      for(iword=iblkhead; iword<rval; iword++)
-	{
-	  word = data[iword];
-	  data[iword] = LSWAP(word);
-	}
-    }
 
   return rval;
 
 }
-#endif /* NOTDONEYET */
+
 
 int
 tiCheckTriggerBlock(volatile unsigned int *data)
@@ -5861,6 +5911,7 @@ tipPCIEStatus(int pflag)
 {
   unsigned int dmaSetting, dmaAddr, 
     pcieConfigLink, pcieConfigStatus, pcieConfig, pcieDevConfig;
+  unsigned long TIBase=0;
 
   if(tipFD<=0)
     {
@@ -5877,6 +5928,8 @@ tipPCIEStatus(int pflag)
   pcieDevConfig    = tipRead(&TIPp->pcieDevConfig);
   TIPUNLOCK;
 
+  TIBase = (unsigned long)TIPp;
+
   printf("\n");
   printf("PCIE STATUS for TIpcie\n");
   printf("--------------------------------------------------------------------------------\n");
@@ -5887,19 +5940,19 @@ tipPCIEStatus(int pflag)
       printf(" Registers (offset):\n");
 
       printf(" dmaSetting       (0x%04lx) = 0x%08x ", 
-	     (unsigned long)(&TIPp->dmaSetting - &TIPp->boardID), dmaSetting);
+	     (unsigned long)&TIPp->dmaSetting - TIBase, dmaSetting);
       printf(" dmaAddr          (0x%04lx) = 0x%08x\n", 
-	     (unsigned long)(&TIPp->dmaAddr - &TIPp->boardID), dmaAddr);
+	     (unsigned long)&TIPp->dmaAddr - TIBase, dmaAddr);
 
       printf(" pcieConfigLink   (0x%04lx) = 0x%08x ", 
-	     (unsigned long)(&TIPp->pcieConfigLink - &TIPp->boardID), pcieConfigLink);
+	     (unsigned long)&TIPp->pcieConfigLink - TIBase, pcieConfigLink);
       printf(" pcieConfigStatus (0x%04lx) = 0x%08x\n", 
-	     (unsigned long)(&TIPp->pcieConfigStatus - &TIPp->boardID), pcieConfigStatus);
+	     (unsigned long)&TIPp->pcieConfigStatus - TIBase, pcieConfigStatus);
 
       printf(" pcieConfig       (0x%04lx) = 0x%08x ", 
-	     (unsigned long)(&TIPp->pcieConfig - &TIPp->boardID), pcieConfig);
+	     (unsigned long)&TIPp->pcieConfig - TIBase, pcieConfig);
       printf(" pcieDevConfig    (0x%04lx) = 0x%08x\n", 
-	     (unsigned long)(&TIPp->pcieDevConfig - &TIPp->boardID), pcieDevConfig);
+	     (unsigned long)&TIPp->pcieDevConfig - TIBase, pcieDevConfig);
       printf("\n");
     }
 
@@ -6095,7 +6148,7 @@ tipPoll(void)
 #endif
   
   /* Set scheduler and priority for this thread */
-  policy=SCHED_FIFO;
+  policy=SCHED_OTHER;
   sp.sched_priority=40;
   printf("%s: Entering polling loop...\n",__FUNCTION__);
   pthread_setschedparam(pthread_self(),policy,&sp);
@@ -6109,6 +6162,7 @@ tipPoll(void)
 
   while(1) 
     {
+      usleep(1);
       pthread_testcancel();
 
       /* If still need Ack, don't test the Trigger Status */
@@ -6132,8 +6186,7 @@ tipPoll(void)
 	  tipDaqCount = tidata;
 	  tipIntCount++;
 
-	  *(TIPpd+10) = 0xcebaf111;
-
+#ifdef WAITFORDATA
 	  int data = tipWaitForData();
 
 	  if(data==ERROR)
@@ -6151,18 +6204,20 @@ tipPoll(void)
 	      printf("%s: Data NOT ready\n",__FUNCTION__);
 	      printf("**************************************************\n");
 	    }
+#endif /* WAITFORDATA */
 	  
 	  if (tipIntRoutine != NULL)	/* call user routine */
 	    {
 	      (*tipIntRoutine) (tipIntArg);
 	    }
 	
-
 	  /* Write to TI to Acknowledge Interrupt */	  
 	  if(tipDoAck==1) 
 	    {
 	      tipIntAck();
 	    }
+
+
 	  INTUNLOCK;
 	}
     
@@ -6809,13 +6864,14 @@ tipOpen()
       perror("tipOpen: ERROR");
       return ERROR;
     }
-
+#ifdef ALLOCMEM
   tipMapInfo = tipAllocDmaMemory(size, &phys_addr);
   printf("      dmaHdl = 0x%lx\n", tipMapInfo.dmaHdl);
   printf("   phys_addr = 0x%lx\n", phys_addr);
   printf("    map_addr = 0x%lx\n", tipMapInfo.map_addr);
 
   tipDmaAddrBase = phys_addr;
+#endif /* ALLOCMEM */
 
   tipGetPciBar((unsigned int *)&bars);
   int i=0;
@@ -6861,10 +6917,16 @@ tipClose()
       return ERROR;
     }
 
+#ifdef ALLOCMEM
   tipFreeDmaMemory(tipMapInfo);
+#endif /* ALLOCMEM */
+
+  if(munmap(tipJTAGMappedBase,0x1000)<0)
+     perror("munmap");
 
   if(munmap(tipMappedBase,sizeof(struct TIPCIE_RegStruct))<0)
      perror("munmap");
+
   
   close(tipFD);
   return OK;

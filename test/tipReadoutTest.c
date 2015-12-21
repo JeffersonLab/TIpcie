@@ -16,7 +16,7 @@
 #include "TIpcieLib.h"
 /* #include "remexLib.h" */
 
-#define BLOCKLEVEL 0x10
+#define BLOCKLEVEL 0x1
 
 #define DO_READOUT
 
@@ -27,7 +27,7 @@ mytiISR(int arg)
   volatile unsigned short reg;
   int dCnt, len=0,idata;
   int tibready=0, timeout=0;
-  int printout = 1;
+  int printout = 1000;
   int dataCheck=0;
   volatile unsigned int data[120];
 
@@ -56,10 +56,10 @@ mytiISR(int arg)
     }
 #endif
 
-  dCnt = tipReadBlock((volatile unsigned int *)&data,3*BLOCKLEVEL+10,0);
-  /* dCnt = tiReadTriggerBlock(dma_dabufp); */
+  dCnt = tipReadBlock((volatile unsigned int *)&data,8,0);
+  /* dCnt = tipReadTriggerBlock((volatile unsigned int *)&data); */
 
-  if(dCnt<=0)
+  if(dCnt!=8)
     {
       printf("**************************************************\n");
       printf("No data or error.  dCnt = %d\n",dCnt);
@@ -68,15 +68,12 @@ mytiISR(int arg)
     }
   else
     {
-      /* dataCheck = tiCheckTriggerBlock(dma_dabufp); */
-      /* dma_dabufp += dCnt; */
-      printf("dCnt = %d\n",dCnt);
-    
+      /* dataCheck = tiCheckTriggerBlock(data); */
     }
 
 #define READOUT
 #ifdef READOUT
-  if(tiIntCount%printout==0)
+  if((tiIntCount%printout==0) || (dCnt!=8))
     {
       printf("Received %d triggers...\n",
 	     tiIntCount);
@@ -98,9 +95,9 @@ mytiISR(int arg)
   if(tiIntCount%printout==0)
     printf("intCount = %d\n",tiIntCount );
 
-  if(dataCheck!=OK)
+  if((dataCheck!=OK) || (dCnt!=8))
     {
-      sleep(1);
+      getchar();
     }
 
 }
@@ -127,7 +124,7 @@ main(int argc, char *argv[])
   tipInit(TIP_READOUT_EXT_POLL,0);
   tipCheckAddresses();
 
-  /* tipDefinePulserEventType(0xAA,0xCD); */
+  tipDefinePulserEventType(0xAA,0xCD);
 
   /* tipSetSyncEventInterval(10); */
 
@@ -170,12 +167,12 @@ main(int argc, char *argv[])
 
   tipSetBusySource(TIP_BUSY_LOOPBACK ,1);
 
-  tipSetBlockBufferLevel(2);
+  tipSetBlockBufferLevel(1);
 
 /*   tiSetFiberDelay(1,2); */
 /*   tiSetSyncDelayWidth(1,0x3f,1); */
     
-  tipSetBlockLimit(1000);
+  tipSetBlockLimit(200000);
 
   printf("Hit enter to reset stuff\n");
   getchar();
