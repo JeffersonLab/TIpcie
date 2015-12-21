@@ -87,7 +87,7 @@ struct TIPCIE_RegStruct
   /** 0x0005C */ volatile unsigned int pcieConfigLink;
   /** 0x00060 */ volatile unsigned int pcieConfigStatus;
   /** 0x00064 */          unsigned int inputPrescale;
-  /** 0x00068 */          unsigned int blank3;
+  /** 0x00068 */ volatile unsigned int fifo;
   /** 0x0006C */ volatile unsigned int pcieConfig;
   /** 0x00070 */ volatile unsigned int pcieDevConfig;
   /** 0x00074 */ volatile unsigned int pulserEvType;
@@ -144,7 +144,7 @@ struct TIPCIE_RegStruct
 #define TIP_READOUT_TS_POLL    3
 
 /* Supported firmware version */
-#define TIP_SUPPORTED_FIRMWARE 0x025
+#define TIP_SUPPORTED_FIRMWARE 0x027
 #define TIP_SUPPORTED_TYPE     2
 
 /* Firmware Masks */
@@ -242,6 +242,7 @@ struct TIPCIE_RegStruct
 #define TIP_VMECONTROL_LAST_BOARD     (1<<11)
 #define TIP_VMECONTROL_BUFFER_DISABLE (1<<15)
 #define TIP_VMECONTROL_BLOCKLEVEL_UPDATE (1<<21)
+#define TIP_VMECONTROL_DMASETTING_MASK 0x01c00000
 
 /* 0x20 trigsrc bits and masks */
 #define TIP_TRIGSRC_SOURCEMASK       0x0000F3FF
@@ -486,6 +487,7 @@ struct TIPCIE_RegStruct
 /* 0xEC rocEnable bits and masks */
 #define TIP_ROCENABLE_MASK             0x000000FF
 #define TIP_ROCENABLE_ROC(x)           (1<<(x))
+#define TIP_ROCENABLE_FIFO_ENABLE      (1<<1)
 
 /* 0x100 reset bits and masks */
 #define TIP_RESET_I2C                  (1<<1)
@@ -569,6 +571,7 @@ struct TIPCIE_RegStruct
 /* tiInit initialization flag bits */
 #define TIP_INIT_NO_INIT                 (1<<0)
 #define TIP_INIT_SKIP_FIRMWARE_CHECK     (1<<1)
+#define TIP_INIT_USE_DMA                 (1<<2)
 
 /* Some pre-initialization routine prototypes */
 int  tiSetFiberLatencyOffset_preInit(int flo);
@@ -693,6 +696,7 @@ int  tiprintTSInputDelay();
 unsigned int tipGetGTPBufferLength(int pflag);
 int  tipGetConnectedFiberMask();
 int  tipGetTrigSrcEnabledFiberMask();
+int  tipEnableFifo();
 int  tipDmaConfig(int packet_size, int adr_mode, int dma_size);
 int  tipDmaSetAddr(unsigned int phys_addr_lo, unsigned int phys_addr_hi);
 int  tipPCIEStatus(int pflag);
@@ -710,9 +714,11 @@ unsigned int  tipGetAckCount();
 unsigned int tipGetBusyCounter(int busysrc);
 int  tiprintBusyCounters();
 
+#ifdef NOTSUPPORTED
 int  tipRocEnable(int roc);
 int  tipRocEnableMask(int rocmask);
 int  tipGetRocEnableMask();
+#endif /* NOTSUPPORTED */
 
 unsigned int tipRead(volatile unsigned int *reg);
 int  tipWrite(volatile unsigned int *reg, unsigned int value);

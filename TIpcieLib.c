@@ -93,6 +93,7 @@ static unsigned long tipDmaAddrBase=0;
 static void          *tipMappedBase;
 static void          *tipJTAGMappedBase;
 
+static int tipUseDma=0; 
 int tipMaster=1;                               /* Whether or not this TIP is the Master */
 int tipCrateID=0x59;                           /* Crate ID */
 int tipBlockLevel=0;                           /* Current Block level for TIP */
@@ -270,6 +271,10 @@ tipInit(unsigned int mode, int iFlag)
     {
       noFirmwareCheck=1;
     }
+  if(iFlag&TIP_INIT_USE_DMA)
+    {
+      tipUseDma=1;
+    }
 
   before = rdtsc();
   sleep(1);
@@ -382,9 +387,15 @@ tipInit(unsigned int mode, int iFlag)
   tipReset();
 
   // FIXME Put this somewhere else.
-  tipDmaConfig(1, 0, 2); /* set up the DMA, 1MB, 32-bit, 256 byte packet */
-  tipDmaSetAddr(tipDmaAddrBase,0);
-
+  if(tipUseDma)
+    {
+      tipDmaConfig(1, 0, 2); /* set up the DMA, 1MB, 32-bit, 256 byte packet */
+      tipDmaSetAddr(tipDmaAddrBase,0);
+    }
+  else
+    {
+      tipEnableFifo();
+    }
 
   /* Set some defaults, dependent on Master/Slave status */
   switch(mode)
@@ -2124,9 +2135,8 @@ tipDisableRandomTrigger()
 int
 tipReadBlock(volatile unsigned int *data, int nwrds, int rflag)
 {
-  int ii, dummy=0;
+  int ii;
   int dCnt, wCnt=0;
-  volatile unsigned int *laddr;
   volatile unsigned int val;
   static int bump = 0;
   int blocksize = 0x1000;
@@ -2144,70 +2154,14 @@ tipReadBlock(volatile unsigned int *data, int nwrds, int rflag)
       return(ERROR);
     }
 
+  /* For now, ignore routine argument and go with how the library was configured
+     prior to calling here */
+  rflag = tipUseDma;
+
   TIPLOCK;
   if(rflag >= 1)
     { /* Block transfer */
-      /* Assume that the DMA programming is already setup. 
-	 Don't Bother checking if there is valid data - that should be done prior
-	 to calling the read routine */
-      
-      /* Check for 8 byte boundary for address - insert dummy word (Slot 0 FADC Dummy DATA)*/
-      if((unsigned long) (data)&0x7)
-	{
-	  *data = LSWAP((TIP_DATA_TYPE_DEFINE_MASK) | (TIP_FILLER_WORD_TYPE) );
-	  dummy = 1;
-	  laddr = (data + 1);
-	} 
-      else 
-	{
-	  dummy = 0;
-	  laddr = data;
-	}
 
-#ifdef BLOCKTRANSFER      
-      vmeAdr = (unsigned long)TIPpd - tiA32Offset;
-
-      retVal = vmeDmaSend((unsigned long)laddr, vmeAdr, (nwrds<<2));
-      if(retVal != 0) 
-	{
-	  printf("\n%s: ERROR in DMA transfer Initialization 0x%x\n",
-		 __FUNCTION__,retVal);
-	  TIPUNLOCK;
-	  return(retVal);
-	}
-
-      /* Wait until Done or Error */
-      retVal = vmeDmaDone();
-
-      if(retVal > 0)
-	{
-	  xferCount = ((retVal>>2) + dummy); /* Number of longwords transfered */
-	  TIPUNLOCK;
-	  return(xferCount);
-	}
-      else if (retVal == 0) 
-	{
-	  printf("\n%s: WARN: DMA transfer returned zero word count 0x%x\n",
-		 __FUNCTION__,nwrds);
-	  TIPUNLOCK;
-	  return(nwrds);
-	}
-      else 
-	{  /* Error in DMA */
-	  printf("\n%s: ERROR: vmeDmaDone returned an Error\n",
-		 __FUNCTION__);
-	  TIPUNLOCK;
-	  return(retVal>>2);
-	  
-	}
-#else /* BLOCKTRANSFER */
-      printf("\n%s: ERROR: Block transfer not yet supported\n",__FUNCTION__);
-      TIPUNLOCK;
-      return ERROR;
-#endif /* BLOCKTRANSFER */
-    }
-  else
-    { /* Programmed IO */
       dCnt = 0;
       ii=0;
 
@@ -2374,6 +2328,47 @@ tipReadBlock(volatile unsigned int *data, int nwrds, int rflag)
 
       printf("%s: TIPpd = 0x%lx  bump = 0x%x (%d)\n",__FUNCTION__,(long unsigned int)TIPpd,
 	     bump,bump);
+
+      TIPUNLOCK;
+      return(dCnt);
+    }
+  else
+    { /* Programmed IO */
+
+      dCnt = 0;
+      ii=0;
+
+      val = tipRead(&TIPp->fifo);
+      printf("%s: val = 0x%08x\n",
+	     __FUNCTION__,val);
+      
+      while(ii<nwrds) 
+	{
+	  val = tipRead(&TIPp->fifo);
+
+	  if(val == (TIP_DATA_TYPE_DEFINE_MASK | TIP_BLOCK_TRAILER_WORD_TYPE
+	  	     | (ii)) )
+	    {
+	      data[ii] = val;
+
+	      if(((ii)%2)!=0)
+	      	{
+	      	  /* Read out an extra word (filler) in the fifo */
+	      	  val = tipRead(&TIPp->fifo);
+	      	  if(((val & TIP_DATA_TYPE_DEFINE_MASK) != TIP_DATA_TYPE_DEFINE_MASK) ||
+	      	     ((val & TIP_WORD_TYPE_MASK) != TIP_FILLER_WORD_TYPE))
+	      	    {
+	      	      printf("\n%s: ERROR: Unexpected word after block trailer (0x%08x)\n",
+	      		     __FUNCTION__,val);
+	      	    }
+	      	}
+	      break;
+	    }
+	  data[ii] = val;
+	  ii++;
+	}
+      ii++;
+      dCnt += ii;
 
       TIPUNLOCK;
       return(dCnt);
@@ -5748,6 +5743,32 @@ tipGetTrigSrcEnabledFiberMask()
 
 /**
  * @ingroup Config
+ * @brief Enable the readout fifo in BAR0 for block data readout, instead of DMA.
+ * @return OK if successful, otherwise ERROR
+ */
+int
+tipEnableFifo()
+{
+  if(tipFD<=0)
+    {
+      printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
+      return ERROR;
+    }
+
+  TIPLOCK;
+  /* Disable DMA readout */
+  tipWrite(&TIPp->vmeControl, 
+	   tipRead(&TIPp->vmeControl) &~TIP_VMECONTROL_DMASETTING_MASK);
+
+  /* Enable FIFO */
+  tipWrite(&TIPp->rocEnable, TIP_ROCENABLE_FIFO_ENABLE);
+  TIPUNLOCK;
+
+  return OK;
+}
+
+/**
+ * @ingroup Config
  * @brief Configure the Direct Memory Access (DMA) for the TI
  *
  * @param packet_size TLP Maximum Packet Size
@@ -6530,7 +6551,7 @@ tipGetAckCount()
   return(rval);
 }
 
-
+#ifdef NOTSUPPORTED
 /* Module TI Routines */
 int
 tipRocEnable(int roc)
@@ -6595,7 +6616,7 @@ tipGetRocEnableMask()
 
   return rval;
 }
-
+#endif /* NOTSUPPORTED */
 
 
 static int
