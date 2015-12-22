@@ -31,6 +31,7 @@ mytiISR(int arg)
   int dataCheck=0;
   volatile unsigned int data[120];
 
+  tipSetOutputPort(1,1,1,1);
   unsigned int tiIntCount = tipGetIntCount();
 
 #ifdef DO_READOUT
@@ -100,6 +101,7 @@ mytiISR(int arg)
       getchar();
     }
 
+  tipSetOutputPort(0,0,0,0);
 }
 
 
@@ -172,7 +174,7 @@ main(int argc, char *argv[])
 /*   tiSetFiberDelay(1,2); */
 /*   tiSetSyncDelayWidth(1,0x3f,1); */
     
-  tipSetBlockLimit(200000);
+  tipSetBlockLimit(0);
 
   printf("Hit enter to reset stuff\n");
   getchar();
