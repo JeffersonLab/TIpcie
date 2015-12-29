@@ -766,7 +766,7 @@ TIpcie_ioctl(struct inode *inode, struct file *filp,
       }
       break;
 
-    case TIPCIE_COMPAT_IOC_MEM:
+    case TIPCIE_IOC_MEM:
       {
 	if(copy_from_user(&dma_info, (void *)arg, sizeof(dmaHandle_t)))
 	  {

@@ -60,7 +60,7 @@ $(LIBS): $(OBJ)
 -include $(DEPS)
 
 clean:
-	@rm -vf ${BASENAME}Lib.{o,d} lib${BASENAME}.{a,so}
+	@rm -vf ${BASENAME}Lib.{o,d,d.*} lib${BASENAME}.{a,so}
 
 echoarch:
 	@echo "Make for $(ARCH)"
