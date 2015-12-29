@@ -31,7 +31,6 @@ mytiISR(int arg)
   int dataCheck=0;
   volatile unsigned int data[120];
 
-  tipSetOutputPort(1,1,1,1);
   unsigned int tiIntCount = tipGetIntCount();
 
 #ifdef DO_READOUT
@@ -101,7 +100,6 @@ mytiISR(int arg)
       getchar();
     }
 
-  tipSetOutputPort(0,0,0,0);
 }
 
 

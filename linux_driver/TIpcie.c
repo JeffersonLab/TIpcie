@@ -741,6 +741,8 @@ TIpcie_ioctl(struct inode *inode, struct file *filp,
 	    values[0] = pci_bar0;
 	    values[1] = pci_bar1;
 	    values[2] = pci_bar2;
+	    for(ireg=0; ireg<3; ireg++)
+	      printk("values[%d] = 0x%08x\n",ireg,values[ireg]);
 	  }
 	else
 	  {
@@ -764,7 +766,7 @@ TIpcie_ioctl(struct inode *inode, struct file *filp,
       }
       break;
 
-    case TIPCIE_IOC_MEM:
+    case TIPCIE_COMPAT_IOC_MEM:
       {
 	if(copy_from_user(&dma_info, (void *)arg, sizeof(dmaHandle_t)))
 	  {

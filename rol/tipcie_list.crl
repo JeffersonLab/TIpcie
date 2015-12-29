@@ -24,6 +24,7 @@ begin download
 bigendian_out = 1;
 
 # Setup TIpcie
+  tipOpen();
   tipInit(TRIG_MODE,1);
 
   log inform "User Download Executed"

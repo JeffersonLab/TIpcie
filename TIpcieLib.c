@@ -39,12 +39,12 @@
 #include <string.h>
 #include <pthread.h>
 #include <errno.h>
+#include <stdint.h>
 #include "TIpcieLib.h"
 
 #define TIPCIE_IOC_MAGIC  'k'
 #define TIPCIE_IOC_RW         _IO(TIPCIE_IOC_MAGIC, 1)
 #define TIPCIE_IOC_MEM        _IO(TIPCIE_IOC_MAGIC, 2)
-#define TIPCIE_IOC_STAT       _IO(TIPCIE_IOC_MAGIC, 3)
 
 #define TIPCIE_WRITE 0
 #define TIPCIE_READ  1

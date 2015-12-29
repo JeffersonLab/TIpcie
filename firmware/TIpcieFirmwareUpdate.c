@@ -442,14 +442,14 @@ tipFirmwareEMload(char *filename)
 	    }
 	  else if (strcmp(Word[0],"ENDIR") == 0)
 	    {
-	      if ((strcmp(Word[1],"IDLE") ==0 ) || (strcmp(Word[1],"IDLE;") ==0 ))
+	      if (strstr(Word[1],"IDLE") != NULL )
 		{
 		  extrType = 0;
 #ifdef DEBUGFW
 		  printf(" ExtraType: %d \n",extrType);
 #endif
 		}
-	      else if ((strcmp(Word[1],"IRPAUSE") ==0) || (strcmp(Word[1],"IRPAUSE;") ==0))
+	      else if(strstr(Word[1],"IRPAUSE") != NULL)
 		{
 		  extrType = 2;
 #ifdef DEBUGFW

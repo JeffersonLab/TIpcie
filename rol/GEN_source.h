@@ -87,7 +87,7 @@ genttype(int code)
 {
   unsigned int tt=0;
 
-  tt = tipIntType();
+  tt = 1;
 
   return(tt);
 }
@@ -97,7 +97,7 @@ genttest(int code)
 {
   unsigned int ret=0;
 
-  ret = tipIntPoll();
+  ret = tipBReady();
   
   return ret;
 }
@@ -118,7 +118,7 @@ gentack(int code, unsigned int intMask)
 #ifdef NOJVME
 #define GEN_INIT { GEN_handlers =0;GEN_isAsync = 0;GENflag = 0;}
 #else
-#define GEN_INIT { GEN_handlers =0;GEN_isAsync = 0;GENflag = 0; vmeBusCreateLockShm();}
+#define GEN_INIT { GEN_handlers =0;GEN_isAsync = 0;GENflag = 0;}
 #endif
 
 #define GEN_ASYNC(code,id)  {printf("linking async GEN trigger to id %d \n",id); \
@@ -148,12 +148,6 @@ gentack(int code, unsigned int intMask)
 #define GEN_ENCODE(code) (code)
 
 #define GEN_ACK(code,val)   gentack(code,val);
-
-__attribute__((constructor)) void start()
-{
-    printf("ROC Startup\n");
-    tipOpen();
-}
 
 __attribute__((destructor)) void end (void)
 {

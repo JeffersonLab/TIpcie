@@ -11,7 +11,7 @@
 #
 
 CROSS_COMPILE		=
-CC			= $(CROSS_COMPILE)gcc
+CC			= $(CROSS_COMPILE)gcc34 
 AR                      = ar
 RANLIB                  = ranlib
 CFLAGS			= -Wall -g -I. -I../ -I/usr/include \

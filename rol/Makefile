@@ -16,7 +16,7 @@ DEBUG=1
 TIPCIE_PATH		= /daqfs/home/moffit/work/TIpcie
 
 # DEFs for compiling CODA readout lists
-CC			= gcc
+CC			= gcc -m32
 CCRL			= ${CODA_BIN}/ccrl
 CODA_INCS		= -I. -I${TIPCIE_PATH} -I${CODA}/common/include
 CODA_LIBDIRS            = -L. -L${TIPCIE_PATH} 
@@ -61,7 +61,7 @@ clean:
 	@echo "Building $@ from $<"
 	@set -e; rm -f $@; \
 	$(CC) -MM -shared $(CODA_INCS) $< > $@.$$$$; \
-	sed 's,\($*\)\.so[ :]*,\1 $@ : ,g' < $@.$$$$ > $@; \
+	sed 's,\($*\)\.o[ :]*,\1.so $@ : ,g' < $@.$$$$ > $@; \
 	rm -f $@.$$$$
 
 -include $(DEPS)
