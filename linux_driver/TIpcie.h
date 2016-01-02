@@ -12,6 +12,9 @@
 #define TIPCIE_IOC_RW         _IO(TIPCIE_IOC_MAGIC, 1)
 #define TIPCIE_IOC_MEM        _IO(TIPCIE_IOC_MAGIC, 2)
 
+#define TIPCIE_COMPAT_IOC_RW         _IO(TIPCIE_IOC_MAGIC, 1)
+#define TIPCIE_COMPAT_IOC_MEM        _IO(TIPCIE_IOC_MAGIC, 2)
+
 #define TIPCIE_IOC_MAXNR  2
 
 #define TIPCIE_RW_WRITE 0
@@ -21,7 +24,7 @@
 #define TIPCIE_MEM_ALLOC 0
 #define TIPCIE_MEM_FREE  1
 
-#define TIPCIE_RSRC_FPGA      (1U << 0)       /* FPGA initialized     */
+#define TIPCIE_RSRC_MSI       (1U << 0)       /* MIS Interrupts enabled */
 #define TIPCIE_RSRC_PCI_EN    (1U << 1)       /* PCI enabled          */
 #define TIPCIE_RSRC_BRIDGE    (1U << 2)       /* Bridge initialized   */
 #define TIPCIE_RSRC_DEVINIT   (1U << 3)       /* Device initialized   */
@@ -58,20 +61,38 @@ typedef	struct DMA_HANDLE_STRUCT dmaHandle_t;
 typedef struct DMA_BUF_INFO_STRUCT
 {
   unsigned long  dma_osspec_hdl;
-  int              command_type;
-  unsigned long       phys_addr;
-  unsigned long       virt_addr;
-  unsigned int             size;
+  int            command_type;
+  unsigned long  phys_addr;
+  unsigned long  virt_addr;
+  unsigned int   size;
 } DMA_BUF_INFO;
+
+typedef struct DMA_BUF_COMPAT_INFO_STRUCT
+{
+  compat_ulong_t  dma_osspec_hdl;
+  compat_int_t    command_type;
+  compat_ulong_t  phys_addr;
+  compat_ulong_t  virt_addr;
+  compat_uint_t   size;
+} DMA_BUF_COMPAT_INFO;
 
 typedef struct TIpcie_ioctl_struct
 {
-  int    command_type;
-  int      mem_region;
-  unsigned int   nreg;
+  int             command_type;
+  int             mem_region;
+  unsigned int    nreg;
   unsigned int   *reg;
-  unsigned int *value;
+  unsigned int   *value;
 } TIPCIE_IOCTL_INFO;
+
+typedef struct TIpcie_compat_ioctl_struct
+{
+  compat_int_t   command_type;
+  compat_int_t   mem_region;
+  compat_uint_t  nreg;
+  compat_uptr_t  reg;
+  compat_uptr_t  value;
+} TIPCIE_COMPAT_IOCTL_INFO;
 
 
 #endif /* TIPCIE_H */
