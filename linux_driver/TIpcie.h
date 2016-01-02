@@ -12,6 +12,9 @@
 #define TIPCIE_IOC_RW         _IO(TIPCIE_IOC_MAGIC, 1)
 #define TIPCIE_IOC_MEM        _IO(TIPCIE_IOC_MAGIC, 2)
 
+#define TIPCIE_COMPAT_IOC_RW         _IO(TIPCIE_IOC_MAGIC, 1)
+#define TIPCIE_COMPAT_IOC_MEM        _IO(TIPCIE_IOC_MAGIC, 2)
+
 #define TIPCIE_IOC_MAXNR  2
 
 #define TIPCIE_RW_WRITE 0
@@ -21,7 +24,7 @@
 #define TIPCIE_MEM_ALLOC 0
 #define TIPCIE_MEM_FREE  1
 
-#define TIPCIE_RSRC_FPGA      (1U << 0)       /* FPGA initialized     */
+#define TIPCIE_RSRC_MSI       (1U << 0)       /* MIS Interrupts enabled */
 #define TIPCIE_RSRC_PCI_EN    (1U << 1)       /* PCI enabled          */
 #define TIPCIE_RSRC_BRIDGE    (1U << 2)       /* Bridge initialized   */
 #define TIPCIE_RSRC_DEVINIT   (1U << 3)       /* Device initialized   */

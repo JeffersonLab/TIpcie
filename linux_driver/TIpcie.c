@@ -16,13 +16,13 @@
 #include <linux/semaphore.h>
 #include <linux/cdev.h>
 #include <linux/sched.h>
+#include <linux/compat.h>
 #include "TIpcie.h"
-
 
 #define PCI_VENDOR_ID_DOE 0xD0E1
 #define PCI_DEVICE_ID_TIPCIE 0x71E0
 
-unsigned int TIpcie_init_flags;
+unsigned int TIpcie_init_flags=0;
 
 static struct pci_device_id ids[] = {
   { PCI_DEVICE(PCI_VENDOR_ID_DOE, PCI_DEVICE_ID_TIPCIE), },
@@ -38,6 +38,8 @@ static void unregister_proc( void );
 static void remove(struct pci_dev *dev);
 static int TIpcie_ioctl(struct inode *inode, struct file *filp,
 	       unsigned int cmd, unsigned long arg);
+static long TIpcie_compat_ioctl(struct file *filep, unsigned int cmd,
+				unsigned long arg);
 static int TIpcie_mmap(struct file *file,struct vm_area_struct *vma);
 int TIpcieAllocDmaBuf(DMA_BUF_INFO *dma_buf_info);
 int TIpcieFreeDmaBuf(DMA_BUF_INFO *dma_buf_info);
@@ -73,28 +75,18 @@ static struct file_operations TIpcie_fops =
   ioctl:    TIpcie_ioctl,
   mmap:     TIpcie_mmap,
   read:     TIpcie_read,
+  .compat_ioctl = TIpcie_compat_ioctl,
 /*   open:     TIpcie_open, */
-/*   release:  TIpcie_release  */
+  release:  remove
 };
 
 static struct pci_driver pci_driver = {
   .name = "TIpcie",
   .id_table = ids,
 /*   .probe = probe, */
-  .remove = remove,
+  /* .remove = remove, */
 };
 
-
-#ifdef NOMOREPROBE
-static unsigned char 
-skel_get_revision(struct pci_dev *dev)
-{
-  u8 revision;
-
-  pci_read_config_byte(dev, PCI_REVISION_ID, &revision);
-  return revision;
-}
-#endif
 
 irqreturn_t
 ti_irqhandler(int irq, void *dev_id)
@@ -140,11 +132,12 @@ findTIpcie(void)
                                      ti_pci_dev))) {
     status = pci_enable_device(ti_pci_dev);
 
+    ADD_RESOURCE(TIpcie_init_flags, TIPCIE_RSRC_PCI_EN);
     printk("  PCIexpress TI Found.\n");
   }
 
   if( ti_pci_dev == NULL) {
-    printk("  PCIexpress T not found on PCI Bus.\n");
+    printk("  PCIexpress TI not found on PCI Bus.\n");
     return(ti_pci_dev);
   }
 
@@ -155,12 +148,16 @@ findTIpcie(void)
 
   ti_revision &= 0xFF;
 
+#ifdef TEST_INTERRUPTS
+  // 01jan2016 BM - Enabling IRQ causes a un-reloadable driver ATM.
   status = pci_enable_msi(ti_pci_dev);
   if (status) 
     {
       printk("%s: Unable to enable MSI\n", 
 	     __FUNCTION__);
     } 
+  else
+    ADD_RESOURCE(TIpcie_init_flags, TIPCIE_RSRC_MSI);
 
   // determine the TIPCIEchip IRQ number.
   if(ti_irq == 0)
@@ -189,8 +186,11 @@ findTIpcie(void)
 	     __FUNCTION__,ti_irq);
       return(0);
     } 
+  ADD_RESOURCE(TIpcie_init_flags, TIPCIE_RSRC_INTR);
 
   init_waitqueue_head(&irq_queue);
+#endif
+
 
   // Ensure Bus mastering, IO Space, and Mem Space are enabled
   pci_read_config_dword(ti_pci_dev, PCI_COMMAND, &pci_command);
@@ -291,82 +291,6 @@ mapInTIpcie(struct pci_dev *TIpcie_pci_dev)
 
 }
 
-#ifdef NOMOREPROBE
-/* Not using this function, for now */
-static int 
-probe(struct pci_dev *dev, const struct pci_device_id *id)
-{
-  unsigned long ba=0;
-  unsigned int revision=0;
-  int status;
-  int pci_command=0;
-  struct pci_dev *ti_pci_dev=NULL;
-  /* Do probing type stuff here.  
-   * Like calling request_region();
-   */
-
-  if ((ti_pci_dev = pci_get_device(PCI_VENDOR_ID_DOE,
-				    PCI_DEVICE_ID_TIPCIE, 
-				    ti_pci_dev))) {
-    status = pci_enable_device(ti_pci_dev);
-    
-    printk("  PCIexpress TI Found.\n");
-  }
-
-
-  pci_read_config_dword(dev, PCI_COMMAND, &pci_command);
-  pci_command |= (PCI_COMMAND_MASTER | PCI_COMMAND_IO | PCI_COMMAND_MEMORY);
-  pci_write_config_dword(dev, PCI_COMMAND, pci_command);
-
-  // read revision.
-  pci_read_config_dword(dev, 0x8, &revision);
-
-  printk("TIpcie: revision = (0x%x) %d\n",revision,revision);
-
-  printk("TIpcie: skel_get_revision = (0x%x) %d\n",
-	 skel_get_revision(dev),skel_get_revision(dev));
-	
-  if (skel_get_revision(dev) != 0x00)
-    return -ENODEV;
-
-  ba = pci_resource_start (dev, 2);
-  printk("  ba = 0x%0lx\n",ba);
-
-  printk("  flags = 0x%lx\n",pci_resource_flags(dev,0));
-  baseaddr = (char*)ioremap_nocache(ba,2048);
-  printk("  ioremap = 0x%08x\n",(unsigned int)baseaddr);
-
-  ba = pci_resource_start (dev, 1);
-
-/*   iores1 = request_mem_region(ba,256,"iores1"); */
-
-/*   printk("  ba = 0x%08x\n",ba); */
-
-/*   printk("  flags = 0x%lx\n",pci_resource_flags(dev,1)); */
-/*   io1 = ba; */
-/*   iomap1 = ioport_map(io1,256); */
-/*   ioaddr1 = (char*)ioremap_nocache(ba,256); */
-
-/*   printk("  ioremap = 0x%08x\n",(unsigned int)ioaddr1); */
-
-
-/*   ba = pci_resource_start (dev, 2); */
-
-/*   printk("  ba = 0x%08x\n",ba); */
-
-/*   iores2 = request_mem_region(ba,256,"iores2"); */
-/*   printk("  flags = 0x%lx\n",pci_resource_flags(dev,2)); */
-
-/*   io2 = ba; */
-/*   iomap2 = ioport_map(io2,256); */
-/*   ioaddr2 = (char*)ioremap_nocache(ba,256); */
-
-/*   printk("  ioremap = 0x%08x\n",(unsigned int)ioaddr2); */
-
-  return 0;
-}
-#endif /* NOMOREPROBE */
-
 static void 
 remove(struct pci_dev *dev)
 {
@@ -374,26 +298,7 @@ remove(struct pci_dev *dev)
    * like call release_region();
    */
 
-/*   if(ioaddr1) */
-/*     iounmap(ioaddr1); */
-
-/*   if(ioaddr2) */
-/*     iounmap(ioaddr2); */
-
-/*   if(iores2) */
-/*     release_mem_region(io2,256); */
-
-/*   if(iomap2) */
-/*     ioport_unmap(iomap2); */
-
-/*   if(iores1) */
-/*     release_mem_region(io1,256); */
-
-/*   if(iomap1) */
-/*     ioport_unmap(iomap1); */
-
-/*   if(TIpcie_baseaddr) */
-/*     iounmap(TIpcie_baseaddr); */
+  clean_module();
 
   printk("TIpcie.ko: Unloaded\n");
 }
@@ -404,12 +309,13 @@ __init TIpcie_init(void)
   int rval=0;
   unsigned int temp, status;
   struct resource pcimemres;
+
+  TIpcie_init_flags=0;
   printk("TIpcie driver loaded\n");
 
   rval = pci_register_driver(&pci_driver);
 
-  printk("rval = %d\n",rval);
-  ADD_RESOURCE(TIpcie_init_flags, TIPCIE_RSRC_DEVINIT);
+  /* printk("rval = %d\n",rval); */
 
   register_proc();
 
@@ -475,36 +381,65 @@ __init TIpcie_init(void)
 static void
 clean_module(void)
 {
+  printk("%s: Entered\n",__FUNCTION__);
+  if (HAS_RESOURCE(TIpcie_init_flags, TIPCIE_RSRC_MAP2)) 
+    {
+      printk("%s: Unregistering map2\n",__FUNCTION__);
+      if(TIpcie_resaddr2)
+	iounmap(TIpcie_resaddr2);
+      DEL_RESOURCE(TIpcie_init_flags, TIPCIE_RSRC_MAP2);
+    }
+
+  if (HAS_RESOURCE(TIpcie_init_flags, TIPCIE_RSRC_MAP1)) 
+    {
+      printk("%s: Unregistering map1\n",__FUNCTION__);
+      if(TIpcie_resaddr1)
+	iounmap(TIpcie_resaddr1);
+      DEL_RESOURCE(TIpcie_init_flags, TIPCIE_RSRC_MAP1);
+    }
+
+  if (HAS_RESOURCE(TIpcie_init_flags, TIPCIE_RSRC_MAP0)) 
+    {
+      printk("%s: Unregistering map0\n",__FUNCTION__);
+      if(TIpcie_resaddr0)
+	iounmap(TIpcie_resaddr0);
+      DEL_RESOURCE(TIpcie_init_flags, TIPCIE_RSRC_MAP0);
+    }
+
+  if (HAS_RESOURCE(TIpcie_init_flags, TIPCIE_RSRC_MSI)) 
+    {
+      printk("%s: Disabling MSI\n",__FUNCTION__);
+      pci_disable_msi(ti_pci_dev);
+      DEL_RESOURCE(TIpcie_init_flags, TIPCIE_RSRC_MSI);
+    }
+
+  if (HAS_RESOURCE(TIpcie_init_flags, TIPCIE_RSRC_INTR)) 
+    {
+      printk("%s: Freeing IRQ\n",__FUNCTION__);
+      free_irq(ti_irq, ti_pci_dev);
+      DEL_RESOURCE(TIpcie_init_flags, TIPCIE_RSRC_INTR);
+    }
+
   if (HAS_RESOURCE(TIpcie_init_flags, TIPCIE_RSRC_PROC)) 
     {
+      printk("%s: Unregistering Proc\n",__FUNCTION__);
       unregister_proc();
       DEL_RESOURCE(TIpcie_init_flags, TIPCIE_RSRC_PROC);
     }
 
   if (HAS_RESOURCE(TIpcie_init_flags, TIPCIE_RSRC_CHR)) 
     {
+      printk("%s: Unregistering chrdev\n",__FUNCTION__);
       unregister_chrdev(TIPCIE_MAJOR, "TIpcie");
       DEL_RESOURCE(TIpcie_init_flags, TIPCIE_RSRC_CHR);
     }
 
-  if (HAS_RESOURCE(TIpcie_init_flags, TIPCIE_RSRC_MAP0)) 
+  if (HAS_RESOURCE(TIpcie_init_flags, TIPCIE_RSRC_PCI_EN)) 
     {
-      iounmap(TIpcie_resaddr0);
-      DEL_RESOURCE(TIpcie_init_flags, TIPCIE_RSRC_MAP0);
+      printk("%s: Disabling pci device\n",__FUNCTION__);
+      pci_disable_device(ti_pci_dev);
+      DEL_RESOURCE(TIpcie_init_flags, TIPCIE_RSRC_PCI_EN);
     }
-
-  if (HAS_RESOURCE(TIpcie_init_flags, TIPCIE_RSRC_MAP1)) 
-    {
-      iounmap(TIpcie_resaddr1);
-      DEL_RESOURCE(TIpcie_init_flags, TIPCIE_RSRC_MAP1);
-    }
-
-  if (HAS_RESOURCE(TIpcie_init_flags, TIPCIE_RSRC_MAP2)) 
-    {
-      iounmap(TIpcie_resaddr2);
-      DEL_RESOURCE(TIpcie_init_flags, TIPCIE_RSRC_MAP2);
-    }
-
 
   pci_unregister_driver(&pci_driver);
 }
@@ -807,6 +742,37 @@ TIpcie_ioctl(struct inode *inode, struct file *filp,
   kfree(regs);
 
   return retval;
+}
+
+
+static long
+TIpcie_compat_ioctl(struct file *filep, unsigned int cmd,
+		    unsigned long arg)
+{
+  /*
+   * extract the type and number bitfields, and don't decode
+   * wrong cmds: return ENOTTY (inappropriate ioctl) before access_ok()
+   */
+  if (_IOC_TYPE(cmd) != TIPCIE_IOC_MAGIC) return -ENOTTY;
+  if (_IOC_NR(cmd) > TIPCIE_IOC_MAXNR) return -ENOTTY;
+
+  switch(cmd)
+    {
+    case TIPCIE_IOC_RW:
+      printk("%s: IOC_RW\n",__FUNCTION__);
+
+    case TIPCIE_IOC_MEM:
+      printk("%s: IOC_MEM\n",__FUNCTION__);
+
+    default:  /* redundant, as cmd was checked against MAXNR */
+      {
+	printk("%s: Unrecognized command (%d).\n",
+	       __FUNCTION__,cmd);
+	return -ENOTTY;
+      }
+    }
+
+  return 0;
 }
 
 static int 

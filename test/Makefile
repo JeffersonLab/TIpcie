@@ -10,8 +10,7 @@
 # $Rev$
 #
 
-CROSS_COMPILE		=
-CC			= $(CROSS_COMPILE)gcc34 
+CC			= gcc34 -m32
 AR                      = ar
 RANLIB                  = ranlib
 CFLAGS			= -Wall -g -I. -I../ -I/usr/include \
