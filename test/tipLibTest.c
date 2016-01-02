@@ -21,7 +21,8 @@ main(int argc, char *argv[])
 {
   int i=0;
 
-  tipOpen();
+  if(tipOpen()!=OK)
+    goto CLOSE;
   
   tipInit(0,0);
   tipStatus(1);

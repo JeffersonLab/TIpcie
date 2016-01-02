@@ -61,20 +61,38 @@ typedef	struct DMA_HANDLE_STRUCT dmaHandle_t;
 typedef struct DMA_BUF_INFO_STRUCT
 {
   unsigned long  dma_osspec_hdl;
-  int              command_type;
-  unsigned long       phys_addr;
-  unsigned long       virt_addr;
-  unsigned int             size;
+  int            command_type;
+  unsigned long  phys_addr;
+  unsigned long  virt_addr;
+  unsigned int   size;
 } DMA_BUF_INFO;
+
+typedef struct DMA_BUF_COMPAT_INFO_STRUCT
+{
+  compat_ulong_t  dma_osspec_hdl;
+  compat_int_t    command_type;
+  compat_ulong_t  phys_addr;
+  compat_ulong_t  virt_addr;
+  compat_uint_t   size;
+} DMA_BUF_COMPAT_INFO;
 
 typedef struct TIpcie_ioctl_struct
 {
-  int    command_type;
-  int      mem_region;
-  unsigned int   nreg;
+  int             command_type;
+  int             mem_region;
+  unsigned int    nreg;
   unsigned int   *reg;
-  unsigned int *value;
+  unsigned int   *value;
 } TIPCIE_IOCTL_INFO;
+
+typedef struct TIpcie_compat_ioctl_struct
+{
+  compat_int_t   command_type;
+  compat_int_t   mem_region;
+  compat_uint_t  nreg;
+  compat_uptr_t  reg;
+  compat_uptr_t  value;
+} TIPCIE_COMPAT_IOCTL_INFO;
 
 
 #endif /* TIPCIE_H */

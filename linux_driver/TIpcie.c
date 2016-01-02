@@ -46,7 +46,8 @@ int TIpcieFreeDmaBuf(DMA_BUF_INFO *dma_buf_info);
 static int dmaHandleListAdd(dmaHandle_t *dmahandle);
 static int dmaHandleListRemove(dmaHandle_t *dmahandle);
 int TIpcieFreeDmaHandles(void);
-int TIpcie_read(void);
+static ssize_t TIpcie_read(struct file *filp, char __user *buf, size_t count,
+			   loff_t *f_pos);
 
 dmaHandle_t *dma_handle_list = NULL;
 
@@ -70,21 +71,21 @@ wait_queue_head_t  irq_queue;
 /* static struct resource *iores1; */
 /* static struct resource *iores2; */
 static struct proc_dir_entry *TIpcie_procdir;
-static struct file_operations TIpcie_fops = 
+static const struct file_operations TIpcie_fops = 
 {
-  ioctl:    TIpcie_ioctl,
-  mmap:     TIpcie_mmap,
-  read:     TIpcie_read,
+  .ioctl        = TIpcie_ioctl,
+  .mmap         = TIpcie_mmap,
+  .read         = TIpcie_read,
   .compat_ioctl = TIpcie_compat_ioctl,
 /*   open:     TIpcie_open, */
-  release:  remove
+  /* release:  remove */
 };
 
 static struct pci_driver pci_driver = {
   .name = "TIpcie",
   .id_table = ids,
 /*   .probe = probe, */
-  /* .remove = remove, */
+  .remove = remove,
 };
 
 
@@ -102,8 +103,9 @@ ti_irqhandler(int irq, void *dev_id)
   return IRQ_HANDLED;
 }
 
-int
-TIpcie_read()
+static ssize_t 
+TIpcie_read(struct file *filp, char __user *buf, size_t count,
+	    loff_t *f_pos)
 {
   unsigned long long before=0, after=0;
   read_open=1;
@@ -749,6 +751,16 @@ static long
 TIpcie_compat_ioctl(struct file *filep, unsigned int cmd,
 		    unsigned long arg)
 {
+  TIPCIE_COMPAT_IOCTL_INFO user_info;
+  TIPCIE_COMPAT_IOCTL_INFO __user *p32 = compat_ptr(arg);
+#ifdef SUPPORT_DMA
+  DMA_BUF_COMPAT_INFO dma_info;
+#endif
+  int ireg=0, retval=0;
+  compat_uint_t *regs = NULL;
+  compat_uint_t *values = NULL;
+  int stat=0;
+
   /*
    * extract the type and number bitfields, and don't decode
    * wrong cmds: return ENOTTY (inappropriate ioctl) before access_ok()
@@ -756,23 +768,238 @@ TIpcie_compat_ioctl(struct file *filep, unsigned int cmd,
   if (_IOC_TYPE(cmd) != TIPCIE_IOC_MAGIC) return -ENOTTY;
   if (_IOC_NR(cmd) > TIPCIE_IOC_MAXNR) return -ENOTTY;
 
+
   switch(cmd)
     {
     case TIPCIE_IOC_RW:
-      printk("%s: IOC_RW\n",__FUNCTION__);
+      {
+	if(copy_from_user(&user_info, (void *)p32, sizeof(TIPCIE_COMPAT_IOCTL_INFO)))
+	  {
+	    printk("%s: copy_from_user (user_info) failed\n",__FUNCTION__);
+	    return -EFAULT;
+	  }
+
+	regs   = (compat_uint_t*)kmalloc(user_info.nreg*sizeof(user_info.reg), GFP_KERNEL);
+	values = (compat_uint_t*)kmalloc(user_info.nreg*sizeof(user_info.value), GFP_KERNEL);
+
+	stat = copy_from_user(regs, 
+			      (void *)compat_ptr(p32->reg), 
+			      user_info.nreg*sizeof(user_info.reg));
+	if(stat)
+	  {
+	    printk("%s: copy_from_user (regs) failed (%d)\n",__FUNCTION__,stat);
+	    return -EFAULT;
+	  }
+
+	stat = copy_from_user(values, 
+			      (void *)compat_ptr(p32->value), 
+			      user_info.nreg*sizeof(user_info.value));
+	if(stat)
+	  {
+	    printk("%s: copy_from_user (values) failed (%d)\n",
+		   __FUNCTION__,stat);
+	    return -EFAULT;
+	  }
+
+
+#ifdef DEBUGDRIVER
+	printk("%s:\n",__FUNCTION__);
+	printk("   mem_region = 0x%x\n",user_info.mem_region);
+	printk(" command_type = 0x%x\n",user_info.command_type);
+	for(ireg=0; ireg<user_info.nreg; ireg++)
+	  {
+	    printk("          reg = 0x%x\n",regs[ireg]);
+	    if(user_info.command_type==TIPCIE_RW_WRITE)
+	      {
+		printk("        value = 0x%x\n",values[ireg]);
+	      }
+	  }
+#endif /* DEBUGDRIVER */
+
+	if(user_info.command_type==TIPCIE_RW_WRITE)
+	  {
+	    switch(user_info.mem_region)
+	      {
+	      case 0:
+		for(ireg=0; ireg<user_info.nreg; ireg++)
+		  {
+		    if(regs[ireg]>TIPCIE_MEM0_SIZE)
+		      {
+			printk("%s: BAR%d Bad register offset (0x%x)\n",__FUNCTION__,
+			       user_info.mem_region,regs[ireg]);
+			return -ENOTTY;
+		      }
+		    
+		    iowrite32(values[ireg], TIpcie_resaddr0 + regs[ireg]);
+		  }
+		break;
+
+	      case 1:
+		for(ireg=0; ireg<user_info.nreg; ireg++)
+		  {
+		    if(regs[ireg]>TIPCIE_MEM1_SIZE)
+		      {
+			printk("%s: BAR%d Bad register offset (0x%x)\n",__FUNCTION__,
+			       user_info.mem_region,regs[ireg]);
+			return -ENOTTY;
+		      }
+		    
+		    iowrite32(values[ireg], TIpcie_resaddr1 + regs[ireg]);
+		  }
+		break;
+
+	      case 2:
+		for(ireg=0; ireg<user_info.nreg; ireg++)
+		  {
+		    if(regs[ireg]>TIPCIE_MEM2_SIZE)
+		      {
+			printk("%s: BAR%d Bad register offset (0x%x)\n",__FUNCTION__,
+			       user_info.mem_region,regs[ireg]);
+			return -ENOTTY;
+		      }
+		    
+		    iowrite32(values[ireg], TIpcie_resaddr2 + regs[ireg]);
+		  }
+		break;
+
+	      default:
+		{
+		  printk("%s: Bad memory region (%d)\n",__FUNCTION__,user_info.mem_region);
+		  return -ENOTTY;
+		}
+
+	      }
+	  }
+	else if(user_info.command_type==TIPCIE_RW_READ)
+	  {
+	    switch(user_info.mem_region)
+	      {
+	      case 0:
+		for(ireg=0; ireg<user_info.nreg; ireg++)
+		  {
+		    if(regs[ireg]>TIPCIE_MEM0_SIZE)
+		      {
+			printk("%s: BAR%d Bad register offset (0x%x)\n",__FUNCTION__,
+			       user_info.mem_region,regs[ireg]);
+			return -ENOTTY;
+		      }
+		    
+		    values[ireg] = ioread32(TIpcie_resaddr0 + regs[ireg]);
+		  }
+		break;
+
+	      case 1:
+		for(ireg=0; ireg<user_info.nreg; ireg++)
+		  {
+		    if(regs[ireg]>TIPCIE_MEM1_SIZE)
+		      {
+			printk("%s: BAR%d Bad register offset (0x%x)\n",__FUNCTION__,
+			       user_info.mem_region,regs[ireg]);
+			return -ENOTTY;
+		      }
+		    
+		    values[ireg] = ioread32(TIpcie_resaddr1 + regs[ireg]);
+		  }
+		break;
+
+	      case 2:
+		for(ireg=0; ireg<user_info.nreg; ireg++)
+		  {
+		    if(regs[ireg]>TIPCIE_MEM2_SIZE)
+		      {
+			printk("%s: BAR%d Bad register offset (0x%x)\n",__FUNCTION__,
+			       user_info.mem_region,regs[ireg]);
+			return -ENOTTY;
+		      }
+		    
+		    values[ireg] = ioread32(TIpcie_resaddr2 + regs[ireg]);
+		  }
+		break;
+
+	      default:
+		{
+		  printk("%s: Bad memory region (%d)\n",__FUNCTION__,user_info.mem_region);
+		  return -ENOTTY;
+		}
+	      }
+
+	  }
+	else if(user_info.command_type==TIPCIE_RW_STAT)
+	  {
+	    values[0] = pci_bar0;
+	    values[1] = pci_bar1;
+	    values[2] = pci_bar2;
+	    for(ireg=0; ireg<3; ireg++)
+	      printk("values[%d] = 0x%08x\n",ireg,values[ireg]);
+	  }
+	else
+	  {
+	    printk("%s: Bad RW option (%d)\n",__FUNCTION__,user_info.command_type);
+	    return -ENOTTY;
+	  }
+
+	if(copy_to_user((void *)compat_ptr(p32->value), values, user_info.nreg*sizeof(unsigned int)))
+	  {
+	    printk("%s: copy_to_user (values) failed\n",__FUNCTION__);
+	    return -EFAULT;
+	  }
+	
+	
+	if(copy_to_user((void *)compat_ptr(arg), &user_info, sizeof(TIPCIE_COMPAT_IOCTL_INFO)))
+	  {
+	    printk("%s: copy_to_user (user_info) failed\n",__FUNCTION__);
+	    return -EFAULT;
+	  }
+	
+      }
+      break;
 
     case TIPCIE_IOC_MEM:
-      printk("%s: IOC_MEM\n",__FUNCTION__);
+      {
+#ifdef SUPPORT_DMA
+	if(copy_from_user(&dma_info, (void *)arg, sizeof(dmaHandle_t)))
+	  {
+	    printk("%s: copy_from_user (dma_info) failed\n",__FUNCTION__);
+	    return -EFAULT;
+	  }
+
+	if(dma_info.command_type==TIPCIE_MEM_ALLOC)
+	  {
+	    TIpcieAllocDmaBuf(&dma_info);	
+	  }
+	else if(dma_info.command_type==TIPCIE_MEM_FREE)
+	  {
+	    TIpcieFreeDmaBuf(&dma_info);
+	  }
+	else
+	  {
+	    printk("%s: Bad MEM option (%d)\n",__FUNCTION__,dma_info.command_type);
+	    return -ENOTTY;
+	  }
+
+	if(copy_to_user((void *)arg, &dma_info, sizeof(dmaHandle_t)))
+	  {
+	    printk("%s: copy_to_user (dma_info) failed\n",__FUNCTION__);
+	    return -EFAULT;
+	  }
+#else
+      printk("%s: DMA Not supported\n",__FUNCTION__);
+      return -ENOTTY;
+#endif
+      }
+      break;
 
     default:  /* redundant, as cmd was checked against MAXNR */
       {
-	printk("%s: Unrecognized command (%d).\n",
-	       __FUNCTION__,cmd);
+	printk("%s: Unrecognized command (%d).\n",__FUNCTION__,cmd);
 	return -ENOTTY;
       }
     }
 
-  return 0;
+  kfree(values);
+  kfree(regs);
+
+  return retval;
 }
 
 static int 

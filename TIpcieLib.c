@@ -59,7 +59,7 @@ typedef struct pci_ioctl_struct
   int command_type;
   int mem_region;
   unsigned int nreg;
-  volatile unsigned int *reg;
+  unsigned int *reg;
   unsigned int *value;
 } PCI_IOCTL_INFO;
 
@@ -6873,7 +6873,11 @@ tipOpen()
   tipDmaAddrBase = phys_addr;
 #endif /* ALLOCMEM */
 
-  tipGetPciBar((unsigned int *)&bars);
+  if(tipGetPciBar((unsigned int *)&bars)!=OK)
+    {
+      printf("%s: Failed to get PCI bars\n",__FUNCTION__);
+      return ERROR;
+    }
   int i=0;
   for(i=0; i<3; i++)
     printf("bar[%d] = 0x%08x\n",i,bars[i]);
@@ -6936,7 +6940,7 @@ static int
 tipGetPciBar(unsigned int *value)
 {
   int stat=0;
-  unsigned int reg[3]={0,0,0};
+  unsigned int reg[3]={1,2,3};
   int nreg = 3;
   PCI_IOCTL_INFO info =
     {
