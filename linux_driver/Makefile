@@ -1,4 +1,4 @@
-obj-m	:= pci_skel.o
+obj-m	:= TIpcie.o
 
 KERNELDIR ?= /lib/modules/$(shell uname -r)/build
 PWD       := $(shell pwd)

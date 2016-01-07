@@ -1,0 +1,173 @@
+# 
+#  User example readout list using a TIpcie
+#
+#    Bryan Moffit, TJNAF 2015
+#
+
+readout list GEN_USER
+maximum 1024,512
+polling
+general readout
+
+# TRIG_MODE = TIP_READOUT_EXT_POLL for polling mode (External input)
+#           = TIP_READOUT_TS_POLL  for polling mode (TS input)
+const TRIG_MODE = TIP_READOUT_EXT_POLL
+const BLOCKLEVEL = 1
+
+extern int bigendian_out;
+
+############################################################
+# DOWNLOAD
+############################################################
+begin download
+
+# Sending little-endian (Linux-ROC) to little-endian (Linux-EB)
+bigendian_out = 1;
+
+# Setup TIpcie
+%%
+{
+  tipInit(TRIG_MODE,0);
+
+  tipLoadTriggerTable(0);
+    
+  tipSetTriggerHoldoff(1,4,0);
+  tipSetTriggerHoldoff(2,4,0);
+
+  tipSetPrescale(0);
+  tipSetBlockLevel(BLOCKLEVEL);
+
+  tipSetTriggerSource(TIP_TRIGGER_PULSER);
+
+  tipSetBusySource(TIP_BUSY_LOOPBACK ,1);
+
+  tipSetBlockBufferLevel(1);
+
+  tipSetSyncEventInterval(0);
+}
+%%
+  log inform "User Download Executed"
+
+end download
+    
+############################################################
+# PRESTART
+############################################################
+begin prestart
+
+  variable jj, adc_id
+
+  log inform "Entering User Prestart"
+
+  init trig source GEN
+  link sync trig source GEN 1 to titrig and titrig_done
+  event type 1 then read GEN 1
+
+  log inform "User Prestart Executed"
+
+%%
+{
+  tipSetBlockLimit(0);
+  tipStatus(1);
+
+  tipTrigLinkReset();
+  usleep(10000);
+  tipSyncReset(1);
+
+}
+%%
+
+end prestart
+
+############################################################
+# GO
+############################################################
+begin go
+  
+  log inform "Entering User Go"
+
+  tipStatus(1);
+  CDOENABLE(GEN,1,0);
+
+  tipSetRandomTrigger(1,0x7);
+
+  log inform "User Go Executed"
+
+end go
+
+
+############################################################
+# END
+############################################################
+begin end
+
+  tipDisableRandomTrigger();
+
+  CDODISABLE(GEN,1,0);
+
+  tipStatus(1);
+
+  log inform "User End Executed"
+
+end end
+
+############################################################
+# PAUSE
+############################################################
+begin pause
+
+  CDODISABLE(GEN,1,0);
+
+  log inform "User Pause Executed"
+
+end pause
+
+############################################################
+# TRIGGER
+############################################################
+begin trigger titrig
+
+ variable ii, event_ty, event_no
+
+ event_ty = EVTYPE;
+ event_no = *rol->nevents;
+
+ rol->dabufp = (long *) 0;
+ open event type EVTYPE of BT_UI4
+
+%%
+ {
+   int dCnt=0;
+   dCnt = tipReadBlock((volatile unsigned int *)rol->dabufp,32,0);
+   if(dCnt<=0)
+     {
+       printf("**************************************************\n");
+       printf("%6d: No TI data or error.  dCnt = %d\n",event_no,dCnt);
+       printf("**************************************************\n");
+       tipSetBlockLimit(1);
+     }
+   else
+     rol->dabufp += dCnt;
+ }
+%%
+
+ close event
+
+end trigger
+
+begin done titrig
+
+end done
+
+############################################################
+# DONE (TRIGGER ACKNOWLEDGE)
+############################################################
+begin done
+  CDOACK(GEN,1,0);
+end done
+
+begin status
+
+end status
+
+
