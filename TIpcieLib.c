@@ -122,6 +122,7 @@ static int          tipDoSyncResetRequest =0; /* Option to request a sync reset 
 static int          tipSyncResetType=TIP_SYNCCOMMAND_SYNCRESET_4US;  /* Set default SyncReset Type to Fixed 4 us */
 static int          tipVersion     = 0x0;     /* Firmware version */
 int                 tipFiberLatencyOffset = 0xbf; /* Default offset for fiber latency */
+static int          tipDoIntPolling= 1;       /* Decision to use library polling thread routine */
 static int tipFD;
 static DMA_MAP_INFO tipMapInfo;
 
@@ -137,13 +138,17 @@ static unsigned int tipTrigPatternData[16]=   /* Default Trigger Table to be loa
   };
 
 static int  tipRW(PCI_IOCTL_INFO info);
+#ifdef ALLOCMEM
 static DMA_MAP_INFO tipAllocDmaMemory(int size, unsigned long *phys_addr);
 static int  tipFreeDmaMemory(DMA_MAP_INFO mapInfo);
+#endif /* ALLOCMEM */
 static int  tipGetPciBar(unsigned int *regs);
 
 static int tipMemCount=0;
 
+#ifdef WAITFORDATA
 static int tipWaitForData();
+#endif
 
 /* Interrupt/Polling routine prototypes (static) */
 #ifdef NOTDONEYET
@@ -261,7 +266,6 @@ tipInit(unsigned int mode, int iFlag)
   unsigned int rval, prodID;
   unsigned int firmwareInfo;
   int noBoardInit=0, noFirmwareCheck=0;
-  unsigned long long before=0, after=0;
 
   if(iFlag&TIP_INIT_NO_INIT)
     {
@@ -276,19 +280,14 @@ tipInit(unsigned int mode, int iFlag)
       tipUseDma=1;
     }
 
-  before = rdtsc();
-  sleep(1);
-  after = rdtsc();
-
-  demon = (float)(after - before);
-  printf("%s: demon = %f\n",__FUNCTION__,demon);
-
-  /* Open up file descriptor if not yet opened */
-
-  /* Set Up pointer */
-  /* TIPp  = (struct TIPCIE_RegStruct *)0; */
-  TIPpd = (volatile unsigned int*) tipMapInfo.map_addr;
-
+  /* Pointer should already be set up tipOpen */
+  if(TIPp==NULL)
+    {
+      printf("%s: Pointer not initialized.  Calling tipOpen()\n",
+	     __FUNCTION__);
+      if(tipOpen()==ERROR)
+	return -1;
+    }
   
   /* Check if TI board is readable */
   /* Read the boardID reg */
@@ -1986,7 +1985,7 @@ tipSoftTrig(int trigger, unsigned int nevents, unsigned int period_inc, int rang
 {
   unsigned int periodMax=(TIP_FIXEDPULSER1_PERIOD_MASK>>16);
   unsigned int reg=0;
-  int time=0;
+  unsigned int time=0;
 
   if(tipFD<=0)
     {
@@ -2019,12 +2018,12 @@ tipSoftTrig(int trigger, unsigned int nevents, unsigned int period_inc, int rang
     }
 
   if(range==0)
-    time = 120+120*period_inc;
+    time = 32+8*period_inc;
   if(range==1)
-    time = 120+120*period_inc*2048;
+    time = 32+8*period_inc*2048;
 
-  printf("\ntiSoftTrig: INFO: Setting software trigger for %d nevents with period of %d\n",
-	 nevents,time);
+  printf("\ntiSoftTrig: INFO: Setting software trigger for %d nevents with period of %.1f\n",
+	 nevents,((float)time)/(1000.0));
 
   reg = (range<<31)| (period_inc<<16) | (nevents);
   TIPLOCK;
@@ -2385,6 +2384,7 @@ tipReadBlock(volatile unsigned int *data, int nwrds, int rflag)
       for(iev=0; iev<blocklevel; iev++)
 	{
 	  /* Event header */
+	TRYAGAIN:
 	  val = tipRead(&TIPp->fifo);
 	  data[dCnt++] = val;
 
@@ -2401,6 +2401,7 @@ tipReadBlock(volatile unsigned int *data, int nwrds, int rflag)
 	    {
 	      printf("%s: ERROR: Invalid Event Header Word 0x%08x\n",
 		     __FUNCTION__,val);
+	      goto TRYAGAIN;
 	      TIPUNLOCK;
 	      return dCnt;
 	    }
@@ -6013,6 +6014,7 @@ tiInt(void)
 }
 #endif /* NOTDONEYET */
 
+#ifdef WAITFORDATA
 static int
 tipWaitForData()
 {
@@ -6096,6 +6098,7 @@ tipWaitForData()
   return 1;
 #endif
 }
+#endif
 
 /*******************************************************************************
  *
@@ -6227,6 +6230,28 @@ tipPoll(void)
 
 }
 
+/*******************************************************************************
+ *
+ * tipDoLibraryPollingThread - Set the decision on whether or not the
+ *      TIR library should perform the trigger polling via thread.
+ *
+ *   choice:   0 - No Thread Polling
+ *             1 - Library Thread Polling (started with tirIntEnable)
+ * 
+ *
+ * RETURNS: OK, or ERROR .
+ */
+
+int
+tipDoLibraryPollingThread(int choice)
+{
+  if(choice)
+    tipDoIntPolling=1;
+  else
+    tipDoIntPolling=0;
+      
+  return tipDoIntPolling;
+}
 
 /*******************************************************************************
  *
@@ -6373,17 +6398,19 @@ tipIntDisconnect()
     {
     case TIP_READOUT_TS_POLL:
     case TIP_READOUT_EXT_POLL:
-      if(tippollthread) 
-	{
-	  if(pthread_cancel(tippollthread)<0) 
-	    perror("pthread_cancel");
-	  if(pthread_join(tippollthread,&res)<0)
-	    perror("pthread_join");
-	  if (res == PTHREAD_CANCELED)
-	    printf("%s: Polling thread canceled\n",__FUNCTION__);
-	  else
-	    printf("%s: ERROR: Polling thread NOT canceled\n",__FUNCTION__);
-	}
+      {
+	if(tipDoIntPolling)
+	  {
+	    if(pthread_cancel(tippollthread)<0) 
+	      perror("pthread_cancel");
+	    if(pthread_join(tippollthread,&res)<0)
+	      perror("pthread_join");
+	    if (res == PTHREAD_CANCELED)
+	      printf("%s: Polling thread canceled\n",__FUNCTION__);
+	    else
+	      printf("%s: ERROR: Polling thread NOT canceled\n",__FUNCTION__);
+	  }
+      }
       break;
     case TIP_READOUT_TS_INT:
     case TIP_READOUT_EXT_INT:
@@ -6519,7 +6546,8 @@ tipIntEnable(int iflag)
     {
     case TIP_READOUT_TS_POLL:
     case TIP_READOUT_EXT_POLL:
-      tipStartPollingThread();
+      if(tipDoIntPolling)
+	tipStartPollingThread();
       break;
 
     case TIP_READOUT_TS_INT:
@@ -6698,7 +6726,7 @@ tipRead(volatile unsigned int *reg)
       .command_type = TIPCIE_READ,
       .mem_region   = 0,
       .nreg         = 1,
-      .reg          = (volatile unsigned int *)&reg,
+      .reg          = (unsigned int *)&reg,
       .value        = &value
     };
 
@@ -6793,7 +6821,7 @@ tipDataRead(unsigned int reg)
       .command_type = TIPCIE_READ,
       .mem_region   = 2,
       .nreg         = 1,
-      .reg          = (volatile unsigned int *)&reg,
+      .reg          = (unsigned int *)&reg,
       .value        = &value
     };
 
@@ -6845,8 +6873,10 @@ tipWriteBlock(int bar, unsigned int *reg, unsigned int *value, int nreg)
 int
 tipOpen()
 {
+#ifdef ALLOCMEM
   unsigned int  size=0x200000;
   unsigned long phys_addr=0;
+#endif
   off_t         dev_base;
   unsigned int  bars[3]={0,0,0};
 
@@ -6878,9 +6908,6 @@ tipOpen()
       printf("%s: Failed to get PCI bars\n",__FUNCTION__);
       return ERROR;
     }
-  int i=0;
-  for(i=0; i<3; i++)
-    printf("bar[%d] = 0x%08x\n",i,bars[i]);
 
   dev_base = bars[0];
 
@@ -6906,7 +6933,6 @@ tipOpen()
     }
   
   TIPpj = (volatile unsigned int *)tipJTAGMappedBase;
-  printf("TIPpj = 0x%lx\n",(unsigned long)TIPpj);
 
   return OK;
 }
@@ -6956,6 +6982,7 @@ tipGetPciBar(unsigned int *value)
   return stat;
 }
 
+#ifdef ALLOCMEM
 static int
 tipDmaMem(DMA_BUF_INFO *info)
 {
@@ -7037,4 +7064,5 @@ tipFreeDmaMemory(DMA_MAP_INFO mapInfo)
 
   return stat;
 }
+#endif /* ALLOCMEM */
 

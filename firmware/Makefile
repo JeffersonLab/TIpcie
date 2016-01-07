@@ -11,7 +11,11 @@ FWFILES	= $(shell cat .currentfw)
 
 TIPCIELIB_PATH		= ../
 
-CC			= $(CROSS_COMPILE)gcc
+ifdef BUILD64
+CC			= gcc
+else
+CC			= gcc -m32
+endif
 AR                      = ar
 RANLIB                  = ranlib
 INCS			= -I. -I${TIPCIELIB_PATH}

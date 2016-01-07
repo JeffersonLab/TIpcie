@@ -36,22 +36,16 @@ DEPS			= $(CRLFILES:.crl=.d)
 
 all: $(SOBJS) 
 
-%.c: %.crl
-	@echo
-	@echo "Converting $< to $@"
-	@${CCRL} $<
-
 %.so: %.c
 	@echo
 	@echo "Building $@ from $<"
 	@echo
 	${CC} ${CODA_CFLAGS} -o $@ $<
 
-tipcie_list.so: tipcie_list.c
+%.c: %.crl
 	@echo
-	@echo "Building $@ from $<"
-	@echo
-	${CC} ${CODA_CFLAGS} -o $@ $<
+	@echo "Converting $< to $@"
+	@${CCRL} $<
 
 clean:
 	@rm -f  $(ROLS) $(SOBJS) $(CFILES) ${DEPS} ${DEPS}.* *~ 

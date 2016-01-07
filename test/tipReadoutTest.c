@@ -56,7 +56,7 @@ mytiISR(int arg)
     }
 #endif
 
-  dCnt = tipReadBlock((volatile unsigned int *)&data,8,0);
+  dCnt = tipReadBlock((volatile unsigned int *)&data,32,0);
   /* dCnt = tipReadTriggerBlock((volatile unsigned int *)&data); */
 
   if(dCnt!=8)

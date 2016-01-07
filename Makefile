@@ -12,7 +12,11 @@ DEBUG=1
 #
 BASENAME=TIpcie
 
-CC			= gcc34 -m32
+ifdef BUILD64
+CC			= gcc
+else
+CC			= gcc -m32
+endif
 AR                      = ar
 RANLIB                  = ranlib
 CFLAGS			= -L.

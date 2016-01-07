@@ -10,7 +10,11 @@
 # $Rev$
 #
 
-CC			= gcc34 -m32
+ifdef BUILD64
+CC			= gcc
+else
+CC			= gcc -m32
+endif
 AR                      = ar
 RANLIB                  = ranlib
 CFLAGS			= -Wall -g -I. -I../ -I/usr/include \
