@@ -169,8 +169,8 @@ Emergency(unsigned int jtagType, unsigned int numBits, unsigned long *jtagData)
 
 #ifdef DEBUG
   int numWord, i;
-  printf("type: %x, num of Bits: %x, data: \n",jtagType, numBits);
-  numWord = (numBits-1)/32+1;
+  numWord = numBits?(numBits-1)/32+1:0;
+  printf("type: %x, num of Bits: %x, numWord = %d   data: \n",jtagType, numBits, numWord);
   for (i=0; i<numWord; i++)
     {
       printf("%08x",jtagData[numWord-i-1]);
@@ -188,6 +188,7 @@ Emergency(unsigned int jtagType, unsigned int numBits, unsigned long *jtagData)
       // Shift_IR header:
       PcieAddress = 0x82c + (((numBits-1)<<6)&0x7c0);
       usleep(100);
+
 #ifdef DEBUG13
       printf(" Address: %08x, Data: %08x \n", PcieAddress, jtagData[0]);
 #endif
@@ -267,6 +268,10 @@ tipFirmwareEMload(char *filename)
   char *Word[16], *lastn;
   unsigned int nbits, nbytes, extrType, i, Count, nWords, nlines=0;
   
+  memset((char *)ShiftData,0,sizeof(ShiftData));
+  memset((char *)bufRead,0,sizeof(bufRead));
+  memset((char *)bufRead2,0,sizeof(bufRead2));
+  memset((char *)sndData,0,sizeof(sndData));
 
   /* Check if TI board is readable */
 #ifdef CHECKREAD
