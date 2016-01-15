@@ -25,7 +25,7 @@ PROGS			= tipReadoutTest tipLibTest pti_test pti_dma_test
 all: $(PROGS)
 
 clean distclean:
-	@rm -f $(PROGS) *~ *.so
+	@rm -f $(PROGS) *~ 
 
 pti_dma_test: pti_test.c
 	echo "Making $@"

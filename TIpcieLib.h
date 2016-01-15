@@ -144,7 +144,7 @@ struct TIPCIE_RegStruct
 #define TIP_READOUT_TS_POLL    3
 
 /* Supported firmware version */
-#define TIP_SUPPORTED_FIRMWARE 0x031
+#define TIP_SUPPORTED_FIRMWARE 0x033
 #define TIP_SUPPORTED_TYPE     2
 
 /* Firmware Masks */
@@ -242,6 +242,7 @@ struct TIPCIE_RegStruct
 #define TIP_VMECONTROL_LAST_BOARD     (1<<11)
 #define TIP_VMECONTROL_BUFFER_DISABLE (1<<15)
 #define TIP_VMECONTROL_BLOCKLEVEL_UPDATE (1<<21)
+#define TIP_VMECONTROL_SLOWER_TRIGGER_RULES (1<<31)
 #define TIP_VMECONTROL_DMASETTING_MASK 0x01c00000
 
 /* 0x20 trigsrc bits and masks */

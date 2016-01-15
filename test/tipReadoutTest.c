@@ -121,7 +121,7 @@ main(int argc, char *argv[])
   tipOpen();
 
   /* Set the TI structure pointer */
-  tipInit(TIP_READOUT_EXT_POLL,0);
+  tipInit(TIP_READOUT_EXT_POLL,2);
   tipCheckAddresses();
 
   tipDefinePulserEventType(0xAA,0xCD);
