@@ -17,6 +17,7 @@
 #include <linux/cdev.h>
 #include <linux/sched.h>
 #include <linux/compat.h>
+#define SUPPORT_DMA
 #include "TIpcie.h"
 
 #define PCI_VENDOR_ID_DOE 0xD0E1
@@ -721,7 +722,7 @@ TIpcie_ioctl(struct inode *inode, struct file *filp,
 	  }
 	else
 	  {
-	    printk("TIpcie: Bad MEM option (%d)\n",dma_info.command_type);
+	    printk("TIpcie: Bad MEM option (%lld)\n",dma_info.command_type);
 	    return -ENOTTY;
 	  }
 
@@ -753,9 +754,8 @@ TIpcie_compat_ioctl(struct file *filep, unsigned int cmd,
 {
   TIPCIE_COMPAT_IOCTL_INFO user_info;
   TIPCIE_COMPAT_IOCTL_INFO __user *p32 = compat_ptr(arg);
-#ifdef SUPPORT_DMA
-  DMA_BUF_COMPAT_INFO dma_info;
-#endif
+  DMA_BUF_INFO __user *p32_dma = compat_ptr(arg);
+  DMA_BUF_INFO dma_info;
   int ireg=0, retval=0;
   compat_uint_t *regs = NULL;
   compat_uint_t *values = NULL;
@@ -929,8 +929,10 @@ TIpcie_compat_ioctl(struct file *filep, unsigned int cmd,
 	    values[0] = pci_bar0;
 	    values[1] = pci_bar1;
 	    values[2] = pci_bar2;
+#ifdef DEBUGIOCTL
 	    for(ireg=0; ireg<3; ireg++)
 	      printk("values[%d] = 0x%08x\n",ireg,values[ireg]);
+#endif
 	  }
 	else
 	  {
@@ -956,10 +958,10 @@ TIpcie_compat_ioctl(struct file *filep, unsigned int cmd,
 
     case TIPCIE_IOC_MEM:
       {
-#ifdef SUPPORT_DMA
-	if(copy_from_user(&dma_info, (void *)arg, sizeof(dmaHandle_t)))
+
+	if(copy_from_user(&dma_info, (void *)p32_dma, sizeof(DMA_BUF_INFO)))
 	  {
-	    printk("%s: copy_from_user (dma_info) failed\n",__FUNCTION__);
+	    printk("%s: copy_from_user (dma_compat_info) failed\n",__FUNCTION__);
 	    return -EFAULT;
 	  }
 
@@ -973,19 +975,16 @@ TIpcie_compat_ioctl(struct file *filep, unsigned int cmd,
 	  }
 	else
 	  {
-	    printk("%s: Bad MEM option (%d)\n",__FUNCTION__,dma_info.command_type);
+	    printk("%s: Bad MEM option (%lld)\n",__FUNCTION__,dma_info.command_type);
 	    return -ENOTTY;
 	  }
 
-	if(copy_to_user((void *)arg, &dma_info, sizeof(dmaHandle_t)))
+	if(copy_to_user((void *)p32_dma, &dma_info, sizeof(DMA_BUF_INFO)))
 	  {
-	    printk("%s: copy_to_user (dma_info) failed\n",__FUNCTION__);
+	    printk("%s: copy_to_user (dma_compat_info) failed\n",__FUNCTION__);
 	    return -EFAULT;
 	  }
-#else
-      printk("%s: DMA Not supported\n",__FUNCTION__);
-      return -ENOTTY;
-#endif
+
       }
       break;
 
@@ -1088,13 +1087,13 @@ TIpcieAllocDmaBuf(DMA_BUF_INFO *dma_buf_info)
   dma_buf_info->phys_addr = (unsigned long) dmahandle->phys_addr;
 
 
-  printk("%s: %#x byte DMA buffer allocated with physical "
+  printk("%s: %#llx byte DMA buffer allocated with physical "
 	 "addr %#llx pci addr %#llx resource addr %#llx\n", 
 	 __FUNCTION__,
-	 dma_buf_info->size,
-	 (u64) dmahandle->phys_addr,
-	 (u64) dmahandle->pci_addr,
-	 (u64) dmahandle->resource);
+	 (unsigned long long) dma_buf_info->size,
+	 (unsigned long long) dmahandle->phys_addr,
+	 (unsigned long long) dmahandle->pci_addr,
+	 (unsigned long long) dmahandle->resource);
   
   dmahandle->magic = TIPCIE_DMA_MAGIC;
     
@@ -1126,7 +1125,7 @@ TIpcieFreeDmaBuf(DMA_BUF_INFO *dma_buf_info)
 	     __FUNCTION__); 
       return(-1);
     }
-    
+
   dmahandle = (dmaHandle_t *) dma_buf_info->dma_osspec_hdl; 
     
   if (NULL == dmahandle)
@@ -1138,11 +1137,13 @@ TIpcieFreeDmaBuf(DMA_BUF_INFO *dma_buf_info)
     
   if (TIPCIE_DMA_MAGIC != dmahandle->magic)
     {
-      printk("%s: failure: TIPCIE_DMA_MAGIC != dmahandle->magic\n",
-	     __FUNCTION__); 
+      printk("%s: failure: TIPCIE_DMA_MAGIC (0x%x)!= dmahandle->magic (0x%x)\n",
+	     __FUNCTION__,
+	     TIPCIE_DMA_MAGIC,
+	     dmahandle->magic); 
       return(-1);
     }
-    
+
   printk("%s: Freeing %#llx byte DMA buffer allocated with physical "
 		"addr %#llx pci addr %#llx resource addr %#llx\n", 
 	 __FUNCTION__,

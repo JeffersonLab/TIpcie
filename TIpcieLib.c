@@ -25,6 +25,7 @@
 #define _GNU_SOURCE
 
 #define DEVEL
+#define ALLOCMEM
 
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -40,6 +41,7 @@
 #include <pthread.h>
 #include <errno.h>
 #include <stdint.h>
+/* #define WAITFORDATA */
 #include "TIpcieLib.h"
 
 #define TIPCIE_IOC_MAGIC  'k'
@@ -65,17 +67,16 @@ typedef struct pci_ioctl_struct
 
 typedef struct DMA_BUF_INFO_STRUCT
 {
-  unsigned long  dma_osspec_hdl;
-  int              command_type;
-  unsigned long       phys_addr;
-  unsigned long       virt_addr;
-  unsigned int             size;
-  char                 *map_ptr;
+  uint64_t  dma_osspec_hdl;
+  uint64_t  command_type;
+  uint64_t  phys_addr;
+  uint64_t  virt_addr;
+  uint64_t   size;
 } DMA_BUF_INFO;
 
 typedef struct DMA_MAP_STRUCT
 {
-  unsigned long          dmaHdl;
+  uint64_t          dmaHdl;
   volatile unsigned long        map_addr;
   unsigned int             size;
 } DMA_MAP_INFO;
@@ -2122,6 +2123,7 @@ tipDisableRandomTrigger()
   return OK;
 }
 
+int tipTriedAgain=0;
 /**
  * @ingroup Readout
  * @brief Read a block of events from the TI
@@ -2162,6 +2164,8 @@ tipReadBlock(volatile unsigned int *data, int nwrds, int rflag)
      prior to calling here */
   rflag = tipUseDma;
 
+  tipTriedAgain=0;
+
   TIPLOCK;
   if(rflag >= 1)
     { /* Block transfer */
@@ -2169,19 +2173,24 @@ tipReadBlock(volatile unsigned int *data, int nwrds, int rflag)
       dCnt = 0;
       ii=0;
 
+      if(TIPpd==NULL)
+	TIPpd = (volatile unsigned int*)tipMapInfo.map_addr;
+
+      val = (volatile unsigned int)*TIPpd;
+#ifdef DEBUGDMA
       printf("%s: TIPpd = 0x%lx \n",__FUNCTION__,(long unsigned int)TIPpd);
       printf("%s: 0x10 = 0x%08x\n",
 	     __FUNCTION__,tipRead(&TIPp->__adr32));
       
-      val = (volatile unsigned int)*TIPpd;
       printf("%s: val = 0x%08x\n",
 	     __FUNCTION__,val);
+#endif
 
       int counter=0, ncount=1000;
       while(val==0)
 	{
 	  val = (volatile unsigned int)*TIPpd;
-	  usleep(1000);
+	  usleep(10);
 	  counter++;
 	  if(counter==ncount)
 	    break;
@@ -2221,7 +2230,7 @@ tipReadBlock(volatile unsigned int *data, int nwrds, int rflag)
       
 
       if(wCnt<nwrds)
-      	nwrds=(wCnt+20);
+      	nwrds=(wCnt);
       else
       	printf("%s: WARN: Data words (%d) > requested max (%d)   0x%08x\n",
       	       __FUNCTION__,wCnt,nwrds,val);
@@ -2272,7 +2281,7 @@ tipReadBlock(volatile unsigned int *data, int nwrds, int rflag)
 	  	     | (ii)) )
 	    {
 	      data[ii] = val;
-#define READOUTFILLER
+/* #define READOUTFILLER */
 #ifdef READOUTFILLER
 	      if(((ii)%2)!=0)
 	      	{
@@ -2286,7 +2295,7 @@ tipReadBlock(volatile unsigned int *data, int nwrds, int rflag)
 	      	    }
 	      	}
 #endif
-	      /* break; */
+	      break;
 	    }
 	  data[ii] = val;
 	  ii++;
@@ -2331,8 +2340,11 @@ tipReadBlock(volatile unsigned int *data, int nwrds, int rflag)
       else
 	tipMemCount--;
 
-      printf("%s: TIPpd = 0x%lx  bump = 0x%x (%d)\n",__FUNCTION__,(long unsigned int)TIPpd,
-	     bump,bump);
+#ifdef DEBUGDMA
+      printf("%s: TIPpd = 0x%lx  bump = 0x%x (%d)  counter = %d\n",
+	     __FUNCTION__,(long unsigned int)TIPpd,
+	     bump,bump,counter);
+#endif
 
       TIPUNLOCK;
       return(dCnt);
@@ -2401,6 +2413,7 @@ tipReadBlock(volatile unsigned int *data, int nwrds, int rflag)
 	    {
 	      printf("%s: ERROR: Invalid Event Header Word 0x%08x\n",
 		     __FUNCTION__,val);
+	      tipTriedAgain++;
 	      goto TRYAGAIN;
 	      TIPUNLOCK;
 	      return dCnt;
@@ -4028,6 +4041,9 @@ tipSetTriggerHoldoff(int rule, unsigned int value, int timestep)
   if(timestep==2)
     tipWrite(&TIPp->vmeControl, 
 	     tipRead(&TIPp->vmeControl) | TIP_VMECONTROL_SLOWER_TRIGGER_RULES);
+  else
+    tipWrite(&TIPp->vmeControl, 
+	     tipRead(&TIPp->vmeControl) & ~TIP_VMECONTROL_SLOWER_TRIGGER_RULES);
 
   TIPUNLOCK;
 
@@ -5866,6 +5882,9 @@ tipDmaConfig(int packet_size, int adr_mode, int dma_size)
 	   (packet_size<<24) | 
 	   (dma_size<<28) |
 	   (adr_mode<<31) );
+
+  tipWrite(&TIPp->vmeControl, 
+	   tipRead(&TIPp->vmeControl) | TIP_VMECONTROL_BIT22);
   TIPUNLOCK;
 
   return OK;
@@ -6024,85 +6043,27 @@ tiInt(void)
 static int
 tipWaitForData()
 {
-#define OLDWAY3
-#ifdef OLDWAY3
-  static unsigned int prev_mem=0;
-  static unsigned int base=0;
-  volatile unsigned int mem=0;
-  int iwait=0, maxwait=500;
-  unsigned int buf=0;
-  unsigned long long before=0, after=0;
-
-  if(tipMemCount>0)
-    return tipMemCount;
-
-  mem = tipRead(&TIPp->__adr32) & 0xfffff000;
-  if(mem==0xfffff000)
-    {
-      printf("%s: 1: __adr32 returned ERROR\n",__FUNCTION__);
-      return ERROR;
-    }
-
-  if(prev_mem==0)
-    {
-      if(mem < (tipRead(&TIPp->dmaAddr) & 0xfffff000))
-	mem = tipRead(&TIPp->dmaAddr) & 0xfffff000;
-      prev_mem=mem;
-      printf("mem = 0x%08x\tprev_mem = 0x%08x\n",
-	     mem,prev_mem);
-    }
-
-  while((mem==prev_mem) && (iwait<maxwait))
-    {
-      iwait++;
-      before = rdtsc();
-      tipWrite(&TIPp->vmeControl,1<<22);
-
-      read(tipFD,&buf,4);
-      printf("%s: buf = 0x%x\n",__FUNCTION__,buf);
-      after = rdtsc();
-      /* tipWrite(&TIPp->vmeControl,0); */
-      mem = tipRead(&TIPp->__adr32) & 0xfffff000;
-      if(mem==0xfffff000)
-	{
-	  printf("%s: 2: __adr32 returned ERROR.  prev_mem = 0x%08x\n",
-		 __FUNCTION__,prev_mem);
-	  return ERROR;
-	}
-      if(mem < (tipRead(&TIPp->dmaAddr) & 0xfffff000))
-	mem = tipRead(&TIPp->dmaAddr) & 0xfffff000;
-    }
-
-  if(mem>prev_mem)
-    tipMemCount = (mem-prev_mem)/0x1000;
-  else if(mem==base)
-    tipMemCount = ((mem+0x100000)-(prev_mem))/0x1000;
-
-  printf("%3d (%2d): prev_mem = 0x%08x   mem = 0x%08x\n",
-	 iwait++,tipMemCount,prev_mem, mem);
-  printf("diff = %lld   calc = %lf\n",after-before, 
-	 1E9*((float)(after-before))/((float)(demon)));
-  prev_mem = mem;
-  return tipMemCount;
-#else
-  int iwait=0, maxwait=1000000;
+  int iwait=0, maxwait=0;
   volatile unsigned int data=0;
 
+  if(TIPpd==NULL)
+    TIPpd = (volatile unsigned int*)tipMapInfo.map_addr;
+
+
   tipWrite(&TIPp->vmeControl,1<<22);
-  data = *TIPpd;
-  while((data==0) && (iwait<maxwait))
-    {
-      usleep(1);
-      data = *TIPpd;
-      iwait++;
-    }
+  /* data = *TIPpd; */
+  /* while((data==0) && (iwait<maxwait)) */
+  /*   { */
+      usleep(10);
+  /*     data = *TIPpd; */
+  /*     iwait++; */
+  /*   } */
   tipWrite(&TIPp->vmeControl,0);
 
-  if(*TIPpd==0)
-    return 0;
+  /* if(*TIPpd==0) */
+  /*   return 0; */
     
   return 1;
-#endif
 }
 #endif
 
@@ -6205,7 +6166,7 @@ tipPoll(void)
 	    }
 	  else if(data>0)
 	    {
-	      printf("%s: Data ready\n",__FUNCTION__);
+	      /* printf("%s: Data ready\n",__FUNCTION__); */
 	    }
 	  else
 	    {
@@ -6741,7 +6702,7 @@ tipRead(volatile unsigned int *reg)
   if(stat!=OK)
     return ERROR;
 #else
-  usleep(1);
+  /* usleep(1); */
   value = *reg;
 #endif
 
@@ -6958,6 +6919,8 @@ tipClose()
   tipFreeDmaMemory(tipMapInfo);
 #endif /* ALLOCMEM */
 
+  getchar();
+
   if(munmap(tipJTAGMappedBase,0x1000)<0)
      perror("munmap");
 
@@ -6998,7 +6961,7 @@ tipDmaMem(DMA_BUF_INFO *info)
   rval = ioctl(tipFD, TIPCIE_IOC_MEM, info);
 
   printf("   command_type = %d\n",info->command_type);
-  printf(" dma_osspec_hdl = %lx\n",info->dma_osspec_hdl);
+  printf(" dma_osspec_hdl = %llx\n",info->dma_osspec_hdl);
   printf("      phys_addr = %lx\n",info->phys_addr);
   printf("      virt_addr = %lx\n",info->virt_addr);
   printf("           size = %d\n",info->size);
@@ -7010,10 +6973,9 @@ tipAllocDmaMemory(int size, unsigned long *phys_addr)
 {
   int stat=0;
   DMA_MAP_INFO rval;
-  unsigned long dmaHandle = 0;
   DMA_BUF_INFO info =
     {
-      .dma_osspec_hdl = 0,
+      .dma_osspec_hdl = 0x123456789ULL,
       .command_type   = TIPCIE_MEM_ALLOC,
       .phys_addr      = 0,
       .virt_addr      = 0,
@@ -7022,8 +6984,6 @@ tipAllocDmaMemory(int size, unsigned long *phys_addr)
   volatile char *tmp_addr;
 
   stat = tipDmaMem(&info);
-
-  dmaHandle = info.dma_osspec_hdl;
 
   *phys_addr = info.phys_addr;
 
@@ -7037,7 +6997,7 @@ tipAllocDmaMemory(int size, unsigned long *phys_addr)
 	     __FUNCTION__);
     }
 
-  rval.dmaHdl = dmaHandle;
+  rval.dmaHdl = info.dma_osspec_hdl;
   rval.map_addr = (volatile unsigned long)tmp_addr;
   rval.size = size;
 

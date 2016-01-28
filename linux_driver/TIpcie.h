@@ -48,11 +48,11 @@
 #endif
 struct DMA_HANDLE_STRUCT
 {
-  int                      magic;
-  dma_addr_t            resource;
-  void                     *vptr;
-  phys_addr_t          phys_addr;
-  phys_addr_t           pci_addr;
+  int             magic;
+  dma_addr_t          resource;
+  void                      *vptr;
+  phys_addr_t         phys_addr;
+  phys_addr_t          pci_addr;
   size_t                    size;
   struct DMA_HANDLE_STRUCT *next;                /* Pointer to the next handle */
 };
@@ -60,20 +60,20 @@ typedef	struct DMA_HANDLE_STRUCT dmaHandle_t;
 
 typedef struct DMA_BUF_INFO_STRUCT
 {
-  unsigned long  dma_osspec_hdl;
-  int            command_type;
-  unsigned long  phys_addr;
-  unsigned long  virt_addr;
-  unsigned int   size;
+  uint64_t  dma_osspec_hdl;
+  uint64_t            command_type;
+  uint64_t  phys_addr;
+  uint64_t  virt_addr;
+  uint64_t   size;
 } DMA_BUF_INFO;
 
 typedef struct DMA_BUF_COMPAT_INFO_STRUCT
 {
-  compat_ulong_t  dma_osspec_hdl;
-  compat_int_t    command_type;
-  compat_ulong_t  phys_addr;
-  compat_ulong_t  virt_addr;
-  compat_uint_t   size;
+  uint64_t  dma_osspec_hdl;
+  uint64_t    command_type;
+  uint64_t  phys_addr;
+  uint64_t  virt_addr;
+  uint64_t   size;
 } DMA_BUF_COMPAT_INFO;
 
 typedef struct TIpcie_ioctl_struct

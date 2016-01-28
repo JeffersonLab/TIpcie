@@ -27,7 +27,7 @@ mytiISR(int arg)
   volatile unsigned short reg;
   int dCnt, len=0,idata;
   int tibready=0, timeout=0;
-  int printout = 1000;
+  int printout = 1;
   int dataCheck=0;
   volatile unsigned int data[120];
 
@@ -56,7 +56,7 @@ mytiISR(int arg)
     }
 #endif
 
-  dCnt = tipReadBlock((volatile unsigned int *)&data,32,0);
+  dCnt = tipReadBlock((volatile unsigned int *)&data,32,1);
   /* dCnt = tipReadTriggerBlock((volatile unsigned int *)&data); */
 
   if(dCnt!=8)
@@ -121,7 +121,7 @@ main(int argc, char *argv[])
   tipOpen();
 
   /* Set the TI structure pointer */
-  tipInit(TIP_READOUT_EXT_POLL,2);
+  tipInit(TIP_READOUT_EXT_POLL,TIP_INIT_USE_DMA);
   tipCheckAddresses();
 
   tipDefinePulserEventType(0xAA,0xCD);
