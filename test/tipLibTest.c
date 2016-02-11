@@ -31,6 +31,11 @@ main(int argc, char *argv[])
 
   tipGetSerialNumber(NULL);
 
+  tipPrintTempVolt();
+
+  printf("Break\n");
+  getchar();
+
   /* for(i=0; i<10000; i++) */
   /*   { */
   /*     tipLatchTimers(); */

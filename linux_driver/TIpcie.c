@@ -17,7 +17,10 @@
 #include <linux/cdev.h>
 #include <linux/sched.h>
 #include <linux/compat.h>
+#define SUPPORT_DMA
 #include "TIpcie.h"
+
+/* #define TEST_INTERRUPTS */
 
 #define PCI_VENDOR_ID_DOE 0xD0E1
 #define PCI_DEVICE_ID_TIPCIE 0x71E0
@@ -217,7 +220,9 @@ mapInTIpcie(struct pci_dev *TIpcie_pci_dev)
       return -1;
     }
 
+#ifdef DEBUGMAP
   printk("  map TIpcie Mem0 to Kernel Space, physical_address: %0lx\n", (unsigned long)ba);
+#endif
   pci_bar0 = ba;
 
   TIpcie_resaddr0 = (char *)ioremap_nocache(ba,TIPCIE_MEM0_SIZE);
@@ -228,8 +233,10 @@ mapInTIpcie(struct pci_dev *TIpcie_pci_dev)
   }
 
   ADD_RESOURCE(TIpcie_init_flags, TIPCIE_RSRC_MAP0);
+#ifdef DEBUGMAP
   printk("  mapped TIpcie Mem0 to Kernel Space, kernel_address: %0lx\n", 
             (unsigned long)TIpcie_resaddr0);
+#endif
 
   ba = pci_resource_start (ti_pci_dev, 1);
   if(!ba)
@@ -239,7 +246,9 @@ mapInTIpcie(struct pci_dev *TIpcie_pci_dev)
     }
 
   pci_bar1 = ba;
+#ifdef DEBUGMAP
   printk("  map TIpcie Mem1 to Kernel Space, physical_address: %0lx\n", (unsigned long)ba);
+#endif
 
   TIpcie_resaddr1 = (char *)ioremap_nocache(ba,TIPCIE_MEM1_SIZE);
 
@@ -249,8 +258,10 @@ mapInTIpcie(struct pci_dev *TIpcie_pci_dev)
   }
 
   ADD_RESOURCE(TIpcie_init_flags, TIPCIE_RSRC_MAP1);
+#ifdef DEBUGMAP
   printk("  mapped TIpcie Mem1 to Kernel Space, kernel_address: %0lx\n", 
             (unsigned long)TIpcie_resaddr1);
+#endif
 
   ba = pci_resource_start (ti_pci_dev, 2);
   if(!ba)
@@ -259,7 +270,9 @@ mapInTIpcie(struct pci_dev *TIpcie_pci_dev)
       return -1;
     }
 
+#ifdef DEBUGMAP
   printk("  map TIpcie Mem2 to Kernel Space, physical_address: %0lx\n", (unsigned long)ba);
+#endif
 
   pci_bar2 = ba;
   TIpcie_resaddr2 = (char *)ioremap_nocache(ba,TIPCIE_MEM2_SIZE);
@@ -270,24 +283,10 @@ mapInTIpcie(struct pci_dev *TIpcie_pci_dev)
   }
 
   ADD_RESOURCE(TIpcie_init_flags, TIPCIE_RSRC_MAP2);
+#ifdef DEBUGMAP
   printk("  mapped TIpcie Mem2 to Kernel Space, kernel_address: %0lx\n", 
             (unsigned long)TIpcie_resaddr2);
-
-#ifdef SKIPTHIS
-  // Check to see if the Mapping Worked out
-  temp = ioread32(TIpcie_baseaddr) & 0x0000FFFF;
-  printk("temp = 0x%0lx\n",temp);
-
-  return 0;
-  if (temp != PCI_VENDOR_ID_DOE) {
-    printk("  TIpcie Failed to Return PCI_ID in Memory Map. (temp = 0x%0lx)\n",temp);
-    iounmap(TIpcie_baseaddr);
-    DEL_RESOURCE(TIpcie_init_flags, TIPCIE_RSRC_MAP0);
-    return 1;
-  }
-  printk("mapped regs for %lx\n",temp); 
 #endif
-
 
   return(0);
 
@@ -383,10 +382,15 @@ __init TIpcie_init(void)
 static void
 clean_module(void)
 {
+#ifdef DEBUGCLEAN
   printk("%s: Entered\n",__FUNCTION__);
+#endif
+
   if (HAS_RESOURCE(TIpcie_init_flags, TIPCIE_RSRC_MAP2)) 
     {
+#ifdef DEBUGCLEAN
       printk("%s: Unregistering map2\n",__FUNCTION__);
+#endif
       if(TIpcie_resaddr2)
 	iounmap(TIpcie_resaddr2);
       DEL_RESOURCE(TIpcie_init_flags, TIPCIE_RSRC_MAP2);
@@ -394,7 +398,9 @@ clean_module(void)
 
   if (HAS_RESOURCE(TIpcie_init_flags, TIPCIE_RSRC_MAP1)) 
     {
+#ifdef DEBUGCLEAN
       printk("%s: Unregistering map1\n",__FUNCTION__);
+#endif
       if(TIpcie_resaddr1)
 	iounmap(TIpcie_resaddr1);
       DEL_RESOURCE(TIpcie_init_flags, TIPCIE_RSRC_MAP1);
@@ -402,7 +408,9 @@ clean_module(void)
 
   if (HAS_RESOURCE(TIpcie_init_flags, TIPCIE_RSRC_MAP0)) 
     {
+#ifdef DEBUGCLEAN
       printk("%s: Unregistering map0\n",__FUNCTION__);
+#endif
       if(TIpcie_resaddr0)
 	iounmap(TIpcie_resaddr0);
       DEL_RESOURCE(TIpcie_init_flags, TIPCIE_RSRC_MAP0);
@@ -410,35 +418,45 @@ clean_module(void)
 
   if (HAS_RESOURCE(TIpcie_init_flags, TIPCIE_RSRC_MSI)) 
     {
+#ifdef DEBUGCLEAN
       printk("%s: Disabling MSI\n",__FUNCTION__);
+#endif
       pci_disable_msi(ti_pci_dev);
       DEL_RESOURCE(TIpcie_init_flags, TIPCIE_RSRC_MSI);
     }
 
   if (HAS_RESOURCE(TIpcie_init_flags, TIPCIE_RSRC_INTR)) 
     {
+#ifdef DEBUGCLEAN
       printk("%s: Freeing IRQ\n",__FUNCTION__);
+#endif
       free_irq(ti_irq, ti_pci_dev);
       DEL_RESOURCE(TIpcie_init_flags, TIPCIE_RSRC_INTR);
     }
 
   if (HAS_RESOURCE(TIpcie_init_flags, TIPCIE_RSRC_PROC)) 
     {
+#ifdef DEBUGCLEAN
       printk("%s: Unregistering Proc\n",__FUNCTION__);
+#endif
       unregister_proc();
       DEL_RESOURCE(TIpcie_init_flags, TIPCIE_RSRC_PROC);
     }
 
   if (HAS_RESOURCE(TIpcie_init_flags, TIPCIE_RSRC_CHR)) 
     {
+#ifdef DEBUGCLEAN
       printk("%s: Unregistering chrdev\n",__FUNCTION__);
+#endif
       unregister_chrdev(TIPCIE_MAJOR, "TIpcie");
       DEL_RESOURCE(TIpcie_init_flags, TIPCIE_RSRC_CHR);
     }
 
   if (HAS_RESOURCE(TIpcie_init_flags, TIPCIE_RSRC_PCI_EN)) 
     {
+#ifdef DEBUGCLEAN
       printk("%s: Disabling pci device\n",__FUNCTION__);
+#endif
       pci_disable_device(ti_pci_dev);
       DEL_RESOURCE(TIpcie_init_flags, TIPCIE_RSRC_PCI_EN);
     }
@@ -456,10 +474,12 @@ static int
 TIpcie_procinfo(char *buf, char **start, off_t fpos, int lenght, int *eof, void *data)
 {
   char *p;
-/*   int ireg=0; */
+  int ireg=0;
 
   p = buf;
   p += sprintf(p,"  PCIexpress TI Driver\n");
+
+  p += sprintf(p,"\n");
 
   p += sprintf(p,"  pci0 addr = %0lx\n",(unsigned long)pci_bar0);
   p += sprintf(p,"  pci1 addr = %0lx\n",(unsigned long)pci_bar1);
@@ -469,26 +489,22 @@ TIpcie_procinfo(char *buf, char **start, off_t fpos, int lenght, int *eof, void 
   p += sprintf(p,"  mem1 addr = %0lx\n",(unsigned long)TIpcie_resaddr1);
   p += sprintf(p,"  mem2 addr = %0lx\n",(unsigned long)TIpcie_resaddr2);
 
-  p += sprintf(p," interrupts = %d\n",TIpcie_interrupt_count);
+  p += sprintf(p,"\n");
 
-#ifdef SKIPTHIS
+  p += sprintf(p,"  int count = %d\n",TIpcie_interrupt_count);
+
+  p += sprintf(p,"\n");
+
   p += sprintf(p,"  Base Registers: \n");
-  for(ireg=0; ireg<=0x18; ireg=ireg+0x4)
+  for(ireg=0; ireg<=0x100; ireg=ireg+0x10)
     {
-      p += sprintf(p,"  0x%02x: = 0x%08X\n",ireg, ioread32(baseaddr+ireg));
+      p += sprintf(p,"   0x%04x: 0x%08x",ireg, ioread32(TIpcie_resaddr0+ireg));
+      p += sprintf(p,"  0x%08x", ioread32(TIpcie_resaddr0+ireg+0x4));
+      p += sprintf(p,"  0x%08x", ioread32(TIpcie_resaddr0+ireg+0x8));
+      p += sprintf(p,"  0x%08x\n", ioread32(TIpcie_resaddr0+ireg+0xc));
     }
+  p += sprintf(p,"\n");
 
-  for(ireg=0; ireg<=0x18; ireg=ireg+0x4)
-    {
-      iowrite32(0x12345678,baseaddr+ireg);
-    }
-
-  p += sprintf(p,"  After write:\n");
-  for(ireg=0; ireg<=0x18; ireg=ireg+0x4)
-    {
-      p += sprintf(p,"  0x%02x: = 0x%08X\n",ireg, ioread32(baseaddr+ireg));
-    }
-#endif
 
   *eof = 1;
   return p - buf;
@@ -721,7 +737,7 @@ TIpcie_ioctl(struct inode *inode, struct file *filp,
 	  }
 	else
 	  {
-	    printk("TIpcie: Bad MEM option (%d)\n",dma_info.command_type);
+	    printk("TIpcie: Bad MEM option (%lld)\n",dma_info.command_type);
 	    return -ENOTTY;
 	  }
 
@@ -753,9 +769,8 @@ TIpcie_compat_ioctl(struct file *filep, unsigned int cmd,
 {
   TIPCIE_COMPAT_IOCTL_INFO user_info;
   TIPCIE_COMPAT_IOCTL_INFO __user *p32 = compat_ptr(arg);
-#ifdef SUPPORT_DMA
-  DMA_BUF_COMPAT_INFO dma_info;
-#endif
+  DMA_BUF_INFO __user *p32_dma = compat_ptr(arg);
+  DMA_BUF_INFO dma_info;
   int ireg=0, retval=0;
   compat_uint_t *regs = NULL;
   compat_uint_t *values = NULL;
@@ -929,8 +944,10 @@ TIpcie_compat_ioctl(struct file *filep, unsigned int cmd,
 	    values[0] = pci_bar0;
 	    values[1] = pci_bar1;
 	    values[2] = pci_bar2;
+#ifdef DEBUGIOCTL
 	    for(ireg=0; ireg<3; ireg++)
 	      printk("values[%d] = 0x%08x\n",ireg,values[ireg]);
+#endif
 	  }
 	else
 	  {
@@ -956,10 +973,10 @@ TIpcie_compat_ioctl(struct file *filep, unsigned int cmd,
 
     case TIPCIE_IOC_MEM:
       {
-#ifdef SUPPORT_DMA
-	if(copy_from_user(&dma_info, (void *)arg, sizeof(dmaHandle_t)))
+
+	if(copy_from_user(&dma_info, (void *)p32_dma, sizeof(DMA_BUF_INFO)))
 	  {
-	    printk("%s: copy_from_user (dma_info) failed\n",__FUNCTION__);
+	    printk("%s: copy_from_user (dma_compat_info) failed\n",__FUNCTION__);
 	    return -EFAULT;
 	  }
 
@@ -973,19 +990,16 @@ TIpcie_compat_ioctl(struct file *filep, unsigned int cmd,
 	  }
 	else
 	  {
-	    printk("%s: Bad MEM option (%d)\n",__FUNCTION__,dma_info.command_type);
+	    printk("%s: Bad MEM option (%lld)\n",__FUNCTION__,dma_info.command_type);
 	    return -ENOTTY;
 	  }
 
-	if(copy_to_user((void *)arg, &dma_info, sizeof(dmaHandle_t)))
+	if(copy_to_user((void *)p32_dma, &dma_info, sizeof(DMA_BUF_INFO)))
 	  {
-	    printk("%s: copy_to_user (dma_info) failed\n",__FUNCTION__);
+	    printk("%s: copy_to_user (dma_compat_info) failed\n",__FUNCTION__);
 	    return -EFAULT;
 	  }
-#else
-      printk("%s: DMA Not supported\n",__FUNCTION__);
-      return -ENOTTY;
-#endif
+
       }
       break;
 
@@ -1015,9 +1029,11 @@ TIpcie_mmap(struct file *file,struct vm_area_struct *vma)
     return -EAGAIN;
   }
 
+#ifdef DEBUGMMAP
   printk("%s:   Virt = 0x%0lx, Phys = 0x%0lx\n",
 	 __FUNCTION__,
 	 vma->vm_start,vma->vm_pgoff);
+#endif
 
   return 0;
 }
@@ -1070,8 +1086,10 @@ TIpcieAllocDmaBuf(DMA_BUF_INFO *dma_buf_info)
       return(-1);
     } 
 
+#ifdef DEBUGALLOC
   printk("%s: pci_alloc_consistent virtual buffer pointer %#lx\n",
 	 __FUNCTION__,(unsigned long)dmahandle->vptr);
+#endif
 
   for (page = virt_to_page(dmahandle->vptr);
        page <= virt_to_page(dmahandle->vptr + dma_buf_info->size - 1);
@@ -1088,13 +1106,15 @@ TIpcieAllocDmaBuf(DMA_BUF_INFO *dma_buf_info)
   dma_buf_info->phys_addr = (unsigned long) dmahandle->phys_addr;
 
 
-  printk("%s: %#x byte DMA buffer allocated with physical "
+#ifdef DEBUGALLOC
+  printk("%s: %#llx byte DMA buffer allocated with physical "
 	 "addr %#llx pci addr %#llx resource addr %#llx\n", 
 	 __FUNCTION__,
-	 dma_buf_info->size,
-	 (u64) dmahandle->phys_addr,
-	 (u64) dmahandle->pci_addr,
-	 (u64) dmahandle->resource);
+	 (unsigned long long) dma_buf_info->size,
+	 (unsigned long long) dmahandle->phys_addr,
+	 (unsigned long long) dmahandle->pci_addr,
+	 (unsigned long long) dmahandle->resource);
+#endif
   
   dmahandle->magic = TIPCIE_DMA_MAGIC;
     
@@ -1126,7 +1146,7 @@ TIpcieFreeDmaBuf(DMA_BUF_INFO *dma_buf_info)
 	     __FUNCTION__); 
       return(-1);
     }
-    
+
   dmahandle = (dmaHandle_t *) dma_buf_info->dma_osspec_hdl; 
     
   if (NULL == dmahandle)
@@ -1138,11 +1158,14 @@ TIpcieFreeDmaBuf(DMA_BUF_INFO *dma_buf_info)
     
   if (TIPCIE_DMA_MAGIC != dmahandle->magic)
     {
-      printk("%s: failure: TIPCIE_DMA_MAGIC != dmahandle->magic\n",
-	     __FUNCTION__); 
+      printk("%s: failure: TIPCIE_DMA_MAGIC (0x%x)!= dmahandle->magic (0x%x)\n",
+	     __FUNCTION__,
+	     TIPCIE_DMA_MAGIC,
+	     dmahandle->magic); 
       return(-1);
     }
-    
+
+#ifdef DEBUGALLOC
   printk("%s: Freeing %#llx byte DMA buffer allocated with physical "
 		"addr %#llx pci addr %#llx resource addr %#llx\n", 
 	 __FUNCTION__,
@@ -1150,6 +1173,7 @@ TIpcieFreeDmaBuf(DMA_BUF_INFO *dma_buf_info)
 	 (u64) dmahandle->phys_addr,
 	 (u64) dmahandle->pci_addr,
 	 (u64) dmahandle->resource);
+#endif
      
   if(down_interruptible(&dma_buffer_lock))
     {
@@ -1279,8 +1303,10 @@ TIpcieFreeDmaHandles(void)
   int status = 0;
   DMA_BUF_INFO dma_buf_info;
 
+#ifdef DEBUGALLOC
   printk("%s: removing DMA buffers and handles.\n",
 	 __FUNCTION__);
+#endif
     
   while ((NULL != dma_handle_list) && (status == 0))
     {

@@ -25,6 +25,7 @@
 #define _GNU_SOURCE
 
 #define DEVEL
+#define ALLOCMEM
 
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -40,6 +41,7 @@
 #include <pthread.h>
 #include <errno.h>
 #include <stdint.h>
+/* #define WAITFORDATA */
 #include "TIpcieLib.h"
 
 #define TIPCIE_IOC_MAGIC  'k'
@@ -53,6 +55,8 @@
 #define TIPCIE_MEM_ALLOC 0
 #define TIPCIE_MEM_FREE  1
 
+/* #define OLDWAY 1 */
+/* #define OLDWAY2 1 */
 
 typedef struct pci_ioctl_struct
 {
@@ -65,17 +69,16 @@ typedef struct pci_ioctl_struct
 
 typedef struct DMA_BUF_INFO_STRUCT
 {
-  unsigned long  dma_osspec_hdl;
-  int              command_type;
-  unsigned long       phys_addr;
-  unsigned long       virt_addr;
-  unsigned int             size;
-  char                 *map_ptr;
+  uint64_t  dma_osspec_hdl;
+  uint64_t  command_type;
+  uint64_t  phys_addr;
+  uint64_t  virt_addr;
+  uint64_t   size;
 } DMA_BUF_INFO;
 
 typedef struct DMA_MAP_STRUCT
 {
-  unsigned long          dmaHdl;
+  uint64_t          dmaHdl;
   volatile unsigned long        map_addr;
   unsigned int             size;
 } DMA_MAP_INFO;
@@ -531,7 +534,7 @@ tipCheckAddresses()
 {
   unsigned long offset=0, expected=0, base=0;
   
-  if(tipFD<=0)
+  if(TIPp==NULL)
     {
       printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
       return ERROR;
@@ -586,7 +589,7 @@ tipStatus(int pflag)
   unsigned long TIBase;
   unsigned long long int l1a_count=0;
 
-  if(tipFD<=0)
+  if(TIPp==NULL)
     {
       printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
       return;
@@ -948,7 +951,7 @@ tipStatus(int pflag)
 int
 tipSetSlavePort(int port)
 {
- if(tipFD<=0)
+ if(TIPp==NULL)
     {
       printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
       return ERROR;
@@ -1024,7 +1027,7 @@ tipSlaveStatus(int pflag)
   int nblocksReady=0, nblocksNeedAck=0, slaveCount=0;
   int blocklevel=0;
 
-  if(tipFD<=0)
+  if(TIPp==NULL)
     {
       printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
       return;
@@ -1156,7 +1159,7 @@ tipGetFirmwareVersion()
 {
   unsigned int rval=0;
   int delay=10000;
-  if(tipFD<=0)
+  if(TIPp==NULL)
     {
       printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
       return ERROR;
@@ -1204,7 +1207,7 @@ tipGetSerialNumber(char **rSN)
 
   memset(retSN,0,sizeof(retSN));
   
-  if(tipFD<=0)
+  if(TIPp==NULL)
     {
       printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
       return ERROR;
@@ -1237,6 +1240,170 @@ tipGetSerialNumber(char **rSN)
 
 }
 
+int
+tipPrintTempVolt()
+{
+  unsigned int rval=0;
+  unsigned int Temperature;
+  int delay=10000;
+
+  if(TIPp==NULL)
+    {
+      printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
+      return ERROR;
+    }
+
+  TIPLOCK;
+  tipWrite(&TIPp->reset,TIP_RESET_JTAG);           /* reset */
+  usleep(delay);
+
+  tipJTAGWrite(0x3c,0x0); // Reset_idle 
+  usleep(delay);
+
+  tipJTAGWrite(0x26c,0x3f7); // load the UserCode Enable
+  usleep(delay);
+  
+  tipJTAGWrite(0x7dc,0x04000000);     // shift in 32-bit of data
+  usleep(delay);
+  rval = tipJTAGRead(0x1f1c);
+
+  //second read is required to get the correct DRP value
+  tipJTAGWrite(0x7dc,0x04000000);     // shift in 32-bit of data
+  usleep(delay);
+  rval = tipJTAGRead(0x7dc);
+
+  printf("%s: FPGA silicon temperature readout is %x \n", 
+	 __FUNCTION__,rval);
+
+  Temperature = 504*((rval >>6) & 0x3ff)/1024-273; 
+  printf("\tThe temperature is : %d \n", Temperature);
+
+  // maximum temperature readout
+  tipJTAGWrite(0x7dc,0x04200000);    // shift in 32-bit of data
+  usleep(delay);
+  rval = tipJTAGRead(0x7dc);
+
+  //second read is required to get the correct DRP value
+  tipJTAGWrite(0x7dc,0x04200000);    // shift in 32-bit of data
+  usleep(delay);
+  rval = tipJTAGRead(0x7dc);
+
+  printf ("%s: FPGA silicon max. temperature readout is %x\n", 
+	  __FUNCTION__,rval);
+  Temperature = 504*((rval >>6) & 0x3ff)/1024-273; 
+  printf("\tThe max. temperature is : %d \n", Temperature);
+
+  // minimum temperature readout
+  tipJTAGWrite(0x7dc,0x04240000);    // shift in 32-bit of data
+  usleep(delay);
+  rval = tipJTAGRead(0x7dc);
+
+  //second read is required to get the correct DRP value
+  tipJTAGWrite(0x7dc,0x04240000);    // shift in 32-bit of data
+  usleep(delay);
+  rval = tipJTAGRead(0x7dc);
+
+  printf("%s: FPGA silicon min. temperature readout is %x\n",
+	 __FUNCTION__,rval);
+  Temperature = 504*((rval >>6) & 0x3ff)/1024-273; 
+  printf ("\tThe min. temperature is : %d \n", Temperature);
+
+  TIPUNLOCK;
+  return OK;
+
+  // VccInt readout
+  tipJTAGWrite(0x7dc,0x04010000);    // shift in 32-bit of data
+  usleep(delay);
+  rval = tipJTAGRead(0x7dc);
+
+  //second read is required to get the correct DRP value
+  tipJTAGWrite(0x7dc,0x04010000);    // shift in 32-bit of data
+  usleep(delay);
+  rval = tipJTAGRead(0x7dc);
+
+  printf("%s: FPGA silicon VccInt readout is %x\n",
+	 __FUNCTION__,rval);
+  Temperature = 3000*((rval >>6) & 0x3ff)/1024; 
+  printf ("\tThe VccInt is : %d mV \n", Temperature);
+
+  // maximum VccInt readout
+  tipJTAGWrite(0x7dc,0x04210000);    // shift in 32-bit of data
+  usleep(delay);
+  rval = tipJTAGRead(0x7dc);
+
+  //second read is required to get the correct DRP value
+  tipJTAGWrite(0x7dc,0x04210000);    // shift in 32-bit of data
+  usleep(delay);
+  rval = tipJTAGRead(0x7dc);
+  printf("%s: FPGA silicon Max. VccInt readout is %x\n", 
+	 __FUNCTION__,rval);
+  Temperature = 3000*((rval >>6) & 0x3ff)/1024; 
+  printf("\tThe Max. VccInt is : %d mV \n", Temperature);
+
+  // minimum VccInt readout
+  tipJTAGWrite(0x7dc,0x04250000);    // shift in 32-bit of data
+  usleep(delay);
+  rval = tipJTAGRead(0x7dc);
+
+  //second read is required to get the correct DRP value
+  tipJTAGWrite(0x7dc,0x04250000);    // shift in 32-bit of data
+  usleep(delay);
+  rval = tipJTAGRead(0x7dc);
+  printf("%s: FPGA silicon Min. VccInt readout is %x\n",
+	 __FUNCTION__,rval);
+  Temperature = 3000*((rval >>6) & 0x3ff)/1024; 
+  printf("\tThe Min. VccInt is : %d mV \n", Temperature);
+
+  // VccAux readout
+  tipJTAGWrite(0x7dc,0x04020000);    // shift in 32-bit of data
+  usleep(delay);
+  rval = tipJTAGRead(0x7dc);
+
+  //second read is required to get the correct DRP value
+  tipJTAGWrite(0x7dc,0x04020000);    // shift in 32-bit of data
+  usleep(delay);
+  rval = tipJTAGRead(0x7dc);
+
+  printf("%s: FPGA silicon VccAux readout is %x\n",
+	 __FUNCTION__,rval);
+  Temperature = 3000*((rval >>6) & 0x3ff)/1024; 
+  printf("\tThe VccAux is : %d mV \n", Temperature);
+
+  // maximum VccAux readout
+  tipJTAGWrite(0x7dc,0x04220000);    // shift in 32-bit of data
+  usleep(delay);
+  rval = tipJTAGRead(0x7dc);
+
+  //second read is required to get the correct DRP value
+  tipJTAGWrite(0x7dc,0x04220000);    // shift in 32-bit of data
+  usleep(delay);
+  rval = tipJTAGRead(0x7dc);
+
+  printf("%s: FPGA silicon Max. VccAux readout is %x\n",
+	 __FUNCTION__,rval);
+  Temperature = 3000*((rval >>6) & 0x3ff)/1024; 
+  printf("\tThe Max. VccAux is : %d mV \n", Temperature);
+
+  // minimum VccAux readout
+  tipJTAGWrite(0x7dc,0x04260000);    // shift in 32-bit of data
+  usleep(delay);
+  rval = tipJTAGRead(0x7dc);
+
+  //second read is required to get the correct DRP value
+  tipJTAGWrite(0x7dc,0x04260000);    // shift in 32-bit of data
+  usleep(delay);
+  rval = tipJTAGRead(0x7dc);
+
+  printf("%s: FPGA silicon Min. VccAux readout is %x\n",
+	 __FUNCTION__,rval);
+  Temperature = 3000*((rval >>6) & 0x3ff)/1024; 
+  printf("\tThe Min. VccAux is : %d mV \n", Temperature);
+
+  TIPUNLOCK;
+
+  return OK;
+}
+
 /**
  * @ingroup MasterConfig
  * @brief Resync the 250 MHz Clock
@@ -1247,7 +1414,7 @@ tipGetSerialNumber(char **rSN)
 int
 tipClockResync()
 {
-  if(tipFD<=0)
+  if(TIPp==NULL)
     {
       printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
       return ERROR;
@@ -1273,7 +1440,7 @@ tipClockResync()
 int
 tipReset()
 {
-  if(tipFD<=0)
+  if(TIPp==NULL)
     {
       printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
       return ERROR;
@@ -1295,7 +1462,7 @@ tipReset()
 int
 tipSetCrateID(unsigned int crateID)
 {
-  if(tipFD<=0)
+  if(TIPp==NULL)
     {
       printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
       return ERROR;
@@ -1331,7 +1498,7 @@ int
 tipGetCrateID(int port)
 {
   int rval=0;
-  if(tipFD <= 0) 
+  if(TIPp==NULL) 
     {
       printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
       return ERROR;
@@ -1381,7 +1548,7 @@ int
 tipGetPortTrigSrcEnabled(int port)
 {
   int rval=0;
-  if(tipFD <= 0) 
+  if(TIPp==NULL) 
     {
       printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
       return ERROR;
@@ -1420,7 +1587,7 @@ int
 tipGetSlaveBlocklevel(int port)
 {
   int rval=0;
-  if(tipFD <= 0) 
+  if(TIPp==NULL) 
     {
       printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
       return ERROR;
@@ -1468,7 +1635,7 @@ int
 tipBroadcastNextBlockLevel(int blockLevel)
 {
   unsigned int trigger=0;
-  if(tipFD<=0)
+  if(TIPp==NULL)
     {
       printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
       return ERROR;
@@ -1518,7 +1685,7 @@ tipGetNextBlockLevel()
 {
   unsigned int reg_bl=0;
   int bl=0;
-  if(tipFD<=0)
+  if(TIPp==NULL)
     {
       printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
       return ERROR;
@@ -1547,7 +1714,7 @@ tipGetCurrentBlockLevel()
 {
   unsigned int reg_bl=0;
   int bl=0;
-  if(tipFD<=0)
+  if(TIPp==NULL)
     {
       printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
       return ERROR;
@@ -1577,7 +1744,7 @@ tipGetCurrentBlockLevel()
 int
 tipSetInstantBlockLevelChange(int enable)
 {
-  if(tipFD<=0)
+  if(TIPp==NULL)
     {
       printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
       return ERROR;
@@ -1606,7 +1773,7 @@ int
 tipGetInstantBlockLevelChange()
 {
   int rval=0;
-  if(tipFD<=0)
+  if(TIPp==NULL)
     {
       printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
       return ERROR;
@@ -1644,7 +1811,7 @@ tipSetTriggerSource(int trig)
 {
   unsigned int trigenable=0;
 
-  if(tipFD<=0)
+  if(TIPp==NULL)
     {
       printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
       return ERROR;
@@ -1778,7 +1945,7 @@ tipSetTriggerSource(int trig)
 int
 tipSetTriggerSourceMask(int trigmask)
 {
-  if(tipFD<=0)
+  if(TIPp==NULL)
     {
       printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
       return ERROR;
@@ -1812,7 +1979,7 @@ tipSetTriggerSourceMask(int trigmask)
 int
 tipEnableTriggerSource()
 {
-  if(tipFD<=0)
+  if(TIPp==NULL)
     {
       printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
       return ERROR;
@@ -1846,7 +2013,7 @@ int
 tipDisableTriggerSource(int fflag)
 {
   int regset=0;
-  if(tipFD<=0)
+  if(TIPp==NULL)
     {
       printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
       return ERROR;
@@ -1886,7 +2053,7 @@ tipDisableTriggerSource(int fflag)
 int
 tipSetSyncSource(unsigned int sync)
 {
-  if(tipFD<=0)
+  if(TIPp==NULL)
     {
       printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
       return ERROR;
@@ -1925,7 +2092,7 @@ tipSetEventFormat(int format)
 {
   unsigned int formatset=0;
 
-  if(tipFD<=0)
+  if(TIPp==NULL)
     {
       printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
       return ERROR;
@@ -1987,7 +2154,7 @@ tipSoftTrig(int trigger, unsigned int nevents, unsigned int period_inc, int rang
   unsigned int reg=0;
   unsigned int time=0;
 
-  if(tipFD<=0)
+  if(TIPp==NULL)
     {
       printf("\ntiSoftTrig: ERROR: TI not initialized\n");
       return ERROR;
@@ -2060,7 +2227,7 @@ tipSetRandomTrigger(int trigger, int setting)
 {
   double rate;
 
-  if(tipFD<=0)
+  if(TIPp==NULL)
     {
       printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
       return ERROR;
@@ -2110,7 +2277,7 @@ tipSetRandomTrigger(int trigger, int setting)
 int
 tipDisableRandomTrigger()
 {
-  if(tipFD<=0)
+  if(TIPp==NULL)
     {
       printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
       return ERROR;
@@ -2122,6 +2289,7 @@ tipDisableRandomTrigger()
   return OK;
 }
 
+int tipTriedAgain=0;
 /**
  * @ingroup Readout
  * @brief Read a block of events from the TI
@@ -2130,8 +2298,7 @@ tipDisableRandomTrigger()
  * @param   nwrds - Max number of words to transfer
  * @param   rflag - Readout Flag
  *       -       0 - programmed I/O from the specified board
- *       -       1 - DMA transfer using Universe/Tempe DMA Engine 
- *                    (DMA VME transfer Mode must be setup prior)
+ *       -       1 - DMA transfer
  *
  * @return Number of words transferred to data if successful, ERROR otherwise
  *
@@ -2146,7 +2313,7 @@ tipReadBlock(volatile unsigned int *data, int nwrds, int rflag)
   int blocksize = 0x1000;
   unsigned long newaddr=0;
 
-  if(tipFD<=0)
+  if(TIPp==NULL)
     {
       printf("\n%s: ERROR: TI not initialized\n",__FUNCTION__);
       return ERROR;
@@ -2162,6 +2329,8 @@ tipReadBlock(volatile unsigned int *data, int nwrds, int rflag)
      prior to calling here */
   rflag = tipUseDma;
 
+  tipTriedAgain=0;
+
   TIPLOCK;
   if(rflag >= 1)
     { /* Block transfer */
@@ -2169,19 +2338,24 @@ tipReadBlock(volatile unsigned int *data, int nwrds, int rflag)
       dCnt = 0;
       ii=0;
 
+      if(TIPpd==NULL)
+	TIPpd = (volatile unsigned int*)tipMapInfo.map_addr;
+
+      val = (volatile unsigned int)*TIPpd;
+#ifdef DEBUGDMA
       printf("%s: TIPpd = 0x%lx \n",__FUNCTION__,(long unsigned int)TIPpd);
       printf("%s: 0x10 = 0x%08x\n",
 	     __FUNCTION__,tipRead(&TIPp->__adr32));
       
-      val = (volatile unsigned int)*TIPpd;
       printf("%s: val = 0x%08x\n",
 	     __FUNCTION__,val);
+#endif
 
       int counter=0, ncount=1000;
       while(val==0)
 	{
 	  val = (volatile unsigned int)*TIPpd;
-	  usleep(1000);
+	  usleep(10);
 	  counter++;
 	  if(counter==ncount)
 	    break;
@@ -2221,7 +2395,7 @@ tipReadBlock(volatile unsigned int *data, int nwrds, int rflag)
       
 
       if(wCnt<nwrds)
-      	nwrds=(wCnt+20);
+      	nwrds=(wCnt);
       else
       	printf("%s: WARN: Data words (%d) > requested max (%d)   0x%08x\n",
       	       __FUNCTION__,wCnt,nwrds,val);
@@ -2272,7 +2446,7 @@ tipReadBlock(volatile unsigned int *data, int nwrds, int rflag)
 	  	     | (ii)) )
 	    {
 	      data[ii] = val;
-#define READOUTFILLER
+/* #define READOUTFILLER */
 #ifdef READOUTFILLER
 	      if(((ii)%2)!=0)
 	      	{
@@ -2286,7 +2460,7 @@ tipReadBlock(volatile unsigned int *data, int nwrds, int rflag)
 	      	    }
 	      	}
 #endif
-	      /* break; */
+	      break;
 	    }
 	  data[ii] = val;
 	  ii++;
@@ -2331,8 +2505,11 @@ tipReadBlock(volatile unsigned int *data, int nwrds, int rflag)
       else
 	tipMemCount--;
 
-      printf("%s: TIPpd = 0x%lx  bump = 0x%x (%d)\n",__FUNCTION__,(long unsigned int)TIPpd,
-	     bump,bump);
+#ifdef DEBUGDMA
+      printf("%s: TIPpd = 0x%lx  bump = 0x%x (%d)  counter = %d\n",
+	     __FUNCTION__,(long unsigned int)TIPpd,
+	     bump,bump,counter);
+#endif
 
       TIPUNLOCK;
       return(dCnt);
@@ -2386,10 +2563,10 @@ tipReadBlock(volatile unsigned int *data, int nwrds, int rflag)
 	  /* Event header */
 	TRYAGAIN:
 	  val = tipRead(&TIPp->fifo);
-	  data[dCnt++] = val;
 
 	  if((val & 0xFF0000)>>16 == 0x01)
 	    {
+	      data[dCnt++] = val;
 	      ev_nwords = val & 0xffff;
 	      for(idata=0; idata<ev_nwords; idata++)
 		{
@@ -2399,11 +2576,16 @@ tipReadBlock(volatile unsigned int *data, int nwrds, int rflag)
 	    }
 	  else
 	    {
-	      printf("%s: ERROR: Invalid Event Header Word 0x%08x\n",
-		     __FUNCTION__,val);
+	      tipTriedAgain++;
+	      usleep(1);
+	      if(tipTriedAgain>20)
+		{
+		  printf("%s: ERROR: Invalid Event Header Word 0x%08x\n",
+			 __FUNCTION__,val);
+		  TIPUNLOCK;
+		  return -1;
+		}
 	      goto TRYAGAIN;
-	      TIPUNLOCK;
-	      return dCnt;
 	    }
 	}
 
@@ -2726,7 +2908,7 @@ tipEnableFiber(unsigned int fiber)
   unsigned int sval;
   unsigned int fiberbit;
 
-  if(tipFD<=0)
+  if(TIPp==NULL)
     {
       printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
       return ERROR;
@@ -2769,7 +2951,7 @@ tipDisableFiber(unsigned int fiber)
   unsigned int rval;
   unsigned int fiberbit;
 
-  if(tipFD<=0)
+  if(TIPp==NULL)
     {
       printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
       return ERROR;
@@ -2819,7 +3001,7 @@ tipSetBusySource(unsigned int sourcemask, int rFlag)
 {
   unsigned int busybits=0;
 
-  if(tipFD<=0)
+  if(TIPp==NULL)
     {
       printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
       return ERROR;
@@ -2867,7 +3049,7 @@ tipSetBusySource(unsigned int sourcemask, int rFlag)
 int
 tipSetTriggerLock(int enable)
 {
-  if(tipFD<=0)
+  if(TIPp==NULL)
     {
       printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
       return ERROR;
@@ -2902,7 +3084,7 @@ tipGetTriggerLock()
 {
   int rval=0;
 
-  if(tipFD<=0)
+  if(TIPp==NULL)
     {
       printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
       return ERROR;
@@ -2934,7 +3116,7 @@ tipGetTriggerLock()
 int
 tipSetPrescale(int prescale)
 {
-  if(tipFD<=0)
+  if(TIPp==NULL)
     {
       printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
       return ERROR;
@@ -2964,7 +3146,7 @@ int
 tipGetPrescale()
 {
   int rval;
-  if(tipFD<=0)
+  if(TIPp==NULL)
     {
       printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
       return ERROR;
@@ -2991,7 +3173,7 @@ int
 tipSetInputPrescale(int input, int prescale)
 {
   unsigned int oldval=0;
-  if(tipFD<=0)
+  if(TIPp==NULL)
     {
       printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
       return ERROR;
@@ -3032,7 +3214,7 @@ int
 tipGetInputPrescale(int input)
 {
   int rval;
-  if(tipFD<=0)
+  if(TIPp==NULL)
     {
       printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
       return ERROR;
@@ -3065,7 +3247,7 @@ int
 tipSetTriggerPulse(int trigger, int delay, int width, int delay_step)
 {
   unsigned int rval=0;
-  if(tipFD<=0)
+  if(TIPp==NULL)
     {
       printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
       return ERROR;
@@ -3129,7 +3311,7 @@ tipSetTriggerPulse(int trigger, int delay, int width, int delay_step)
 int
 tipSetPromptTriggerWidth(int width)
 {
-  if(tipFD<=0)
+  if(TIPp==NULL)
     {
       printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
       return ERROR;
@@ -3161,7 +3343,7 @@ int
 tipGetPromptTriggerWidth()
 {
   unsigned int rval=0;
-  if(tipFD<=0)
+  if(TIPp==NULL)
     {
       printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
       return ERROR;
@@ -3188,7 +3370,7 @@ tipSetSyncDelayWidth(unsigned int delay, unsigned int width, int widthstep)
 {
   int twidth=0, tdelay=0;
 
-  if(tipFD <= 0) 
+  if(TIPp==NULL) 
     {
       printf("%s: ERROR: TS not initialized\n",__FUNCTION__);
       return;
@@ -3232,7 +3414,7 @@ tipSetSyncDelayWidth(unsigned int delay, unsigned int width, int widthstep)
 void 
 tipTrigLinkReset()
 {
-  if(tipFD <= 0) 
+  if(TIPp==NULL) 
     {
       printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
       return;
@@ -3291,7 +3473,7 @@ tipSetSyncResetType(int type)
 void
 tipSyncReset(int blflag)
 {
-  if(tipFD <= 0) 
+  if(TIPp==NULL) 
     {
       printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
       return;
@@ -3323,7 +3505,7 @@ tipSyncReset(int blflag)
 void
 tipSyncResetResync()
 {
-  if(tipFD <= 0) 
+  if(TIPp==NULL) 
     {
       printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
       return;
@@ -3345,7 +3527,7 @@ void
 tipClockReset()
 {
   unsigned int old_syncsrc=0;
-  if(tipFD <= 0) 
+  if(TIPp==NULL) 
     {
       printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
       return;
@@ -3388,7 +3570,7 @@ tipClockReset()
 int
 tipResetEventCounter()
 {
-  if(tipFD <= 0) 
+  if(TIPp==NULL) 
     {
       printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
       return ERROR;
@@ -3413,7 +3595,7 @@ tipGetEventCounter()
   unsigned long long int rval=0;
   unsigned int lo=0, hi=0;
 
-  if(tipFD <= 0) 
+  if(TIPp==NULL) 
     {
       printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
       return ERROR;
@@ -3438,7 +3620,7 @@ tipGetEventCounter()
 int
 tipSetBlockLimit(unsigned int limit)
 {
-  if(tipFD <= 0) 
+  if(TIPp==NULL) 
     {
       printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
       return ERROR;
@@ -3462,7 +3644,7 @@ unsigned int
 tipGetBlockLimit()
 {
   unsigned int rval=0;
-  if(tipFD <= 0) 
+  if(TIPp==NULL) 
     {
       printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
       return ERROR;
@@ -3486,7 +3668,7 @@ int
 tipGetBlockLimitStatus()
 {
   unsigned int reg=0, rval=0;
-  if(tipFD <= 0) 
+  if(TIPp==NULL) 
     {
       printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
       return ERROR;
@@ -3516,7 +3698,7 @@ tipBReady()
 {
   unsigned int blockBuffer=0, readyInt=0, rval=0;
 
-  if(tipFD <= 0) 
+  if(TIPp==NULL) 
     {
       printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
       return 0;
@@ -3624,7 +3806,7 @@ tipGetReadoutEvents()
 int
 tipSetBlockBufferLevel(unsigned int level)
 {
-  if(tipFD <= 0) 
+  if(TIPp==NULL) 
     {
       printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
       return ERROR;
@@ -3663,7 +3845,7 @@ tipSetBlockBufferLevel(unsigned int level)
 int
 tipEnableTSInput(unsigned int inpMask)
 {
-  if(tipFD <= 0) 
+  if(TIPp==NULL) 
     {
       printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
       return ERROR;
@@ -3701,7 +3883,7 @@ tipEnableTSInput(unsigned int inpMask)
 int
 tipDisableTSInput(unsigned int inpMask)
 {
-  if(tipFD <= 0) 
+  if(TIPp==NULL) 
     {
       printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
       return ERROR;
@@ -3736,7 +3918,7 @@ int
 tipSetOutputPort(unsigned int set1, unsigned int set2, unsigned int set3, unsigned int set4)
 {
   unsigned int bits=0;
-  if(tipFD <= 0) 
+  if(TIPp==NULL) 
     {
       printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
       return ERROR;
@@ -3777,7 +3959,7 @@ tipSetClockSource(unsigned int source)
   unsigned int clkread=0;
   char sClock[20] = "";
 
-  if(tipFD <= 0) 
+  if(TIPp==NULL) 
     {
       printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
       return ERROR;
@@ -3840,7 +4022,7 @@ int
 tipGetClockSource()
 {
   int rval=0;
-  if(tipFD <= 0) 
+  if(TIPp==NULL) 
     {
       printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
       return ERROR;
@@ -3862,7 +4044,7 @@ void
 tipSetFiberDelay(unsigned int delay, unsigned int offset)
 {
   unsigned int fiberLatency=0, syncDelay=0, syncDelay_write=0;
-  if(tipFD <= 0) 
+  if(TIPp==NULL) 
     {
       printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
       return;
@@ -3919,7 +4101,7 @@ tipSetFiberDelay(unsigned int delay, unsigned int offset)
 int
 tipAddSlave(unsigned int fiber)
 {
-  if(tipFD <= 0) 
+  if(TIPp==NULL) 
     {
       printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
       return ERROR;
@@ -3967,8 +4149,9 @@ tipAddSlave(unsigned int fiber)
  *                   rule
  *    timestep    1      2      3      4
  *    -------   -----  ----- ------ ------
- *       0       16ns   16ns   32ns   64ns 
- *       1      480ns  960ns 1920ns 3840ns 
+ *       0       16ns   16ns   16ns   16ns 
+ *       1      160ns  500ns  500ns  500ns 
+ *       2     5120ns
  *</pre>
  *
  * @return OK if successful, otherwise ERROR.
@@ -3978,9 +4161,9 @@ int
 tipSetTriggerHoldoff(int rule, unsigned int value, int timestep)
 {
   unsigned int wval=0, rval=0;
-  unsigned int maxvalue=0x3f;
+  unsigned int maxvalue=0x7f;
 
-  if(tipFD <= 0) 
+  if(TIPp==NULL) 
     {
       printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
       return ERROR;
@@ -3999,7 +4182,7 @@ tipSetTriggerHoldoff(int rule, unsigned int value, int timestep)
       return ERROR;
     }
 
-  if(timestep)
+  if(timestep>1)
     value |= (1<<7);
 
   /* Read the previous values */
@@ -4023,6 +4206,14 @@ tipSetTriggerHoldoff(int rule, unsigned int value, int timestep)
     }
 
   tipWrite(&TIPp->triggerRule,wval);
+
+  if(timestep==2)
+    tipWrite(&TIPp->vmeControl, 
+	     tipRead(&TIPp->vmeControl) | TIP_VMECONTROL_SLOWER_TRIGGER_RULES);
+  else
+    tipWrite(&TIPp->vmeControl, 
+	     tipRead(&TIPp->vmeControl) & ~TIP_VMECONTROL_SLOWER_TRIGGER_RULES);
+
   TIPUNLOCK;
 
   return OK;
@@ -4046,7 +4237,7 @@ tipGetTriggerHoldoff(int rule)
 {
   unsigned int rval=0;
   
-  if(tipFD <= 0) 
+  if(TIPp==NULL) 
     {
       printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
       return ERROR;
@@ -4109,7 +4300,7 @@ int
 tipSetTriggerHoldoffMin(int rule, unsigned int value)
 {
   unsigned int mask=0, enable=0, shift=0;
-  if(tipFD <= 0) 
+  if(TIPp==NULL) 
     {
       printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
       return ERROR;
@@ -4178,7 +4369,7 @@ tipGetTriggerHoldoffMin(int rule, int pflag)
 {
   int rval=0;
   unsigned int mask=0, enable=0, shift=0;
-  if(tipFD <= 0) 
+  if(TIPp==NULL) 
     {
       printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
       return ERROR;
@@ -4239,7 +4430,7 @@ tipGetTriggerHoldoffMin(int rule, int pflag)
 int
 tipDisableDataReadout()
 {
-  if(tipFD <= 0) 
+  if(TIPp==NULL) 
     {
       printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
       return ERROR;
@@ -4266,7 +4457,7 @@ tipDisableDataReadout()
 int
 tipEnableDataReadout()
 {
-  if(tipFD <= 0) 
+  if(TIPp==NULL) 
     {
       printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
       return ERROR;
@@ -4295,7 +4486,7 @@ void
 tipResetBlockReadout()
 {
  
-  if(tipFD <= 0) 
+  if(TIPp==NULL) 
     {
       printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
       return;
@@ -4518,7 +4709,7 @@ tipDefineEventType(int trigMask, int hwTrig, int evType)
 int
 tipDefinePulserEventType(int fixed_type, int random_type)
 {
-  if(tipFD <= 0) 
+  if(TIPp==NULL) 
     {
       printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
       return ERROR;
@@ -4575,7 +4766,7 @@ tipLoadTriggerTable(int mode)
 {
   int ipat;
 
-  if(tipFD <= 0) 
+  if(TIPp==NULL) 
     {
       printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
       return ERROR;
@@ -4663,7 +4854,7 @@ tipPrintTriggerTable(int showbits)
 int
 tipSetTriggerWindow(int window_width)
 {
-  if(tipFD <= 0) 
+  if(TIPp==NULL) 
     {
       printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
       return ERROR;
@@ -4694,7 +4885,7 @@ int
 tipGetTriggerWindow()
 {
   int rval=0;
-  if(tipFD <= 0) 
+  if(TIPp==NULL) 
     {
       printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
       return ERROR;
@@ -4716,7 +4907,7 @@ tipGetTriggerWindow()
 int
 tipSetTriggerInhibitWindow(int window_width)
 {
-  if(tipFD <= 0) 
+  if(TIPp==NULL) 
     {
       printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
       return ERROR;
@@ -4747,7 +4938,7 @@ int
 tipGetTriggerInhibitWindow()
 {
   int rval=0;
-  if(tipFD <= 0) 
+  if(TIPp==NULL) 
     {
       printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
       return ERROR;
@@ -4773,7 +4964,7 @@ tipGetTriggerInhibitWindow()
 int
 tipSetTrig21Delay(int delay)
 {
-  if(tipFD <= 0) 
+  if(TIPp==NULL) 
     {
       printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
       return ERROR;
@@ -4805,7 +4996,7 @@ int
 tipGetTrig21Delay()
 {
   int rval=0;
-  if(tipFD <= 0) 
+  if(TIPp==NULL) 
     {
       printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
       return ERROR;
@@ -4833,7 +5024,7 @@ tipGetTrig21Delay()
 int
 tipLatchTimers()
 {
-  if(tipFD <= 0) 
+  if(TIPp==NULL) 
     {
       printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
       return ERROR;
@@ -4857,7 +5048,7 @@ unsigned int
 tipGetLiveTime()
 {
   unsigned int rval=0;
-  if(tipFD <= 0) 
+  if(TIPp==NULL) 
     {
       printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
       return ERROR;
@@ -4881,7 +5072,7 @@ unsigned int
 tipGetBusyTime()
 {
   unsigned int rval=0;
-  if(tipFD <= 0) 
+  if(TIPp==NULL) 
     {
       printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
       return ERROR;
@@ -4912,7 +5103,7 @@ tipLive(int sflag)
   unsigned int live=0, total=0;
   static unsigned int oldLive=0, oldTotal=0;
 
-  if(tipFD <= 0) 
+  if(TIPp==NULL) 
     {
       printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
       return ERROR;
@@ -4969,7 +5160,7 @@ unsigned int
 tipGetTSscaler(int input, int latch)
 {
   unsigned int rval=0;
-  if(tipFD <= 0) 
+  if(TIPp==NULL) 
     {
       printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
       return ERROR;
@@ -5021,7 +5212,7 @@ tipBlockStatus(int fiber, int pflag)
   char name[50];
   unsigned int nblocksReady, nblocksNeedAck;
 
-  if(tipFD <= 0) 
+  if(TIPp==NULL) 
     {
       printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
       return ERROR;
@@ -5156,7 +5347,7 @@ tipGetFiberLatencyMeasurement()
 int
 tipSetUserSyncResetReceive(int enable)
 {
-  if(tipFD <= 0) 
+  if(TIPp==NULL) 
     {
       printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
       return ERROR;
@@ -5185,7 +5376,7 @@ int
 tipGetLastSyncCodes(int pflag)
 {
   int rval=0;
-  if(tipFD <= 0) 
+  if(TIPp==NULL) 
     {
       printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
       return ERROR;
@@ -5223,7 +5414,7 @@ int
 tipGetSyncHistoryBufferStatus(int pflag)
 {
   int hist_status=0, rval=0;
-  if(tipFD <= 0) 
+  if(TIPp==NULL) 
     {
       printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
       return ERROR;
@@ -5264,7 +5455,7 @@ tipGetSyncHistoryBufferStatus(int pflag)
 void
 tipResetSyncHistory()
 {
-  if(tipFD <= 0) 
+  if(TIPp==NULL) 
     {
       printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
       return;
@@ -5290,7 +5481,7 @@ tipResetSyncHistory()
 void
 tipUserSyncReset(int enable, int pflag)
 {
-  if(tipFD <= 0) 
+  if(TIPp==NULL) 
     {
       printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
       return;
@@ -5325,7 +5516,7 @@ tipPrintSyncHistory()
 {
   unsigned int syncHistory=0;
   int count=0, code=1, valid=0, timestamp=0, overflow=0;
-  if(tipFD <= 0) 
+  if(TIPp==NULL) 
     {
       printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
       return;
@@ -5383,7 +5574,7 @@ tipPrintSyncHistory()
 int
 tipSetSyncEventInterval(int blk_interval)
 {
-  if(tipFD <= 0) 
+  if(TIPp==NULL) 
     {
       printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
       return ERROR;
@@ -5418,7 +5609,7 @@ int
 tipGetSyncEventInterval()
 {
   int rval=0;
-  if(tipFD <= 0) 
+  if(TIPp==NULL) 
     {
       printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
       return ERROR;
@@ -5445,7 +5636,7 @@ tipGetSyncEventInterval()
 int
 tipForceSyncEvent()
 {
-  if(tipFD <= 0) 
+  if(TIPp==NULL) 
     {
       printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
       return ERROR;
@@ -5478,7 +5669,7 @@ tipForceSyncEvent()
 int
 tipSyncResetRequest()
 {
-  if(tipFD <= 0) 
+  if(TIPp==NULL) 
     {
       printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
       return ERROR;
@@ -5501,7 +5692,7 @@ int
 tipGetSyncResetRequest()
 {
   int request=0;
-  if(tipFD <= 0) 
+  if(TIPp==NULL) 
     {
       printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
       return ERROR;
@@ -5529,7 +5720,7 @@ tipGetSyncResetRequest()
 void
 tipTriggerReadyReset()
 {
-  if(tipFD <= 0) 
+  if(TIPp==NULL) 
     {
       printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
       return;
@@ -5558,7 +5749,7 @@ tipTriggerReadyReset()
 int
 tipFillToEndBlock()
 {
-  if(tipFD <= 0) 
+  if(TIPp==NULL) 
     {
       printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
       return ERROR;
@@ -5585,7 +5776,7 @@ tipFillToEndBlock()
 int
 tipResetMGT()
 {
-  if(tipFD <= 0) 
+  if(TIPp==NULL) 
     {
       printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
       return ERROR;
@@ -5615,7 +5806,7 @@ tipResetMGT()
 int
 tipSetTSInputDelay(int chan, int delay)
 {
-  if(tipFD <= 0) 
+  if(TIPp==NULL) 
     {
       printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
       return ERROR;
@@ -5655,7 +5846,7 @@ int
 tipGetTSInputDelay(int chan)
 {
   int rval=0;
-  if(tipFD <= 0) 
+  if(TIPp==NULL) 
     {
       printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
       return ERROR;
@@ -5686,7 +5877,7 @@ tipPrintTSInputDelay()
 {
   unsigned int reg[11];
   int ireg=0, ichan=0, delay=0;
-  if(tipFD <= 0) 
+  if(TIPp==NULL) 
     {
       printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
       return ERROR;
@@ -5743,7 +5934,7 @@ int
 tipGetConnectedFiberMask()
 {
   int rval=0;
-  if(tipFD<=0)
+  if(TIPp==NULL)
     {
       printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
       return ERROR;
@@ -5773,7 +5964,7 @@ int
 tipGetTrigSrcEnabledFiberMask()
 {
   int rval=0;
-  if(tipFD<=0)
+  if(TIPp==NULL)
     {
       printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
       return ERROR;
@@ -5800,7 +5991,7 @@ tipGetTrigSrcEnabledFiberMask()
 int
 tipEnableFifo()
 {
-  if(tipFD<=0)
+  if(TIPp==NULL)
     {
       printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
       return ERROR;
@@ -5841,7 +6032,7 @@ tipEnableFifo()
 int
 tipDmaConfig(int packet_size, int adr_mode, int dma_size)
 {
-  if(tipFD<=0)
+  if(TIPp==NULL)
     {
       printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
       return ERROR;
@@ -5860,6 +6051,9 @@ tipDmaConfig(int packet_size, int adr_mode, int dma_size)
 	   (packet_size<<24) | 
 	   (dma_size<<28) |
 	   (adr_mode<<31) );
+
+  tipWrite(&TIPp->vmeControl, 
+	   tipRead(&TIPp->vmeControl) | TIP_VMECONTROL_BIT22);
   TIPUNLOCK;
 
   return OK;
@@ -5878,7 +6072,7 @@ tipDmaConfig(int packet_size, int adr_mode, int dma_size)
 int
 tipDmaSetAddr(unsigned int phys_addr_lo, unsigned int phys_addr_hi)
 {
-  if(tipFD<=0)
+  if(TIPp==NULL)
     {
       printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
       return ERROR;
@@ -5914,7 +6108,7 @@ tipPCIEStatus(int pflag)
     pcieConfigLink, pcieConfigStatus, pcieConfig, pcieDevConfig;
   unsigned long TIBase=0;
 
-  if(tipFD<=0)
+  if(TIPp==NULL)
     {
       printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
       return ERROR;
@@ -6018,85 +6212,27 @@ tiInt(void)
 static int
 tipWaitForData()
 {
-#define OLDWAY3
-#ifdef OLDWAY3
-  static unsigned int prev_mem=0;
-  static unsigned int base=0;
-  volatile unsigned int mem=0;
-  int iwait=0, maxwait=500;
-  unsigned int buf=0;
-  unsigned long long before=0, after=0;
-
-  if(tipMemCount>0)
-    return tipMemCount;
-
-  mem = tipRead(&TIPp->__adr32) & 0xfffff000;
-  if(mem==0xfffff000)
-    {
-      printf("%s: 1: __adr32 returned ERROR\n",__FUNCTION__);
-      return ERROR;
-    }
-
-  if(prev_mem==0)
-    {
-      if(mem < (tipRead(&TIPp->dmaAddr) & 0xfffff000))
-	mem = tipRead(&TIPp->dmaAddr) & 0xfffff000;
-      prev_mem=mem;
-      printf("mem = 0x%08x\tprev_mem = 0x%08x\n",
-	     mem,prev_mem);
-    }
-
-  while((mem==prev_mem) && (iwait<maxwait))
-    {
-      iwait++;
-      before = rdtsc();
-      tipWrite(&TIPp->vmeControl,1<<22);
-
-      read(tipFD,&buf,4);
-      printf("%s: buf = 0x%x\n",__FUNCTION__,buf);
-      after = rdtsc();
-      /* tipWrite(&TIPp->vmeControl,0); */
-      mem = tipRead(&TIPp->__adr32) & 0xfffff000;
-      if(mem==0xfffff000)
-	{
-	  printf("%s: 2: __adr32 returned ERROR.  prev_mem = 0x%08x\n",
-		 __FUNCTION__,prev_mem);
-	  return ERROR;
-	}
-      if(mem < (tipRead(&TIPp->dmaAddr) & 0xfffff000))
-	mem = tipRead(&TIPp->dmaAddr) & 0xfffff000;
-    }
-
-  if(mem>prev_mem)
-    tipMemCount = (mem-prev_mem)/0x1000;
-  else if(mem==base)
-    tipMemCount = ((mem+0x100000)-(prev_mem))/0x1000;
-
-  printf("%3d (%2d): prev_mem = 0x%08x   mem = 0x%08x\n",
-	 iwait++,tipMemCount,prev_mem, mem);
-  printf("diff = %lld   calc = %lf\n",after-before, 
-	 1E9*((float)(after-before))/((float)(demon)));
-  prev_mem = mem;
-  return tipMemCount;
-#else
-  int iwait=0, maxwait=1000000;
+  int iwait=0, maxwait=0;
   volatile unsigned int data=0;
 
+  if(TIPpd==NULL)
+    TIPpd = (volatile unsigned int*)tipMapInfo.map_addr;
+
+
   tipWrite(&TIPp->vmeControl,1<<22);
-  data = *TIPpd;
-  while((data==0) && (iwait<maxwait))
-    {
-      usleep(1);
-      data = *TIPpd;
-      iwait++;
-    }
+  /* data = *TIPpd; */
+  /* while((data==0) && (iwait<maxwait)) */
+  /*   { */
+      usleep(10);
+  /*     data = *TIPpd; */
+  /*     iwait++; */
+  /*   } */
   tipWrite(&TIPp->vmeControl,0);
 
-  if(*TIPpd==0)
-    return 0;
+  /* if(*TIPpd==0) */
+  /*   return 0; */
     
   return 1;
-#endif
 }
 #endif
 
@@ -6199,7 +6335,7 @@ tipPoll(void)
 	    }
 	  else if(data>0)
 	    {
-	      printf("%s: Data ready\n",__FUNCTION__);
+	      /* printf("%s: Data ready\n",__FUNCTION__); */
 	    }
 	  else
 	    {
@@ -6294,7 +6430,7 @@ tipIntConnect(unsigned int vector, VOIDFUNCPTR routine, unsigned int arg)
 {
   int status;
 
-  if(tipFD <= 0) 
+  if(TIPp==NULL) 
     {
       printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
       return(ERROR);
@@ -6377,7 +6513,7 @@ tipIntDisconnect()
   int status;
   void *res;
 
-  if(tipFD <= 0) 
+  if(TIPp==NULL) 
     {
       printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
       return ERROR;
@@ -6473,7 +6609,7 @@ void
 tipIntAck()
 {
   int resetbits=0;
-  if(tipFD <= 0) 
+  if(TIPp==NULL) 
     {
       printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
       return;
@@ -6525,7 +6661,7 @@ tipIntAck()
 int
 tipIntEnable(int iflag)
 {
-  if(tipFD <= 0) 
+  if(TIPp==NULL) 
     {
       printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
       return(-1);
@@ -6586,7 +6722,7 @@ void
 tipIntDisable()
 {
 
-  if(tipFD <= 0) 
+  if(TIPp==NULL) 
     {
       printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
       return;
@@ -6639,7 +6775,7 @@ tipGetAckCount()
 int
 tipRocEnable(int roc)
 {
-  if(tipFD <= 0) 
+  if(TIPp==NULL) 
     {
       printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
       return ERROR;
@@ -6663,7 +6799,7 @@ tipRocEnable(int roc)
 int
 tipRocEnableMask(int rocmask)
 {
-  if(tipFD <= 0) 
+  if(TIPp==NULL) 
     {
       printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
       return ERROR;
@@ -6687,7 +6823,7 @@ int
 tipGetRocEnableMask()
 {
   int rval=0;
-  if(tipFD <= 0) 
+  if(TIPp==NULL) 
     {
       printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
       return ERROR;
@@ -6721,12 +6857,16 @@ tipRead(volatile unsigned int *reg)
 #ifdef OLDWAY
   int stat=0;
 
+  int areg[1];
+
+  areg[0] = (reg - &TIPp->boardID)<<2;
+
   PCI_IOCTL_INFO info =
     {
       .command_type = TIPCIE_READ,
       .mem_region   = 0,
       .nreg         = 1,
-      .reg          = (unsigned int *)&reg,
+      .reg          = (volatile unsigned int *)&areg,
       .value        = &value
     };
 
@@ -6735,6 +6875,7 @@ tipRead(volatile unsigned int *reg)
   if(stat!=OK)
     return ERROR;
 #else
+  /* usleep(1); */
   value = *reg;
 #endif
 
@@ -6746,12 +6887,16 @@ tipWrite(volatile unsigned int *reg, unsigned int value)
 {
   int stat=0;
 #ifdef OLDWAY
+  int areg[1];
+
+  areg[0] = (reg - &TIPp->boardID)<<2;
+
   PCI_IOCTL_INFO info =
     {
       .command_type = TIPCIE_WRITE,
       .mem_region   = 0,
       .nreg         = 1,
-      .reg          = (volatile unsigned int *)&reg,
+      .reg          = (volatile unsigned int *)&areg,
       .value        = &value
     };
 
@@ -6770,12 +6915,16 @@ tipJTAGRead(unsigned int reg)
 #ifdef OLDWAY2
   int stat=0;
 
+  int areg[1];
+
+  areg[0] = reg;
+
   PCI_IOCTL_INFO info =
     {
       .command_type = TIPCIE_READ,
       .mem_region   = 1,
       .nreg         = 1,
-      .reg          = (volatile unsigned int *)&reg,
+      .reg          = (volatile unsigned int *)&areg,
       .value        = &value
     };
 
@@ -6794,12 +6943,16 @@ tipJTAGWrite(unsigned int reg, unsigned int value)
 {
   int stat=0;
 #ifdef OLDWAY2
+  int areg[1];
+
+  areg[0] = reg;
+
   PCI_IOCTL_INFO info =
     {
       .command_type = TIPCIE_WRITE,
       .mem_region   = 1,
       .nreg         = 1,
-      .reg          = (volatile unsigned int *)&reg,
+      .reg          = (volatile unsigned int *)&areg,
       .value        = &value
     };
 
@@ -6896,10 +7049,11 @@ tipOpen()
     }
 #ifdef ALLOCMEM
   tipMapInfo = tipAllocDmaMemory(size, &phys_addr);
-  printf("      dmaHdl = 0x%lx\n", tipMapInfo.dmaHdl);
-  printf("   phys_addr = 0x%lx\n", phys_addr);
-  printf("    map_addr = 0x%lx\n", tipMapInfo.map_addr);
-
+#ifdef DEBUGMEM
+  printf("      dmaHdl = 0x%llx\n", (uint64_t)tipMapInfo.dmaHdl);
+  printf("   phys_addr = 0x%llx\n", (uint64_t)phys_addr);
+  printf("    map_addr = 0x%llx\n", (uint64_t)tipMapInfo.map_addr);
+#endif
   tipDmaAddrBase = phys_addr;
 #endif /* ALLOCMEM */
 
@@ -6918,9 +7072,8 @@ tipOpen()
       perror("mmap");
       return ERROR;
     }
-  
+
   TIPp = (volatile struct TIPCIE_RegStruct *)tipMappedBase;
-  printf("TIPp  = 0x%lx\n",(unsigned long)TIPp);
 
   dev_base = bars[1];
 
@@ -6940,7 +7093,7 @@ tipOpen()
 int
 tipClose()
 {
-  if(tipFD<=0)
+  if(TIPp==NULL)
     {
       printf("%s: ERROR: Invalid TIP File Descriptor\n",
 	     __FUNCTION__);
@@ -6990,11 +7143,13 @@ tipDmaMem(DMA_BUF_INFO *info)
 
   rval = ioctl(tipFD, TIPCIE_IOC_MEM, info);
 
-  printf("   command_type = %d\n",info->command_type);
-  printf(" dma_osspec_hdl = %lx\n",info->dma_osspec_hdl);
-  printf("      phys_addr = %lx\n",info->phys_addr);
-  printf("      virt_addr = %lx\n",info->virt_addr);
-  printf("           size = %d\n",info->size);
+#ifdef DEBUGMEM
+  printf("   command_type = %d\n",(int)info->command_type);
+  printf(" dma_osspec_hdl = %#lx\n",(uint64_t)info->dma_osspec_hdl);
+  printf("      phys_addr = %#lx\n",(uint64_t)info->phys_addr);
+  printf("      virt_addr = %#lx\n",(uint64_t)info->virt_addr);
+  printf("           size = %d\n",(int)info->size);
+#endif
   return rval;
 }
 
@@ -7003,10 +7158,9 @@ tipAllocDmaMemory(int size, unsigned long *phys_addr)
 {
   int stat=0;
   DMA_MAP_INFO rval;
-  unsigned long dmaHandle = 0;
   DMA_BUF_INFO info =
     {
-      .dma_osspec_hdl = 0,
+      .dma_osspec_hdl = 0x123456789ULL,
       .command_type   = TIPCIE_MEM_ALLOC,
       .phys_addr      = 0,
       .virt_addr      = 0,
@@ -7015,8 +7169,6 @@ tipAllocDmaMemory(int size, unsigned long *phys_addr)
   volatile char *tmp_addr;
 
   stat = tipDmaMem(&info);
-
-  dmaHandle = info.dma_osspec_hdl;
 
   *phys_addr = info.phys_addr;
 
@@ -7030,7 +7182,7 @@ tipAllocDmaMemory(int size, unsigned long *phys_addr)
 	     __FUNCTION__);
     }
 
-  rval.dmaHdl = dmaHandle;
+  rval.dmaHdl = info.dma_osspec_hdl;
   rval.map_addr = (volatile unsigned long)tmp_addr;
   rval.size = size;
 
