@@ -589,6 +589,7 @@ int  tipGetSlavePort();
 void tipSlaveStatus(int pflag);
 int  tipReload();
 unsigned int tipGetSerialNumber(char **rSN);
+int  tipPrintTempVolt();
 int  tipClockResync();
 int  tipReset();
 int  tipGetFirmwareVersion();

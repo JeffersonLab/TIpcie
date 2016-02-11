@@ -1,0 +1,78 @@
+
+TIpcie History
+	  FPGA usercode: 0x71Ex0yyz, x=0 for first batch of TIpcie cards;
+										 yy firmware version, z firmware revision, "yy.z"
+     Oct. 8, 2014,  Based on ModTI (v4.1) design.  The TIDS libary is created, which is copied directly
+	from the ModTI design.  In this way, the further improvement over the design can be propagated back to
+	ModTI easily.
+	  PCIexpress interface is added to replace the VME interface
+
+V1.1 Nov. 10, 2014: The PCIe write to the register successful.  Baseline design existed
+V1.2 Nov. 11, 2014: The PCIe read from the register successful.
+V1.3 Nov. 12, 2014: The PCIe JTAG read/write is working on PROM JTAG.  Need expand the memory to cover the FPGA JTAG
+V1.4 Nov. 17, 2014: The Data Memory status readback (polling) is working, the JTAG (mem1) is expanded to 4KB.
+V1.5 Nov. 18, 2014: Clk cleanup, the clock source select works, trigger MGT uses 125MHz.  Connected to the slave/Master TI boards.
+V1.6 Nov. 20, 2014: TIpcie event data can now been read out by single word access.
+V1.7 Nov. 24, 2014: Set the PCIexpress busy to SRESET(8) (inverted).  PROM with v1.4, 1.5 and 1.6 could not load the FPGA.
+V1.8 Nov. 24, 2014: fix the JTAG resetIDLE busy issue.  With the problem, computer hangs with two JTAG reset idle in a row.
+V2.1 Nov. 26, 2014: Output the PCIe configure register status to mem0 0x58, 0x60, 0x68 and 0x70; 
+    move the FP enable/prescale to 0x44, 0x64; Use 0x74 to set the default event type (VME trigger and Random trigger).
+V2.2 Dec. 3, 2014: Add the Memory write for data readout.  The MSIEnable is false, it is legacy interrupt only.  Why?
+    The data was written to computer, and the interrupt issued.
+V2.3 Dec. 4, 2014: set the BAR2 memory to 1MB, so that a ring buffer can be set in computer memory
+V2.4 Dec. 5, 2014: Multiple read on the BAR2 register
+V3.1 Jan. 12, 2015: Use mem0 to get the DMA address.  (use 0x58 for lower 32-bit address, 0x54 for DMA setting)
+    use mem0 0x140~0x17C to load the event lookup table.  0x54: bit 31: A32/A64 write, bit(15:0): higher A64 address;
+V3.2 Jan. 13, 2015: clean up the unlocated ports; fix the 4-header DMA write data length count problem.
+V3.3 Jan. 14, 2015: Add the Reset to PCIe Tx_Engine and Rx_Engine
+V4.1 Jan. 22, 2015: Split the packet for large data block (Max_Packet_Size), it works for one packet, not two packets
+     Jan. 23, 2015: Succeeded in splitting into multiple packets for one data block.  There are problems when the last packet 
+	 has two or one 64-bit word in the fifo.  In this case, the DMA will not update to the next 4K block;
+V4.2 Jan. 27, 2015: Fix the issue with two/one 64-bit words in FIFO for the last packet issue;
+V4.3 Jan. 28, 2015: When the PhysAddrL reached its maximum, increase the PhysAddrH (for readout data block > 4kB).  The PhysAddrH 
+    advanced too early.  Use PhysAddrL looped around (back to 0).  Occasionally, (<10**(-10)) the DataAvailable counter is too big.
+V4.4 Jan. 30, 2015: Add the DWAvailable downcount protection.  First 32-bit word: D[31:28] = FreeTimer(11:8);
+    D[27:16] = DWAvailable(11:0); D[15:8] = FreeTimer(7:0); D[7:0] = Status(7:0)
+V4.5 Feb. 4, 2015: connect some BA#0 register readout
+V5.1 Feb. 10, 2015: Use common design modules.  The common area is for TI, TD, TS and TIpcie. The 0x44, and 0x60 are used to set
+    the front panel TS code input (replaceing 0x48 and 0x74).  The 0x74 is used to set the event type.  (software not compatible!)
+V5.2 Mar. 24, 2015: recompile after common area modified for ModTIC and TSFPGAC.
+
+V1.1 Mar. 26, 2015: in developing stage, so it is one behind the TIP/TDP/TSP, FPGA usercode 0x71e02011, when it is stable, 0x71e03011
+V1.2 Apr. 10, 2015: Extend the slow end of the periodic trigger; add the indivudual channel delay
+V1.3 Apr. 13, 2015: Update for the proper latency setting for trigger2 to trigger 1 auto generation.
+V1.4 Apr. 16, 2015: Automatic SyncReset update (0xEE, Clk625/ClkDiv).
+V1.7 May 26, 2015: Keep it up to date with TIPFGAC.
+V2.1 Oct. 15, 2015: keep it up to date with TIFPGAC.
+V2.2 Dec. 2, 2015: Added the pulldown on TCKPROM and TCKFPGA
+V2.3 Dec. 4, 2015: Added the BusySrcEn(0): for TIpcieDataBusy, BusySrcEn(2): for TIpcieFifoFull
+V2.4 Dec. 7, 2015: added the reg 0x100, data 0x10 (reset default) to reset the FPGA registers.
+     Dev. 8, 2015: properly connect the 0x34, 0x4c, 0x94, 0xc0 registers
+V2.5 Dec. 8, 2015: use 0x1C, bit(22) to enable PCIexpress data (DMA) transfer
+V2.6 Dec. 10, 2015: Using SW(5) to control the MSIenable (the Interrupt).
+     Dec. 11, 2015: Using VmeSetting(23), not SW(5) for MSI enable.  Use VmeSetting(24) to enable, but MSIRequest disable MDA data.
+	  Dec. 14, 2015: remove that logic that disabling DMA if MSIEnable is false.  Set MSI response if MSI is enabled.
+V2.7 Dec. 14, 2015: Add the chipscope monitoring
+V2.6 Dec. 15, 2015: Redo the TX_engine, espe the order in DMA transfer (higher priority).	  
+V2.7 Dec. 15, 2015: Use 0x68 to read out the event data
+V2.6 Dec. 16, 2015: Use MemDataEn to enable the BlockReady, which will disable DMA TX when MemDataEn is not enabled.
+V2.7 Dec. 16, 2015: Use the RX_engine to generate the FIFO readEn.
+V3.1 Dec. 17, 2015: Set the MSIEnable to High, and use reg 0x1C, bit(23) to enable 'Interrupt'. Set the TX_engine to Sync Reset
+     Dec. 22, 2015: Set the front panel output to Trigger and Busy.  The other two bits are controlled by register
+V3.2 Jan. 4, 2016: Reproduce V3.1, and load as rev1 for two revision PROM loading.  rev0: current, rev1: backup.
+    Depending on the svf file, the usr can only update rev0 firmware.  
+V3.3 Jan. 5, 2016: try to debug the DMA crashing issue.
+     Jan. 11, 2016: Use TrigOutFP for front panal trigger output.  Default the Req_Compl_Data_o to '0' (no data).
+     Jan. 11, 2016: Crashing is defined as trn_rEOF_n lasting for > 16 clock cycles (ClkPci)
+     Jan. 12, 2016: deal with the collision when BR0 read request, and BR2 write finish.
+     Jan. 12, 2016: Reverse the TrigOut polarity, Change Rx_Engine to sync reset, and remove the IO TLPs
+     Jan. 12, 2016: previous version over simplified the state machine, add the RX_IO_MEM_WR_WAIT back
+     Jan. 13, 2016: Added the TX_WAIT_ONE_STATE, removed the TX_Tdst_Dsc_N = '0' logic, as it is always '1';
+	  Jan. 13, 2016: Disable the Trn_Tsrc_Rdy_N when the Trn_Tdst_Rdy_N is not ready ('1'). Extend the Reof to 8-bit.
+     Jan. 14, 2016: Simplify the Tx_engine, make sure the WAIT_ONE state finishes the previous word.  Added the FnextFull to busy.
+     Jan. 14, 2016: set PhysAddrMB back to RX_RST_STATE, add trn_tdst_rdy check in MSI_state.  Monitor NewBlock signal,
+     Jan. 15, 2016: Use VmeSetting(31) to select slower ClkSlow for TriggerRule block
+V3.4 Jan. 20, 2016: Debug the TX_engine; Removing the chipscope does not make difference; rearrange the PhysAddrH, and MSIresponse
+    Introduce DMAReady, so the word counts are prepared before jumping into DMA mode; Initialize DMAReady when Reset
+    Remove the trn_tsrc_rdy_n when the trn_tdst not ready.
+V3.5 Jan. 21, 2016: Remove the ChipScope and compile.

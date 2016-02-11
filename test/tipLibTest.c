@@ -24,12 +24,14 @@ main(int argc, char *argv[])
   if(tipOpen()!=OK)
     goto CLOSE;
   
-  tipInit(0,TIP_INIT_USE_DMA);
+  tipInit(0,0);
   tipStatus(1);
 
   tipPCIEStatus(1);
 
   tipGetSerialNumber(NULL);
+
+  tipPrintTempVolt();
 
   printf("Break\n");
   getchar();

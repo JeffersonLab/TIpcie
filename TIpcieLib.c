@@ -55,6 +55,8 @@
 #define TIPCIE_MEM_ALLOC 0
 #define TIPCIE_MEM_FREE  1
 
+/* #define OLDWAY 1 */
+/* #define OLDWAY2 1 */
 
 typedef struct pci_ioctl_struct
 {
@@ -1238,6 +1240,170 @@ tipGetSerialNumber(char **rSN)
 
 }
 
+int
+tipPrintTempVolt()
+{
+  unsigned int rval=0;
+  unsigned int Temperature;
+  int delay=10000;
+
+  if(TIPp==NULL)
+    {
+      printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
+      return ERROR;
+    }
+
+  TIPLOCK;
+  tipWrite(&TIPp->reset,TIP_RESET_JTAG);           /* reset */
+  usleep(delay);
+
+  tipJTAGWrite(0x3c,0x0); // Reset_idle 
+  usleep(delay);
+
+  tipJTAGWrite(0x26c,0x3f7); // load the UserCode Enable
+  usleep(delay);
+  
+  tipJTAGWrite(0x7dc,0x04000000);     // shift in 32-bit of data
+  usleep(delay);
+  rval = tipJTAGRead(0x1f1c);
+
+  //second read is required to get the correct DRP value
+  tipJTAGWrite(0x7dc,0x04000000);     // shift in 32-bit of data
+  usleep(delay);
+  rval = tipJTAGRead(0x7dc);
+
+  printf("%s: FPGA silicon temperature readout is %x \n", 
+	 __FUNCTION__,rval);
+
+  Temperature = 504*((rval >>6) & 0x3ff)/1024-273; 
+  printf("\tThe temperature is : %d \n", Temperature);
+
+  // maximum temperature readout
+  tipJTAGWrite(0x7dc,0x04200000);    // shift in 32-bit of data
+  usleep(delay);
+  rval = tipJTAGRead(0x7dc);
+
+  //second read is required to get the correct DRP value
+  tipJTAGWrite(0x7dc,0x04200000);    // shift in 32-bit of data
+  usleep(delay);
+  rval = tipJTAGRead(0x7dc);
+
+  printf ("%s: FPGA silicon max. temperature readout is %x\n", 
+	  __FUNCTION__,rval);
+  Temperature = 504*((rval >>6) & 0x3ff)/1024-273; 
+  printf("\tThe max. temperature is : %d \n", Temperature);
+
+  // minimum temperature readout
+  tipJTAGWrite(0x7dc,0x04240000);    // shift in 32-bit of data
+  usleep(delay);
+  rval = tipJTAGRead(0x7dc);
+
+  //second read is required to get the correct DRP value
+  tipJTAGWrite(0x7dc,0x04240000);    // shift in 32-bit of data
+  usleep(delay);
+  rval = tipJTAGRead(0x7dc);
+
+  printf("%s: FPGA silicon min. temperature readout is %x\n",
+	 __FUNCTION__,rval);
+  Temperature = 504*((rval >>6) & 0x3ff)/1024-273; 
+  printf ("\tThe min. temperature is : %d \n", Temperature);
+
+  TIPUNLOCK;
+  return OK;
+
+  // VccInt readout
+  tipJTAGWrite(0x7dc,0x04010000);    // shift in 32-bit of data
+  usleep(delay);
+  rval = tipJTAGRead(0x7dc);
+
+  //second read is required to get the correct DRP value
+  tipJTAGWrite(0x7dc,0x04010000);    // shift in 32-bit of data
+  usleep(delay);
+  rval = tipJTAGRead(0x7dc);
+
+  printf("%s: FPGA silicon VccInt readout is %x\n",
+	 __FUNCTION__,rval);
+  Temperature = 3000*((rval >>6) & 0x3ff)/1024; 
+  printf ("\tThe VccInt is : %d mV \n", Temperature);
+
+  // maximum VccInt readout
+  tipJTAGWrite(0x7dc,0x04210000);    // shift in 32-bit of data
+  usleep(delay);
+  rval = tipJTAGRead(0x7dc);
+
+  //second read is required to get the correct DRP value
+  tipJTAGWrite(0x7dc,0x04210000);    // shift in 32-bit of data
+  usleep(delay);
+  rval = tipJTAGRead(0x7dc);
+  printf("%s: FPGA silicon Max. VccInt readout is %x\n", 
+	 __FUNCTION__,rval);
+  Temperature = 3000*((rval >>6) & 0x3ff)/1024; 
+  printf("\tThe Max. VccInt is : %d mV \n", Temperature);
+
+  // minimum VccInt readout
+  tipJTAGWrite(0x7dc,0x04250000);    // shift in 32-bit of data
+  usleep(delay);
+  rval = tipJTAGRead(0x7dc);
+
+  //second read is required to get the correct DRP value
+  tipJTAGWrite(0x7dc,0x04250000);    // shift in 32-bit of data
+  usleep(delay);
+  rval = tipJTAGRead(0x7dc);
+  printf("%s: FPGA silicon Min. VccInt readout is %x\n",
+	 __FUNCTION__,rval);
+  Temperature = 3000*((rval >>6) & 0x3ff)/1024; 
+  printf("\tThe Min. VccInt is : %d mV \n", Temperature);
+
+  // VccAux readout
+  tipJTAGWrite(0x7dc,0x04020000);    // shift in 32-bit of data
+  usleep(delay);
+  rval = tipJTAGRead(0x7dc);
+
+  //second read is required to get the correct DRP value
+  tipJTAGWrite(0x7dc,0x04020000);    // shift in 32-bit of data
+  usleep(delay);
+  rval = tipJTAGRead(0x7dc);
+
+  printf("%s: FPGA silicon VccAux readout is %x\n",
+	 __FUNCTION__,rval);
+  Temperature = 3000*((rval >>6) & 0x3ff)/1024; 
+  printf("\tThe VccAux is : %d mV \n", Temperature);
+
+  // maximum VccAux readout
+  tipJTAGWrite(0x7dc,0x04220000);    // shift in 32-bit of data
+  usleep(delay);
+  rval = tipJTAGRead(0x7dc);
+
+  //second read is required to get the correct DRP value
+  tipJTAGWrite(0x7dc,0x04220000);    // shift in 32-bit of data
+  usleep(delay);
+  rval = tipJTAGRead(0x7dc);
+
+  printf("%s: FPGA silicon Max. VccAux readout is %x\n",
+	 __FUNCTION__,rval);
+  Temperature = 3000*((rval >>6) & 0x3ff)/1024; 
+  printf("\tThe Max. VccAux is : %d mV \n", Temperature);
+
+  // minimum VccAux readout
+  tipJTAGWrite(0x7dc,0x04260000);    // shift in 32-bit of data
+  usleep(delay);
+  rval = tipJTAGRead(0x7dc);
+
+  //second read is required to get the correct DRP value
+  tipJTAGWrite(0x7dc,0x04260000);    // shift in 32-bit of data
+  usleep(delay);
+  rval = tipJTAGRead(0x7dc);
+
+  printf("%s: FPGA silicon Min. VccAux readout is %x\n",
+	 __FUNCTION__,rval);
+  Temperature = 3000*((rval >>6) & 0x3ff)/1024; 
+  printf("\tThe Min. VccAux is : %d mV \n", Temperature);
+
+  TIPUNLOCK;
+
+  return OK;
+}
+
 /**
  * @ingroup MasterConfig
  * @brief Resync the 250 MHz Clock
@@ -2132,8 +2298,7 @@ int tipTriedAgain=0;
  * @param   nwrds - Max number of words to transfer
  * @param   rflag - Readout Flag
  *       -       0 - programmed I/O from the specified board
- *       -       1 - DMA transfer using Universe/Tempe DMA Engine 
- *                    (DMA VME transfer Mode must be setup prior)
+ *       -       1 - DMA transfer
  *
  * @return Number of words transferred to data if successful, ERROR otherwise
  *
@@ -2398,10 +2563,10 @@ tipReadBlock(volatile unsigned int *data, int nwrds, int rflag)
 	  /* Event header */
 	TRYAGAIN:
 	  val = tipRead(&TIPp->fifo);
-	  data[dCnt++] = val;
 
 	  if((val & 0xFF0000)>>16 == 0x01)
 	    {
+	      data[dCnt++] = val;
 	      ev_nwords = val & 0xffff;
 	      for(idata=0; idata<ev_nwords; idata++)
 		{
@@ -2411,12 +2576,16 @@ tipReadBlock(volatile unsigned int *data, int nwrds, int rflag)
 	    }
 	  else
 	    {
-	      printf("%s: ERROR: Invalid Event Header Word 0x%08x\n",
-		     __FUNCTION__,val);
 	      tipTriedAgain++;
+	      usleep(1);
+	      if(tipTriedAgain>20)
+		{
+		  printf("%s: ERROR: Invalid Event Header Word 0x%08x\n",
+			 __FUNCTION__,val);
+		  TIPUNLOCK;
+		  return -1;
+		}
 	      goto TRYAGAIN;
-	      TIPUNLOCK;
-	      return dCnt;
 	    }
 	}
 
@@ -6688,12 +6857,16 @@ tipRead(volatile unsigned int *reg)
 #ifdef OLDWAY
   int stat=0;
 
+  int areg[1];
+
+  areg[0] = (reg - &TIPp->boardID)<<2;
+
   PCI_IOCTL_INFO info =
     {
       .command_type = TIPCIE_READ,
       .mem_region   = 0,
       .nreg         = 1,
-      .reg          = (unsigned int *)&reg,
+      .reg          = (volatile unsigned int *)&areg,
       .value        = &value
     };
 
@@ -6714,12 +6887,16 @@ tipWrite(volatile unsigned int *reg, unsigned int value)
 {
   int stat=0;
 #ifdef OLDWAY
+  int areg[1];
+
+  areg[0] = (reg - &TIPp->boardID)<<2;
+
   PCI_IOCTL_INFO info =
     {
       .command_type = TIPCIE_WRITE,
       .mem_region   = 0,
       .nreg         = 1,
-      .reg          = (volatile unsigned int *)&reg,
+      .reg          = (volatile unsigned int *)&areg,
       .value        = &value
     };
 
@@ -6738,12 +6915,16 @@ tipJTAGRead(unsigned int reg)
 #ifdef OLDWAY2
   int stat=0;
 
+  int areg[1];
+
+  areg[0] = reg;
+
   PCI_IOCTL_INFO info =
     {
       .command_type = TIPCIE_READ,
       .mem_region   = 1,
       .nreg         = 1,
-      .reg          = (volatile unsigned int *)&reg,
+      .reg          = (volatile unsigned int *)&areg,
       .value        = &value
     };
 
@@ -6762,12 +6943,16 @@ tipJTAGWrite(unsigned int reg, unsigned int value)
 {
   int stat=0;
 #ifdef OLDWAY2
+  int areg[1];
+
+  areg[0] = reg;
+
   PCI_IOCTL_INFO info =
     {
       .command_type = TIPCIE_WRITE,
       .mem_region   = 1,
       .nreg         = 1,
-      .reg          = (volatile unsigned int *)&reg,
+      .reg          = (volatile unsigned int *)&areg,
       .value        = &value
     };
 
@@ -6864,10 +7049,11 @@ tipOpen()
     }
 #ifdef ALLOCMEM
   tipMapInfo = tipAllocDmaMemory(size, &phys_addr);
-  printf("      dmaHdl = 0x%lx\n", tipMapInfo.dmaHdl);
-  printf("   phys_addr = 0x%lx\n", phys_addr);
-  printf("    map_addr = 0x%lx\n", tipMapInfo.map_addr);
-
+#ifdef DEBUGMEM
+  printf("      dmaHdl = 0x%llx\n", (uint64_t)tipMapInfo.dmaHdl);
+  printf("   phys_addr = 0x%llx\n", (uint64_t)phys_addr);
+  printf("    map_addr = 0x%llx\n", (uint64_t)tipMapInfo.map_addr);
+#endif
   tipDmaAddrBase = phys_addr;
 #endif /* ALLOCMEM */
 
@@ -6886,9 +7072,8 @@ tipOpen()
       perror("mmap");
       return ERROR;
     }
-  
+
   TIPp = (volatile struct TIPCIE_RegStruct *)tipMappedBase;
-  printf("TIPp  = 0x%lx\n",(unsigned long)TIPp);
 
   dev_base = bars[1];
 
@@ -6918,8 +7103,6 @@ tipClose()
 #ifdef ALLOCMEM
   tipFreeDmaMemory(tipMapInfo);
 #endif /* ALLOCMEM */
-
-  getchar();
 
   if(munmap(tipJTAGMappedBase,0x1000)<0)
      perror("munmap");
@@ -6960,11 +7143,13 @@ tipDmaMem(DMA_BUF_INFO *info)
 
   rval = ioctl(tipFD, TIPCIE_IOC_MEM, info);
 
-  printf("   command_type = %d\n",info->command_type);
-  printf(" dma_osspec_hdl = %llx\n",info->dma_osspec_hdl);
-  printf("      phys_addr = %lx\n",info->phys_addr);
-  printf("      virt_addr = %lx\n",info->virt_addr);
-  printf("           size = %d\n",info->size);
+#ifdef DEBUGMEM
+  printf("   command_type = %d\n",(int)info->command_type);
+  printf(" dma_osspec_hdl = %#lx\n",(uint64_t)info->dma_osspec_hdl);
+  printf("      phys_addr = %#lx\n",(uint64_t)info->phys_addr);
+  printf("      virt_addr = %#lx\n",(uint64_t)info->virt_addr);
+  printf("           size = %d\n",(int)info->size);
+#endif
   return rval;
 }
 

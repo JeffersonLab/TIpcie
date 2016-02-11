@@ -19,6 +19,9 @@
 #define BLOCKLEVEL 0x1
 
 #define DO_READOUT
+#define SOFTTRIG
+
+#define USEDMA 0
 
 /* Interrupt Service routine */
 void
@@ -27,9 +30,10 @@ mytiISR(int arg)
   volatile unsigned short reg;
   int dCnt, len=0,idata;
   int tibready=0, timeout=0;
-  int printout = 1;
+  int printout = 1000;
   int dataCheck=0;
   volatile unsigned int data[120];
+  int DMA=0;
 
   unsigned int tiIntCount = tipGetIntCount();
 
@@ -56,10 +60,13 @@ mytiISR(int arg)
     }
 #endif
 
-  dCnt = tipReadBlock((volatile unsigned int *)&data,32,1);
+  if(USEDMA)
+    DMA=1;
+
+  dCnt = tipReadBlock((volatile unsigned int *)&data,32,DMA);
   /* dCnt = tipReadTriggerBlock((volatile unsigned int *)&data); */
 
-  if(dCnt!=8)
+  if(dCnt<0)
     {
       printf("**************************************************\n");
       printf("No data or error.  dCnt = %d\n",dCnt);
@@ -71,9 +78,9 @@ mytiISR(int arg)
       /* dataCheck = tiCheckTriggerBlock(data); */
     }
 
-#define READOUT
+/* #define READOUT */
 #ifdef READOUT
-  if((tiIntCount%printout==0) || (dCnt!=8))
+  if((tiIntCount%printout==0));
     {
       printf("Received %d triggers...\n",
 	     tiIntCount);
@@ -95,7 +102,11 @@ mytiISR(int arg)
   if(tiIntCount%printout==0)
     printf("intCount = %d\n",tiIntCount );
 
-  if((dataCheck!=OK) || (dCnt!=8))
+  if(tiIntCount%(printout*10)==0)
+    tipPrintTempVolt();
+
+
+  if((dataCheck!=OK))
     {
       getchar();
     }
@@ -108,6 +119,7 @@ main(int argc, char *argv[])
 {
 
   int stat;
+  int DMA=0;
 
   printf("\nJLAB TI Tests\n");
   printf("----------------------------\n");
@@ -121,7 +133,10 @@ main(int argc, char *argv[])
   tipOpen();
 
   /* Set the TI structure pointer */
-  tipInit(TIP_READOUT_EXT_POLL,TIP_INIT_USE_DMA);
+  if(USEDMA)
+    DMA = TIP_INIT_USE_DMA;
+
+  tipInit(TIP_READOUT_EXT_POLL,DMA);
   tipCheckAddresses();
 
   tipDefinePulserEventType(0xAA,0xCD);
@@ -140,7 +155,7 @@ main(int argc, char *argv[])
 
   tipLoadTriggerTable(0);
     
-  /* tipSetTriggerHoldoff(1,4,0); */
+  tipSetTriggerHoldoff(1,2,2);
   /* tipSetTriggerHoldoff(2,4,0); */
 
   tipSetPrescale(0);
@@ -157,9 +172,12 @@ main(int argc, char *argv[])
       printf("INFO: Attached TI Interrupt\n");
     }
 
-  /*     tiSetTriggerSource(TI_TRIGGER_TSINPUTS); */
+#ifdef SOFTTRIG
   tipSetTriggerSource(TIP_TRIGGER_PULSER);
-  tipEnableTSInput(0x1);
+#else
+  tipSetTriggerSource(TIP_TRIGGER_TSINPUTS);
+#endif
+  tipEnableTSInput(0xf);
 
   /*     tiSetFPInput(0x0); */
   /*     tiSetGenInput(0xffff); */
@@ -167,7 +185,7 @@ main(int argc, char *argv[])
 
   tipSetBusySource(TIP_BUSY_LOOPBACK ,1);
 
-  tipSetBlockBufferLevel(1);
+  tipSetBlockBufferLevel(10);
 
 /*   tiSetFiberDelay(1,2); */
 /*   tiSetSyncDelayWidth(1,0x3f,1); */
@@ -191,6 +209,7 @@ main(int argc, char *argv[])
     
   tipStatus(1);
   tipPCIEStatus(1);
+  tipPrintTempVolt();
 
   printf("Hit enter to start triggers\n");
   getchar();
@@ -198,9 +217,8 @@ main(int argc, char *argv[])
   tipIntEnable(0);
   tipStatus(1);
   tipPCIEStatus(1);
-#define SOFTTRIG
 #ifdef SOFTTRIG
-  tipSetRandomTrigger(1,0x7);
+  tipSetRandomTrigger(1,0x6);
   /* taskDelay(10); */
   /* tipSoftTrig(1,1,0xffff/2,1); */
 #endif
@@ -209,6 +227,7 @@ main(int argc, char *argv[])
   getchar();
   tipStatus(1);
   tipPCIEStatus(1);
+  tipPrintTempVolt();
 
 #ifdef SOFTTRIG
   /* No more soft triggers */
