@@ -5828,8 +5828,8 @@ tipSetTSInputDelay(int chan, int delay)
 
   TIPLOCK;
   chan--;
-  tipWrite(&TIPp->fpDelay[chan%3],
-	     (tipRead(&TIPp->fpDelay[chan%3]) & ~TIP_FPDELAY_MASK(chan))
+  tipWrite(&TIPp->fpDelay[chan/3],
+	     (tipRead(&TIPp->fpDelay[chan/3]) & ~TIP_FPDELAY_MASK(chan))
 	     | delay<<(10*(chan%3)));
   TIPUNLOCK;
 
@@ -5861,7 +5861,7 @@ tipGetTSInputDelay(int chan)
 
   TIPLOCK;
   chan--;
-  rval = (tipRead(&TIPp->fpDelay[chan%3]) & TIP_FPDELAY_MASK(chan))>>(10*(chan%3));
+  rval = (tipRead(&TIPp->fpDelay[chan/3]) & TIP_FPDELAY_MASK(chan))>>(10*(chan%3));
   TIPUNLOCK;
 
   return rval;
@@ -5875,7 +5875,7 @@ tipGetTSInputDelay(int chan)
 int
 tipPrintTSInputDelay()
 {
-  unsigned int reg[11];
+  unsigned int reg[2];
   int ireg=0, ichan=0, delay=0;
   if(TIPp==NULL) 
     {
@@ -5884,14 +5884,14 @@ tipPrintTSInputDelay()
     }
 
   TIPLOCK;
-  for(ireg=0; ireg<11; ireg++)
-    reg[ireg] = tipRead(&TIPp->fpDelay[ireg]);
+  for(ireg=0; ireg<2; ireg++)
+      reg[ireg] = tipRead(&TIPp->fpDelay[ireg]);
   TIPUNLOCK;
 
   printf("%s: Front panel delays:", __FUNCTION__);
-  for(ichan=0;ichan<5;ichan++) 
+  for(ichan=0;ichan<6;ichan++) 
     {
-      delay = reg[ichan%3] & TIP_FPDELAY_MASK(ichan)>>(10*(ichan%3));
+      delay = reg[ichan/3] & TIP_FPDELAY_MASK(ichan)>>(10*(ichan%3));
       if((ichan%4)==0) 
 	{
 	  printf("\n");
