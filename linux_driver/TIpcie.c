@@ -17,6 +17,8 @@
 #include <linux/cdev.h>
 #include <linux/sched.h>
 #include <linux/compat.h>
+#include <linux/version.h>
+#include <linux/seq_file.h>
 #define SUPPORT_DMA
 #include "TIpcie.h"
 
@@ -34,13 +36,22 @@ static struct pci_device_id ids[] = {
 MODULE_DEVICE_TABLE(pci, ids);
 
 static void   clean_module(void);
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,11)
 static int TIpcie_procinfo(char *buf, char **start, off_t fpos, int lenght, int *eof, void *data);
+#else
+static ssize_t TIpcie_procinfo(struct file *file, char __user *buffer, size_t count, loff_t *ppos);
+#endif
 static void register_proc( void );
 static void unregister_proc( void );
 /* static int probe(struct pci_dev *dev, const struct pci_device_id *id); */
 static void remove(struct pci_dev *dev);
-static int TIpcie_ioctl(struct inode *inode, struct file *filp,
-	       unsigned int cmd, unsigned long arg);
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,11)
+static long TIpcie_ioctl(struct inode *inode, struct file *filp,
+			 unsigned int cmd, unsigned long arg);
+#else
+static long TIpcie_ioctl(struct file *filp,
+			 unsigned int cmd, unsigned long arg);
+#endif
 static long TIpcie_compat_ioctl(struct file *filep, unsigned int cmd,
 				unsigned long arg);
 static int TIpcie_mmap(struct file *file,struct vm_area_struct *vma);
@@ -76,10 +87,14 @@ wait_queue_head_t  irq_queue;
 static struct proc_dir_entry *TIpcie_procdir;
 static const struct file_operations TIpcie_fops = 
 {
-  .ioctl        = TIpcie_ioctl,
-  .mmap         = TIpcie_mmap,
-  .read         = TIpcie_read,
-  .compat_ioctl = TIpcie_compat_ioctl,
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,11)
+ ioctl:        TIpcie_ioctl,
+#else
+ unlocked_ioctl: TIpcie_ioctl,
+#endif
+ mmap:         TIpcie_mmap,
+ read:         TIpcie_read,
+ compat_ioctl: TIpcie_compat_ioctl,
 /*   open:     TIpcie_open, */
   /* release:  remove */
 };
@@ -470,8 +485,13 @@ __exit TIpcie_exit(void)
   clean_module();
 }
 
-static int 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,11)
+static int
 TIpcie_procinfo(char *buf, char **start, off_t fpos, int lenght, int *eof, void *data)
+#else
+static ssize_t 
+TIpcie_procinfo(struct file *file, char __user *buf, size_t count, loff_t *ppos)
+#endif
 {
   char *p;
   int ireg=0;
@@ -513,17 +533,42 @@ TIpcie_procinfo(char *buf, char **start, off_t fpos, int lenght, int *eof, void 
 static void 
 register_proc( void )
 {
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,11)
   TIpcie_procdir = create_proc_entry("TIpcie", S_IFREG | S_IRUGO, 0);
   TIpcie_procdir->read_proc = TIpcie_procinfo;
+#else
+  static const struct file_operations proc_file_fops = 
+    {
+      .read  = TIpcie_procinfo,
+    };
+
+  TIpcie_procdir = proc_create("TIpcie", S_IFREG | S_IRUGO, NULL, &proc_file_fops);
+#endif
 }
+
+//----------------------------------------------------------------------------
+//  unregister_proc()
+//----------------------------------------------------------------------------
+static void unregister_proc( void )
+{
+  remove_proc_entry("TIpcie",0);
+}
+
 
 /*
  * The ioctl() implementation
  */
 
-static int 
+
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,11)
+static long 
 TIpcie_ioctl(struct inode *inode, struct file *filp,
-                 unsigned int cmd, unsigned long arg)
+	     unsigned int cmd, unsigned long arg)
+#else
+static long 
+TIpcie_ioctl(struct file *filp,
+	     unsigned int cmd, unsigned long arg)
+#endif
 {
   TIPCIE_IOCTL_INFO user_info;
   DMA_BUF_INFO dma_info;
@@ -1021,7 +1066,11 @@ TIpcie_mmap(struct file *file,struct vm_area_struct *vma)
 {
 
   /* Don't swap these pages out */
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3,7,0)
   vma->vm_flags |= VM_RESERVED | VM_IO;
+#else
+  vma->vm_flags |= VM_DONTEXPAND | VM_DONTDUMP | VM_IO;
+#endif
 
   if (io_remap_pfn_range(vma, vma->vm_start, vma->vm_pgoff,
 		      vma->vm_end - vma->vm_start, vma->vm_page_prot)) {
@@ -1323,14 +1372,6 @@ TIpcieFreeDmaHandles(void)
 }
 
 
-
-//----------------------------------------------------------------------------
-//  unregister_proc()
-//----------------------------------------------------------------------------
-static void unregister_proc( void )
-{
-  remove_proc_entry("TIpcie",0);
-}
 
 MODULE_LICENSE("GPL");
 
