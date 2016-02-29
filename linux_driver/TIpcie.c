@@ -36,11 +36,6 @@ static struct pci_device_id ids[] = {
 MODULE_DEVICE_TABLE(pci, ids);
 
 static void   clean_module(void);
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,11)
-static int TIpcie_procinfo(char *buf, char **start, off_t fpos, int lenght, int *eof, void *data);
-#else
-static ssize_t TIpcie_procinfo(struct file *file, char __user *buffer, size_t count, loff_t *ppos);
-#endif
 static void register_proc( void );
 static void unregister_proc( void );
 /* static int probe(struct pci_dev *dev, const struct pci_device_id *id); */
@@ -84,7 +79,7 @@ wait_queue_head_t  irq_queue;
 
 /* static struct resource *iores1; */
 /* static struct resource *iores2; */
-static struct proc_dir_entry *TIpcie_procdir;
+static struct proc_dir_entry *TIpcie_proc_devices;
 static const struct file_operations TIpcie_fops = 
 {
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,11)
@@ -485,65 +480,100 @@ __exit TIpcie_exit(void)
   clean_module();
 }
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,11)
-static int
-TIpcie_procinfo(char *buf, char **start, off_t fpos, int lenght, int *eof, void *data)
-#else
-static ssize_t 
-TIpcie_procinfo(struct file *file, char __user *buf, size_t count, loff_t *ppos)
-#endif
+
+
+static int 
+TIpcie_proc_show(struct seq_file *m, void *v)
 {
-  char *p;
   int ireg=0;
 
-  p = buf;
-  p += sprintf(p,"  PCIexpress TI Driver\n");
+  seq_printf(m,"  PCIexpress TI Driver\n");
 
-  p += sprintf(p,"\n");
+  seq_printf(m,"\n");
 
-  p += sprintf(p,"  pci0 addr = %0lx\n",(unsigned long)pci_bar0);
-  p += sprintf(p,"  pci1 addr = %0lx\n",(unsigned long)pci_bar1);
-  p += sprintf(p,"  pci2 addr = %0lx\n",(unsigned long)pci_bar2);
+  seq_printf(m,"  pci0 addr = %0lx\n",(unsigned long)pci_bar0);
+  seq_printf(m,"  pci1 addr = %0lx\n",(unsigned long)pci_bar1);
+  seq_printf(m,"  pci2 addr = %0lx\n",(unsigned long)pci_bar2);
 
-  p += sprintf(p,"  mem0 addr = %0lx\n",(unsigned long)TIpcie_resaddr0);
-  p += sprintf(p,"  mem1 addr = %0lx\n",(unsigned long)TIpcie_resaddr1);
-  p += sprintf(p,"  mem2 addr = %0lx\n",(unsigned long)TIpcie_resaddr2);
+  seq_printf(m,"  mem0 addr = %0lx\n",(unsigned long)TIpcie_resaddr0);
+  seq_printf(m,"  mem1 addr = %0lx\n",(unsigned long)TIpcie_resaddr1);
+  seq_printf(m,"  mem2 addr = %0lx\n",(unsigned long)TIpcie_resaddr2);
 
-  p += sprintf(p,"\n");
+  seq_printf(m,"\n");
 
-  p += sprintf(p,"  int count = %d\n",TIpcie_interrupt_count);
+  seq_printf(m,"  int count = %d\n",TIpcie_interrupt_count);
 
-  p += sprintf(p,"\n");
+  seq_printf(m,"\n");
 
-  p += sprintf(p,"  Base Registers: \n");
+  seq_printf(m,"  Base Registers: \n");
   for(ireg=0; ireg<=0x100; ireg=ireg+0x10)
     {
-      p += sprintf(p,"   0x%04x: 0x%08x",ireg, ioread32(TIpcie_resaddr0+ireg));
-      p += sprintf(p,"  0x%08x", ioread32(TIpcie_resaddr0+ireg+0x4));
-      p += sprintf(p,"  0x%08x", ioread32(TIpcie_resaddr0+ireg+0x8));
-      p += sprintf(p,"  0x%08x\n", ioread32(TIpcie_resaddr0+ireg+0xc));
+      seq_printf(m,"   0x%04x: 0x%08x",ireg, ioread32(TIpcie_resaddr0+ireg));
+      seq_printf(m,"  0x%08x", ioread32(TIpcie_resaddr0+ireg+0x4));
+      seq_printf(m,"  0x%08x", ioread32(TIpcie_resaddr0+ireg+0x8));
+      seq_printf(m,"  0x%08x\n", ioread32(TIpcie_resaddr0+ireg+0xc));
     }
-  p += sprintf(p,"\n");
+  seq_printf(m,"\n");
 
-
-  *eof = 1;
-  return p - buf;
+  return 0;
 }
+
+static void 
+*TIpcie_proc_start(struct seq_file *m, loff_t *pos)
+{
+  return (void *)((unsigned long) *pos + 1);
+}
+
+static void 
+*TIpcie_proc_next(struct seq_file *m, void *v, loff_t *pos)
+{
+  ++*pos;
+  return TIpcie_proc_start(m, pos);
+}
+
+static void 
+TIpcie_proc_stop(struct seq_file *m, void *v)
+{
+}
+
+static const struct 
+seq_operations TIpcie_proc_seq = 
+  {
+    .start	= TIpcie_proc_start,
+    .next	= TIpcie_proc_next,
+    .stop	= TIpcie_proc_stop,
+    .show	= TIpcie_proc_show,
+  };
+
+static int 
+TIpcie_proc_open(struct inode *inode, struct file *file)
+{
+  return seq_open(file, &TIpcie_proc_seq);
+}
+
+static const struct 
+file_operations TIpcie_proc_ops =
+  {
+    .owner	= THIS_MODULE,
+    .open	= TIpcie_proc_open,
+    .read	= seq_read,
+    .llseek	= seq_lseek,
+    .release	= seq_release,
+  };
 
 static void 
 register_proc( void )
 {
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,11)
-  TIpcie_procdir = create_proc_entry("TIpcie", S_IFREG | S_IRUGO, 0);
-  TIpcie_procdir->read_proc = TIpcie_procinfo;
-#else
-  static const struct file_operations proc_file_fops = 
-    {
-      .read  = TIpcie_procinfo,
-    };
 
-  TIpcie_procdir = proc_create("TIpcie", S_IFREG | S_IRUGO, NULL, &proc_file_fops);
-#endif
+  TIpcie_proc_devices =
+    proc_create("TIpcie", S_IFREG | S_IRUGO | S_IWUSR, NULL,
+		&TIpcie_proc_ops);
+
+  if (TIpcie_proc_devices == NULL) 
+    {
+      return;
+    }
+  
 }
 
 //----------------------------------------------------------------------------
@@ -551,7 +581,9 @@ register_proc( void )
 //----------------------------------------------------------------------------
 static void unregister_proc( void )
 {
-  remove_proc_entry("TIpcie",0);
+  if (TIpcie_proc_devices != NULL)
+    remove_proc_entry("TIpcie", NULL);
+  
 }
 
 
