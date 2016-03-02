@@ -518,47 +518,19 @@ TIpcie_proc_show(struct seq_file *m, void *v)
   return 0;
 }
 
-static void 
-*TIpcie_proc_start(struct seq_file *m, loff_t *pos)
-{
-  return (void *)((unsigned long) *pos + 1);
-}
-
-static void 
-*TIpcie_proc_next(struct seq_file *m, void *v, loff_t *pos)
-{
-  ++*pos;
-  return TIpcie_proc_start(m, pos);
-}
-
-static void 
-TIpcie_proc_stop(struct seq_file *m, void *v)
-{
-}
-
-static const struct 
-seq_operations TIpcie_proc_seq = 
-  {
-    .start	= TIpcie_proc_start,
-    .next	= TIpcie_proc_next,
-    .stop	= TIpcie_proc_stop,
-    .show	= TIpcie_proc_show,
-  };
-
-static int 
+static int
 TIpcie_proc_open(struct inode *inode, struct file *file)
 {
-  return seq_open(file, &TIpcie_proc_seq);
+  return single_open(file, TIpcie_proc_show, NULL);
 }
 
 static const struct 
 file_operations TIpcie_proc_ops =
   {
-    .owner	= THIS_MODULE,
     .open	= TIpcie_proc_open,
     .read	= seq_read,
     .llseek	= seq_lseek,
-    .release	= seq_release,
+    .release	= single_release,
   };
 
 static void 
