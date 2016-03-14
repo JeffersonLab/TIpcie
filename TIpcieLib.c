@@ -161,7 +161,7 @@ static void tipPoll(void);
 static void tipStartPollingThread(void);
 /* polling thread pthread and pthread_attr */
 pthread_attr_t tippollthread_attr;
-pthread_t      tippollthread;
+pthread_t      tippollthread=0;
 
 static void FiberMeas();
 
@@ -6535,7 +6535,7 @@ tipIntDisconnect()
     case TIP_READOUT_TS_POLL:
     case TIP_READOUT_EXT_POLL:
       {
-	if(tipDoIntPolling)
+	if(tippollthread)
 	  {
 	    if(pthread_cancel(tippollthread)<0) 
 	      perror("pthread_cancel");
