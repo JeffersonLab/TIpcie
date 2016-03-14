@@ -25,7 +25,7 @@
 #define _GNU_SOURCE
 
 #define DEVEL
-#define ALLOCMEM
+/* #define ALLOCMEM */
 
 #include <sys/types.h>
 #include <sys/stat.h>
