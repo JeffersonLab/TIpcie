@@ -352,13 +352,16 @@ __init TIpcie_init(void)
 
   pcimemres.flags = IORESOURCE_MEM;
   tipcimem = pci_find_parent_resource(ti_pci_dev, &pcimemres);
-  if(tipcimem == 0){
-    printk("TIpcie: Can't get TI parent device PCI resource\n");
-    goto BailOut;
-  }
-  
-  printk("TIpcie: Initial PCI MEM start: 0x%0lx end: 0x%0lx\n", 
-	 (unsigned long)tipcimem->start, (unsigned long)tipcimem->end);
+  if(tipcimem == 0)
+    {
+      printk("TIpcie: Can't get TI parent device PCI resource\n");
+      /* goto BailOut; */
+    }
+  else
+    {
+      printk("TIpcie: Initial PCI MEM start: 0x%0lx end: 0x%0lx\n", 
+	     (unsigned long)tipcimem->start, (unsigned long)tipcimem->end);
+    }
 
   // Map in TIpcie registers.
   if(mapInTIpcie(ti_pci_dev)){
@@ -614,7 +617,6 @@ TIpcie_ioctl(struct file *filp,
 	    printk("TIpcie: copy_from_user (values) failed\n");
 	    return -EFAULT;
 	  }
-
 
 #ifdef DEBUGDRIVER
 	printk("%s:\n",__FUNCTION__);
