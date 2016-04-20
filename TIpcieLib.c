@@ -4146,12 +4146,12 @@ tipAddSlave(unsigned int fiber)
  * @param   value  the specified time period (in steps of timestep)
  * @param timestep Timestep that is dependent on the trigger rule selected
  *<pre>
- *                   rule
- *    timestep    1      2      3      4
- *    -------   -----  ----- ------ ------
- *       0       16ns   16ns   16ns   16ns 
- *       1      160ns  500ns  500ns  500ns 
- *       2     5120ns
+ *                         rule
+ *    timestep    1      2       3       4
+ *    -------   ----- ------- ------- -------
+ *       0       16ns    16ns    16ns    16ns 
+ *       1      160ns   320ns   640ns  1280ns 
+ *       2     5120ns 10240ns 20480ns 40960ns
  *</pre>
  *
  * @return OK if successful, otherwise ERROR.
