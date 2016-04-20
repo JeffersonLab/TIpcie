@@ -80,6 +80,8 @@ wait_queue_head_t  irq_queue;
 /* static struct resource *iores1; */
 /* static struct resource *iores2; */
 static struct proc_dir_entry *TIpcie_proc_devices;
+static struct class *TIpcie_class;
+static struct device *TIpcie_dev;
 static const struct file_operations TIpcie_fops = 
 {
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,11)
@@ -320,6 +322,7 @@ __init TIpcie_init(void)
   int rval=0;
   unsigned int temp, status;
   struct resource pcimemres;
+  void *ptr_err;
 
   TIpcie_init_flags=0;
   printk("TIpcie driver loaded\n");
@@ -339,6 +342,18 @@ __init TIpcie_init(void)
     }
 
   ADD_RESOURCE(TIpcie_init_flags, TIPCIE_RSRC_CHR);
+
+  TIpcie_class = class_create(THIS_MODULE, "TIpcie");
+  if (IS_ERR(ptr_err = TIpcie_class))
+    goto BailOut;
+  
+  ADD_RESOURCE(TIpcie_init_flags, TIPCIE_RSRC_CLASS);
+
+  TIpcie_dev = device_create(TIpcie_class, NULL, MKDEV(TIPCIE_MAJOR, 0), NULL, "TIpcie");
+  if (IS_ERR(ptr_err = TIpcie_dev))
+    goto BailOut;
+
+  ADD_RESOURCE(TIpcie_init_flags, TIPCIE_RSRC_DEV);
 
   ti_pci_dev = findTIpcie();
   if(ti_pci_dev==NULL)
@@ -454,6 +469,24 @@ clean_module(void)
 #endif
       unregister_proc();
       DEL_RESOURCE(TIpcie_init_flags, TIPCIE_RSRC_PROC);
+    }
+
+  if (HAS_RESOURCE(TIpcie_init_flags, TIPCIE_RSRC_DEV)) 
+    {
+#ifdef DEBUGCLEAN
+      printk("%s: Destroy device\n",__FUNCTION__);
+#endif
+      device_destroy(TIpcie_class, MKDEV(TIPCIE_MAJOR,0));
+      DEL_RESOURCE(TIpcie_init_flags, TIPCIE_RSRC_DEV);
+    }
+
+  if (HAS_RESOURCE(TIpcie_init_flags, TIPCIE_RSRC_CLASS)) 
+    {
+#ifdef DEBUGCLEAN
+      printk("%s: Destroy class\n",__FUNCTION__);
+#endif
+      class_destroy(TIpcie_class);
+      DEL_RESOURCE(TIpcie_init_flags, TIPCIE_RSRC_CLASS);
     }
 
   if (HAS_RESOURCE(TIpcie_init_flags, TIPCIE_RSRC_CHR)) 
