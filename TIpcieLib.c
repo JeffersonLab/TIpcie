@@ -2769,7 +2769,7 @@ tipReadTriggerBlock(volatile unsigned int *data)
 
 
 int
-tiCheckTriggerBlock(volatile unsigned int *data)
+tipCheckTriggerBlock(volatile unsigned int *data)
 {
   unsigned int blen=0, blevel=0, evlen=0;
   int iword=0, iev=0, ievword=0;
@@ -3696,7 +3696,7 @@ tipGetBlockLimitStatus()
 unsigned int
 tipBReady()
 {
-  unsigned int blockBuffer=0, readyInt=0, rval=0;
+  unsigned int blockBuffer=0, blockReady=0, rval=0;
 
   if(TIPp==NULL) 
     {
@@ -3707,11 +3707,11 @@ tipBReady()
   TIPLOCK;
   blockBuffer = tipRead(&TIPp->blockBuffer);
   rval        = (blockBuffer&TIP_BLOCKBUFFER_BLOCKS_READY_MASK)>>8;
-  readyInt    = (blockBuffer&TIP_BLOCKBUFFER_BREADY_INT_MASK)>>24;
+  blockReady  = ((blockBuffer&TIP_BLOCKBUFFER_TRIGGERS_NEEDED_IN_BLOCK)>>16)?0:1;
   tipSyncEventReceived = (blockBuffer&TIP_BLOCKBUFFER_SYNCEVENT)>>31;
   tipNReadoutEvents = (blockBuffer&TIP_BLOCKBUFFER_RO_NEVENTS_MASK)>>24;
 
-  if( (readyInt==1) && (tipSyncEventReceived) )
+  if( (rval==1) && (tipSyncEventReceived) & (blockReady))
     tipSyncEventFlag = 1;
   else
     tipSyncEventFlag = 0;
@@ -3985,15 +3985,14 @@ tipSetClockSource(unsigned int source)
 
   TIPLOCK;
   tipWrite(&TIPp->clock, clkset);
+  usleep(10);
 
-#ifdef SKIPTHIS
   /* Reset DCM (Digital Clock Manager) - 250/200MHz */
   tipWrite(&TIPp->reset,TIP_RESET_CLK250);
-  usleep(10000);
+  usleep(10);
   /* Reset DCM (Digital Clock Manager) - 125MHz */
   tipWrite(&TIPp->reset,TIP_RESET_CLK125);
-  usleep(10000);
-#endif
+  usleep(10);
 
   if(source==1) /* Turn on running mode for External Clock verification */
     {
@@ -4182,7 +4181,7 @@ tipSetTriggerHoldoff(int rule, unsigned int value, int timestep)
       return ERROR;
     }
 
-  if(timestep>1)
+  if(timestep)
     value |= (1<<7);
 
   /* Read the previous values */
@@ -4290,7 +4289,8 @@ tipGetTriggerHoldoff(int rule)
  *       	 	      rule
  *    		         2      3      4
  *    		       ----- ------ ------
- *    		        16ns  480ns  480ns 
+ *    		        16ns  160ns  160ns 
+ *    	(timestep=2)    16ns 5120ns 5120ns
  *</pre>
  *
  * @return OK if successful, otherwise ERROR.
@@ -5290,11 +5290,11 @@ FiberMeas()
 
   TIPLOCK;
   tipWrite(&TIPp->reset,TIP_RESET_IODELAY); // reset the IODELAY
-  usleep(10000);
+  usleep(100);
   tipWrite(&TIPp->reset,TIP_RESET_FIBER_AUTO_ALIGN);  // auto adjust the return signal phase
-  usleep(10000);
+  usleep(100);
   tipWrite(&TIPp->reset,TIP_RESET_MEASURE_LATENCY);  // measure the fiber latency
-  usleep(10000);
+  usleep(1000);
 
   fiberLatency = tipRead(&TIPp->fiberLatencyMeasurement);  //fiber 1 latency measurement result
 
@@ -5305,17 +5305,17 @@ FiberMeas()
 
   tipWrite(&TIPp->reset,TIP_RESET_AUTOALIGN_HFBR1_SYNC);   // auto adjust the sync phase for HFBR#1
 
-  usleep(10000);
+  usleep(100);
 
   fiberLatency = tipRead(&TIPp->fiberLatencyMeasurement);  //fiber 1 latency measurement result
 
   tipFiberLatencyMeasurement = ((fiberLatency & TIP_FIBERLATENCYMEASUREMENT_DATA_MASK)>>23)>>1;
   syncDelay = (tipFiberLatencyOffset-(((fiberLatency>>23)&0x1ff)>>1));
   syncDelay_write = (syncDelay&0xFF)<<8 | (syncDelay&0xFF)<<16 | (syncDelay&0xFF)<<24;
-  usleep(10000);
+  usleep(100);
 
   tipWrite(&TIPp->fiberSyncDelay,syncDelay_write);
-  usleep(10000);
+  usleep(10);
   syncDelay = tipRead(&TIPp->fiberSyncDelay);
   TIPUNLOCK;
 
@@ -6266,7 +6266,7 @@ tipPoll(void)
   printf("\n");
 
   CPU_ZERO(&testCPU);
-  CPU_SET(7,&testCPU);
+  CPU_SET(1,&testCPU);
   if (pthread_setaffinity_np(pthread_self(),sizeof(testCPU), &testCPU) <0) 
     {
       perror("pthread_setaffinity_np");

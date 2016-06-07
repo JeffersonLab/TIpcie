@@ -267,6 +267,7 @@ tipFirmwareEMload(char *filename)
   unsigned int sndData[256];
   char *Word[16], *lastn;
   unsigned int nbits, nbytes, extrType, i, Count, nWords, nlines=0;
+  int didErase=0;
   
   memset((char *)ShiftData,0,sizeof(ShiftData));
   memset((char *)bufRead,0,sizeof(bufRead));
@@ -426,19 +427,23 @@ tipFirmwareEMload(char *filename)
 #ifdef DEBUG
 	      printf("RUNTEST delay: %d \n",nbits);
 #endif
-	      if(nbits>100000)
+	      if(didErase==0)
 		{
-		  printf("Erasing (%.1f seconds): ..",((float)nbits)/2./1000000.);
-		  fflush(stdout);
-		}
-	      usleep(nbits/2);
-	      if(nbits>100000)
-		{
-		  printf("Done\n");
-		  fflush(stdout);
-		  printf("          ----------------------------------------\n");
-		  printf("Updating: ");
-		  fflush(stdout);
+		  if(nbits>100000)
+		    {
+		      printf("Erasing (%.1f seconds): ..",((float)nbits)/2./1000000.);
+		      fflush(stdout);
+		    }
+		  usleep(nbits/2);
+		  if(nbits>100000)
+		    {
+		      printf("Done\n");
+		      fflush(stdout);
+		      printf("          ----------------------------------------\n");
+		      printf("Updating: ");
+		      fflush(stdout);
+		    }
+		  didErase=1;
 		}
 	    }
 	  else if (strcmp(Word[0],"STATE") == 0)
