@@ -144,7 +144,7 @@ struct TIPCIE_RegStruct
 #define TIP_READOUT_TS_POLL    3
 
 /* Supported firmware version */
-#define TIP_SUPPORTED_FIRMWARE 0x042
+#define TIP_SUPPORTED_FIRMWARE 0x055
 #define TIP_SUPPORTED_TYPE     2
 
 /* Firmware Masks */
@@ -511,6 +511,7 @@ struct TIPCIE_RegStruct
 #define TIP_RESET_TAKE_TOKEN           (1<<16)
 #define TIP_RESET_BLOCK_READOUT        (1<<17)
 #define TIP_RESET_FORCE_SYNCEVENT      (1<<20)
+#define TIP_RESET_MGT_RECEIVER         (1<<22)
 #define TIP_RESET_SYNCRESET_REQUEST    (1<<23)
 #define TIP_RESET_SCALERS_LATCH        (1<<24)
 #define TIP_RESET_SCALERS_RESET        (1<<25)

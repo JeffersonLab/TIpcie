@@ -449,7 +449,6 @@ tipInit(unsigned int mode, int iFlag)
     }
   tipReadoutMode = mode;
 
-#ifdef SKIPTHIS
   /* Setup some Other Library Defaults */
   if(tipMaster!=1)
     {
@@ -458,33 +457,33 @@ tipInit(unsigned int mode, int iFlag)
       tipWrite(&TIPp->syncWidth, 0x24);
       // TI IODELAY reset
       tipWrite(&TIPp->reset,TIP_RESET_IODELAY);
-      usleep(10000);
+      usleep(10);
 
       // TI Sync auto alignment
       tipWrite(&TIPp->reset,TIP_RESET_AUTOALIGN_HFBR1_SYNC);
-      usleep(10000);
+      usleep(10);
 
       // TI auto fiber delay measurement
       tipWrite(&TIPp->reset,TIP_RESET_MEASURE_LATENCY);
-      usleep(10000);
+      usleep(10);
 
       // TI auto alignement fiber delay
       tipWrite(&TIPp->reset,TIP_RESET_FIBER_AUTO_ALIGN);
-      usleep(10000);
+      usleep(10);
     }
   else
     {
       // TI IODELAY reset
       tipWrite(&TIPp->reset,TIP_RESET_IODELAY);
-      usleep(10000);
+      usleep(10);
 
       // TI Sync auto alignment
       tipWrite(&TIPp->reset,TIP_RESET_AUTOALIGN_HFBR1_SYNC);
-      usleep(10000);
+      usleep(10);
 
       // Perform a trigger link reset
       tipTrigLinkReset();
-      usleep(10000);
+      usleep(10);
     }
 
   /* Setup a default Sync Delay and Pulse width */
@@ -495,8 +494,6 @@ tipInit(unsigned int mode, int iFlag)
   if(tipMaster==1)
     tipWrite(&TIPp->fiberSyncDelay,
 	       (tipFiberLatencyOffset<<16)&TIP_FIBERSYNCDELAY_LOOPBACK_SYNCDELAY_MASK);
-
-#endif /* SKIPTHIS */
 
   /* Set Default Block Level to 1, and default crateID */
   if(tipMaster==1)
@@ -985,19 +982,19 @@ tipSetSlavePort(int port)
   /* TI IODELAY reset */
   TIPLOCK;
   tipWrite(&TIPp->reset,TIP_RESET_IODELAY);
-  usleep(10000);
+  usleep(10);
   
   /* TI Sync auto alignment */
   tipWrite(&TIPp->reset,TIP_RESET_AUTOALIGN_HFBR1_SYNC);
-  usleep(10000);
+  usleep(10);
   
   /* TI auto fiber delay measurement */
   tipWrite(&TIPp->reset,TIP_RESET_MEASURE_LATENCY);
-  usleep(10000);
+  usleep(10);
   
   /* TI auto alignement fiber delay */
   tipWrite(&TIPp->reset,TIP_RESET_FIBER_AUTO_ALIGN);
-  usleep(10000);
+  usleep(10);
   TIPUNLOCK;
 
   printf("%s: INFO: TI Slave configured to use port %d.\n",
@@ -3422,13 +3419,13 @@ tipTrigLinkReset()
   
   TIPLOCK;
   tipWrite(&TIPp->syncCommand,TIP_SYNCCOMMAND_TRIGGERLINK_DISABLE); 
-  usleep(10000);
+  usleep(10);
 
   tipWrite(&TIPp->syncCommand,TIP_SYNCCOMMAND_TRIGGERLINK_DISABLE); 
-  usleep(10000);
+  usleep(10);
 
   tipWrite(&TIPp->syncCommand,TIP_SYNCCOMMAND_TRIGGERLINK_ENABLE);
-  usleep(10000);
+  usleep(10);
 
   TIPUNLOCK;
 
@@ -3481,9 +3478,9 @@ tipSyncReset(int blflag)
   
   TIPLOCK;
   tipWrite(&TIPp->syncCommand,tipSyncResetType); 
-  usleep(10000);
+  usleep(10);
   tipWrite(&TIPp->syncCommand,TIP_SYNCCOMMAND_RESET_EVNUM); 
-  usleep(10000);
+  usleep(10);
   TIPUNLOCK;
   
   if(blflag) /* Set the block level from "Next" to Current */
@@ -3997,7 +3994,7 @@ tipSetClockSource(unsigned int source)
   if(source==1) /* Turn on running mode for External Clock verification */
     {
       tipWrite(&TIPp->runningMode,TIP_RUNNINGMODE_ENABLE);
-      usleep(10000);
+      usleep(10);
       clkread = tipRead(&TIPp->clock) & TIP_CLOCK_MASK;
       if(clkread != clkset)
 	{
@@ -5791,7 +5788,35 @@ tipResetMGT()
   TIPLOCK;
   tipWrite(&TIPp->reset, TIP_RESET_MGT);
   TIPUNLOCK;
-  usleep(10000);
+  usleep(10);
+
+  return OK;
+}
+
+/**
+ * @ingroup MasterConfig
+ * @brief Reset the MGT Receiver
+ * @return OK if successful, otherwise ERROR
+ */
+int
+tipResetMGTReceiver()
+{
+  if(TIPp==NULL) 
+    {
+      printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
+      return ERROR;
+    }
+
+  if(!tipMaster)
+    {
+      printf("%s: ERROR: TI is not the TI Master.\n",__FUNCTION__);
+      return ERROR;
+    }
+
+  TIPLOCK;
+  tipWrite(&TIPp->reset, TIP_RESET_MGT_RECEIVER);
+  TIPUNLOCK;
+  usleep(10);
 
   return OK;
 }
