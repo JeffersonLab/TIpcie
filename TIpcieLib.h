@@ -719,7 +719,10 @@ unsigned int  tipGetIntCount();
 unsigned int  tipGetAckCount();
 
 unsigned int tipGetBusyCounter(int busysrc);
-int  tiprintBusyCounters();
+int  tipPrintBusyCounters();
+
+int  tipReadFiberFifo(int fiber, volatile unsigned int *data, int maxwords);
+int  tipPrintFiberFifo(int fiber);
 
 #ifdef NOTSUPPORTED
 int  tipRocEnable(int roc);
