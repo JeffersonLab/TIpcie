@@ -349,6 +349,7 @@ struct TIPCIE_RegStruct
 #define TIP_TRIGGERWINDOW_COINC_MASK   0x000000FF
 #define TIP_TRIGGERWINDOW_INHIBIT_MASK 0x0000FF00
 #define TIP_TRIGGERWINDOW_TRIG21_MASK  0x01FF0000
+#define TIP_TRIGGERWINDOW_LEVEL_LATCH  (1<<31)
 
 /* 0x48 tsInput bits and masks */
 #define TIP_TSINPUT_MASK      0x0000003F
@@ -672,6 +673,8 @@ int  tipSetTriggerInhibitWindow(int window_width);
 int  tipGetTriggerInhibitWindow();
 int  tipSetTrig21Delay(int delay);
 int  tipGetTrig21Delay();
+int  tipSetTriggerLatchOnLevel(int enable);
+int  tipGetTriggerLatchOnLevel();
 int  tipLatchTimers();
 unsigned int tipGetLiveTime();
 unsigned int tipGetBusyTime();

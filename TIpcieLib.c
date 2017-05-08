@@ -5006,6 +5006,62 @@ tipGetTrig21Delay()
   return rval;
 }
 
+/**
+ *  @ingroup MasterConfig
+ *  @brief Set the trigger latch pattern readout in the data stream to include
+ *          the Level of the input trigger OR the transition to Hi.
+ *
+ *  @param enable
+ *      1 to enable
+ *     <1 to disable
+ *
+ *  @return OK if successful, otherwise ERROR
+ */
+
+int
+tipSetTriggerLatchOnLevel(int enable)
+{
+  if(TIPp == NULL) 
+    {
+      printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
+      return ERROR;
+    }
+
+  if(enable < 1)
+    enable = 0;
+
+  TIPLOCK;
+  vmeWrite32(&TIPp->triggerWindow, 
+	     (vmeRead32(&TIPp->triggerWindow) & ~TIP_TRIGGERWINDOW_LEVEL_LATCH) |
+	     (enable<<31));
+  TIPUNLOCK;
+  return OK;
+}
+
+/**
+ *  @ingroup MasterStatus
+ *  @brief Get the trigger latch pattern readout in the data stream to include
+ *          the Level of the input trigger OR the transition to Hi.
+ *
+ *  @return 1 if enabled, 0 if disabled, otherwise ERROR
+ */
+
+int
+tipGetTriggerLatchOnLevel()
+{
+  int rval=0;
+  if(TIPp == NULL) 
+    {
+      printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
+      return ERROR;
+    }
+
+  TIPLOCK;
+  rval = (vmeRead32(&TIPp->triggerWindow) & TIP_TRIGGERWINDOW_LEVEL_LATCH)>>31;
+  TIPUNLOCK;
+
+return rval;
+}
 
 /**
  *  @ingroup MasterConfig
