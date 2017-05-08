@@ -124,7 +124,10 @@ TIpcie_read(struct file *filp, char __user *buf, size_t count,
 {
   unsigned long long before=0, after=0;
   read_open=1;
-  
+
+#ifndef rdtscl
+#define rdtscl(x) x==1
+#endif
   rdtscl(before);
   wait_event_interruptible(irq_queue,irq_flag!=0);
   irq_flag=0;
