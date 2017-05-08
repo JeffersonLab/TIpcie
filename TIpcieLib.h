@@ -718,9 +718,6 @@ void tipIntDisable();
 unsigned int  tipGetIntCount();
 unsigned int  tipGetAckCount();
 
-unsigned int tipGetBusyCounter(int busysrc);
-int  tipPrintBusyCounters();
-
 int  tipReadFiberFifo(int fiber, volatile unsigned int *data, int maxwords);
 int  tipPrintFiberFifo(int fiber);
 
