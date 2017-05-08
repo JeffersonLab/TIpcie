@@ -101,6 +101,7 @@ int tipMaster=1;                               /* Whether or not this TIP is the
 int tipCrateID=0x59;                           /* Crate ID */
 int tipBlockLevel=0;                           /* Current Block level for TIP */
 int tipNextBlockLevel=0;                       /* Next Block level for TIP */
+int tipBlockBufferLevel=0;                     /**< Current Block Buffer level for TIP */
 unsigned int        tipIntCount    = 0;
 unsigned int        tipAckCount    = 0;
 unsigned int        tipDaqCount    = 0;       /* Block count from previous update (in daqStatus) */
@@ -3488,6 +3489,7 @@ tipSyncReset(int blflag)
       printf("%s: INFO: Setting Block Level to %d\n",
 	     __FUNCTION__,tipNextBlockLevel);
       tipBroadcastNextBlockLevel(tipNextBlockLevel);
+      tipSetBlockBufferLevel(tipBlockBufferLevel);
     }
 
 }
@@ -3803,6 +3805,8 @@ tipGetReadoutEvents()
 int
 tipSetBlockBufferLevel(unsigned int level)
 {
+  unsigned int trigsrc = 0;
+
   if(TIPp==NULL) 
     {
       printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
@@ -3818,10 +3822,112 @@ tipSetBlockBufferLevel(unsigned int level)
 
   TIPLOCK;
   tipWrite(&TIPp->blockBuffer, level);
+
+    tipBlockBufferLevel = level;
+  
+    if(tipMaster)
+      {
+	/* Broadcast buffer level to TI-slaves */
+	trigsrc = tipRead(&TIPp->trigsrc);
+	
+	/* Turn on the VME trigger, if not enabled */
+	if(!(trigsrc & TIP_TRIGSRC_VME))
+	tipWrite(&TIPp->trigsrc, TIP_TRIGSRC_VME | trigsrc);
+      
+	/* Broadcast using trigger command */
+	tipWrite(&TIPp->triggerCommand, TIP_TRIGGERCOMMAND_SET_BUFFERLEVEL | level);
+      
+	/* Turn off the VME trigger, if it was initially disabled */
+	if(!(trigsrc & TIP_TRIGSRC_VME))
+	  tipWrite(&TIPp->trigsrc, trigsrc);
+    }
+
   TIPUNLOCK;
 
   return OK;
 }
+
+/**
+ *  @ingroup Status
+ *  @brief Get the block buffer level, as broadcasted from the TS
+ *
+ * @return Broadcasted block buffer level if successful, otherwise ERROR
+ */
+int
+tipGetBroadcastBlockBufferLevel()
+{
+  int rval = 0;
+
+  if(TIPp == NULL)
+    {
+      printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
+      return ERROR;
+    }
+
+  TIPLOCK;
+  rval =
+    (int) ((tipRead(&TIPp->dataFormat) &
+	    TIP_DATAFORMAT_BCAST_BUFFERLEVEL_MASK) >> 24);
+  TIPUNLOCK;
+  
+  return rval;
+}
+
+/**
+ *  @ingroup Config
+ *  @brief Set the TI to be BUSY if number of stored blocks is equal to
+ *         the set block buffer level
+ *
+ * @return OK if successful, otherwise ERROR
+ */
+int
+tipBusyOnBufferLevel(int enable)
+{
+  if(TIPp == NULL)
+    {
+      printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
+      return ERROR;
+    }
+
+  TIPLOCK;
+  tipWrite(&TIPp->vmeControl,
+	     tipRead(&TIPp->vmeControl) | TIP_VMECONTROL_BUSY_ON_BUFFERLEVEL);
+  TIPUNLOCK;
+  
+  return OK;
+}
+
+/**
+ *  @ingroup Config
+ *  @brief Enable/Disable the use of the broadcasted buffer level, instead of the 
+ *         value set locally with @tiSetBlockBufferLevel.
+ *
+ *  @param enable - 1: Enable, 0: Disable
+ *
+ * @return OK if successful, otherwise ERROR
+ */
+int
+tipUseBroadcastBufferLevel(int enable)
+{
+  if(TIPp == NULL)
+    {
+      printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
+      return ERROR;
+    }
+
+  
+  TIPLOCK;
+  if(enable)
+    tipWrite(&TIPp->vmeControl,
+	       tipRead(&TIPp->vmeControl) & ~TIP_VMECONTROL_USE_LOCAL_BUFFERLEVEL);
+  else
+    tipWrite(&TIPp->vmeControl,
+	       tipRead(&TIPp->vmeControl) | TIP_VMECONTROL_USE_LOCAL_BUFFERLEVEL);
+  TIPUNLOCK;
+  
+  return OK;
+}
+
 
 /**
  * @ingroup MasterConfig
@@ -5031,8 +5137,8 @@ tipSetTriggerLatchOnLevel(int enable)
     enable = 0;
 
   TIPLOCK;
-  vmeWrite32(&TIPp->triggerWindow, 
-	     (vmeRead32(&TIPp->triggerWindow) & ~TIP_TRIGGERWINDOW_LEVEL_LATCH) |
+  tipWrite(&TIPp->triggerWindow, 
+	     (tipRead(&TIPp->triggerWindow) & ~TIP_TRIGGERWINDOW_LEVEL_LATCH) |
 	     (enable<<31));
   TIPUNLOCK;
   return OK;
@@ -5057,7 +5163,7 @@ tipGetTriggerLatchOnLevel()
     }
 
   TIPLOCK;
-  rval = (vmeRead32(&TIPp->triggerWindow) & TIP_TRIGGERWINDOW_LEVEL_LATCH)>>31;
+  rval = (tipRead(&TIPp->triggerWindow) & TIP_TRIGGERWINDOW_LEVEL_LATCH)>>31;
   TIPUNLOCK;
 
 return rval;
@@ -6886,9 +6992,9 @@ tipReadFiberFifo(int fiber, volatile unsigned int *data, int maxwords)
   while(nwords < maxwords)
     {
       if(fiber == 1)
-	word = vmeRead32(&TIPp->trigTable[12]);
+	word = tipRead(&TIPp->trigTable[12]);
       else
-      	word = vmeRead32(&TIPp->trigTable[13]);
+      	word = tipRead(&TIPp->trigTable[13]);
 
       if(word & (1<<31))
 	break;

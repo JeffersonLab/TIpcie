@@ -228,6 +228,9 @@ struct TIPCIE_RegStruct
 #define TIP_DATAFORMAT_TWOBLOCK_PLACEHOLDER (1<<0)
 #define TIP_DATAFORMAT_TIMING_WORD          (1<<1)
 #define TIP_DATAFORMAT_HIGHERBITS_WORD      (1<<2)
+#define TIP_DATAFORMAT_FPINPUT_READOUT         (1<<3)
+#define TIP_DATAFORMAT_BCAST_BUFFERLEVEL_MASK  0xFF000000
+
 
 /* 0x1C vmeControl bits and masks */
 #define TIP_VMECONTROL_BERR           (1<<0)
@@ -243,6 +246,8 @@ struct TIPCIE_RegStruct
 #define TIP_VMECONTROL_BUFFER_DISABLE (1<<15)
 #define TIP_VMECONTROL_BLOCKLEVEL_UPDATE (1<<21)
 #define TIP_VMECONTROL_BIT22          (1<<22)
+#define TIP_VMECONTROL_USE_LOCAL_BUFFERLEVEL (1<<22)
+#define TIP_VMECONTROL_BUSY_ON_BUFFERLEVEL   (1<<23)
 #define TIP_VMECONTROL_SLOWER_TRIGGER_RULES (1<<31)
 #define TIP_VMECONTROL_DMASETTING_MASK 0x01c00000
 
@@ -420,6 +425,7 @@ struct TIPCIE_RegStruct
 #define TIP_TRIGGERCOMMAND_TRIG2          0x00000200
 #define TIP_TRIGGERCOMMAND_SYNC_EVENT     0x00000300
 #define TIP_TRIGGERCOMMAND_SET_BLOCKLEVEL 0x00000800
+#define TIP_TRIGGERCOMMAND_SET_BUFFERLEVEL 0x00000C00
 
 /* 0x88 randomPulser bits and masks */
 #define TIP_RANDOMPULSER_TRIG1_RATE_MASK 0x0000000F
@@ -644,6 +650,9 @@ int  tipGetSyncEventFlag();
 int  tipGetSyncEventReceived();
 int  tipGetReadoutEvents();
 int  tipSetBlockBufferLevel(unsigned int level);
+int  tipGetBroadcastBlockBufferLevel();
+int  tipBusyOnBufferLevel(int enable);
+int  tipUseBroadcastBufferLevel(int enable);
 int  tipEnableTSInput(unsigned int inpMask);
 int  tipDisableTSInput(unsigned int inpMask);
 int  tipSetOutputPort(unsigned int set1, unsigned int set2, unsigned int set3, unsigned int set4);
