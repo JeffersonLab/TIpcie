@@ -497,6 +497,8 @@ struct TIPCIE_RegStruct
 #define TIP_ROCENABLE_MASK             0x000000FF
 #define TIP_ROCENABLE_ROC(x)           (1<<(x))
 #define TIP_ROCENABLE_FIFO_ENABLE      (1<<1)
+#define TIP_ROCENABLE_SYNCRESET_REQUEST_ENABLE_MASK  0x0007FC00
+#define TIP_ROCENABLE_SYNCRESET_REQUEST_MONITOR_MASK 0x1FF00000
 
 /* 0x100 reset bits and masks */
 #define TIP_RESET_I2C                  (1<<1)
@@ -662,6 +664,7 @@ void  tipSetFiberDelay(unsigned int delay, unsigned int offset);
 int  tipAddSlave(unsigned int fiber);
 int  tipSetTriggerHoldoff(int rule, unsigned int value, int timestep);
 int  tipGetTriggerHoldoff(int rule);
+int  tipPrintTriggerHoldoff(int dflag);
 int  tipSetTriggerHoldoffMin(int rule, unsigned int value);
 int  tipGetTriggerHoldoffMin(int rule, int pflag);
 
