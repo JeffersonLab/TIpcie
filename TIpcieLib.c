@@ -6240,7 +6240,7 @@ tipDmaConfig(int packet_size, int adr_mode, int dma_size)
 	   (adr_mode<<31) );
 
   tipWrite(&TIPp->vmeControl, 
-	   tipRead(&TIPp->vmeControl) | TIP_VMECONTROL_BIT22);
+	   tipRead(&TIPp->vmeControl) | TIP_VMECONTROL_DMA_DATA_ENABLE);
   TIPUNLOCK;
 
   return OK;
