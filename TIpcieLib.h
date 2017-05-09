@@ -145,7 +145,7 @@ struct TIPCIE_RegStruct
 
 /* Supported firmware version */
 #define TIP_SUPPORTED_FIRMWARE 0x072
-#define TIP_SUPPORTED_TYPE     2
+#define TIP_SUPPORTED_TYPE     3
 
 /* Firmware Masks */
 #define TIP_FIRMWARE_ID_MASK              0xFFFF0000
