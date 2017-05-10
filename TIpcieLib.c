@@ -923,7 +923,6 @@ tipStatus(int pflag)
       tipPrintTriggerHoldoff(pflag);
     }
 
-#ifdef SYNCRESET_REQUEST
   if(tipMaster)
     {
       if(ro->rocEnable & TIP_ROCENABLE_SYNCRESET_REQUEST_ENABLE_MASK)
@@ -954,7 +953,6 @@ tipStatus(int pflag)
       tipSyncResetRequestStatus(1);
     }
   printf("\n");
-#endif
   
   if(ro->intsetup&TIP_INTSETUP_ENABLE)
     printf(" Interrupts ENABLED\n");
