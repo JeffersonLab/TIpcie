@@ -6147,6 +6147,112 @@ tipGetSyncResetRequest()
 
 /**
  * @ingroup MasterConfig
+ * @brief Configure which ports (and self) to enable response of a SyncReset request.
+ * @param portMask Mask of ports to enable (port 1 = bit 0)
+ * @param self 1 to enable self, 0 to disable
+ *
+ * @return OK if successful, otherwise ERROR
+ */
+int
+tipEnableSyncResetRequest(unsigned int portMask, int self)
+{
+  if(TIPp == NULL) 
+    {
+      printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
+      return ERROR;
+    }
+
+  if(!tipMaster)
+    {
+      printf("%s: ERROR: TI is not the TI Master.\n",__FUNCTION__);
+      return ERROR;
+    }
+
+  if(portMask > 0x1)
+    {
+      printf("%s: ERROR: Invalid portMask (0x%x)\n",
+	     __FUNCTION__, portMask);
+      return ERROR;
+    }
+
+  /* Mask sure self is binary */
+  if(self)
+    self = 1;
+  else
+    self = 0;
+  
+  TIPLOCK;
+  tipWrite(&TIPp->rocEnable,
+	   (tipRead(&TIPp->rocEnable) & TIP_ROCENABLE_MASK) |
+	   (portMask << 11) | (self << 10) );
+  TIPUNLOCK;
+  
+  return OK;
+}
+
+/**
+ * @ingroup MasterStatus
+ * @brief Status of SyncReset Request received bits.
+ * @param pflag Print to standard out if not 0
+ * @return Port mask of SyncReset Request received (port 1 = bit 0, TI-Master = bit 8), otherwise ERROR;
+ */
+int
+tipSyncResetRequestStatus(int pflag)
+{
+  int self = 0, rval = 0, ibit = 0;
+  if(TIPp == NULL) 
+    {
+      printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
+      return ERROR;
+    }
+
+  if(!tipMaster)
+    {
+      printf("%s: ERROR: TI is not the TI Master.\n",__FUNCTION__);
+      return ERROR;
+    }
+
+  TIPLOCK;
+  rval = (int)(tipRead(&TIPp->rocEnable) & TIP_ROCENABLE_SYNCRESET_REQUEST_MONITOR_MASK);
+  TIPUNLOCK;
+
+  /* Reorganize the bits */
+  if(rval)
+    {
+      self = (rval & 0x1);
+      rval = rval >> 1;
+      rval = rval | (self<<8);
+    }
+
+  if(pflag)
+    {
+      if(rval)
+	{
+	  printf("    ***** SyncReset Requested from ");
+
+	  for(ibit = 0; ibit < 8; ibit++)
+	    {
+	      printf("%d ", ibit + 1);
+	    }
+	  
+	  if(rval & (1 << 8))
+	    {
+	      printf("SELF ");
+	    }
+	  
+	  printf("*****\n");
+	}
+      else
+	{
+	  printf("    No SyncReset Requested\n");
+	}
+    }
+  
+  return rval;
+}
+
+/**
+ * @ingroup MasterConfig
  * @brief Reset the registers that record the triggers enabled status of TI Slaves.
  *
  */

@@ -709,6 +709,8 @@ int  tipGetSyncEventInterval();
 int  tipForceSyncEvent();
 int  tipSyncResetRequest();
 int  tipGetSyncResetRequest();
+int  tipEnableSyncResetRequest(unsigned int portMask, int self);
+int  tipSyncResetRequestStatus(int pflag);
 void tipTriggerReadyReset();
 int  tipFillToEndBlock();
 int  tipResetMGT();
