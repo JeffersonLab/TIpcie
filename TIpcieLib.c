@@ -123,6 +123,7 @@ static int          tipSyncEventFlag = 0;     /* Sync Event/Block Flag */
 static int          tipSyncEventReceived = 0; /* Indicates reception of sync event */
 static int          tipNReadoutEvents = 0;    /* Number of events to readout from crate modules */
 static int          tipDoSyncResetRequest =0; /* Option to request a sync reset during readout ack */
+static int          tipFakeTriggerBank=1;
 static int          tipSyncResetType=TIP_SYNCCOMMAND_SYNCRESET_4US;  /* Set default SyncReset Type to Fixed 4 us */
 static int          tipVersion     = 0x0;     /* Firmware version */
 int                 tipFiberLatencyOffset = 0xbf; /* Default offset for fiber latency */
@@ -2175,6 +2176,9 @@ tipSetEventFormat(int format)
 
   TIPLOCK;
 
+  formatset = tipRead(&TIPp->dataFormat)
+    & ~(TIP_DATAFORMAT_TIMING_WORD | TIP_DATAFORMAT_HIGHERBITS_WORD);
+
   switch(format)
     {
     case 0:
@@ -2196,6 +2200,38 @@ tipSetEventFormat(int format)
  
   tipWrite(&TIPp->dataFormat,formatset);
 
+  TIPUNLOCK;
+
+  return OK;
+}
+
+/**
+ * @ingroup Config
+ * @brief Set whether or not the latched pattern of FP Inputs in block readout
+ *
+ * @param enable
+ *    - 0: Disable
+ *    - >0: Enable
+ *    
+ * @return OK if successful, otherwise ERROR
+ *    
+ */
+int
+tipSetFPInputReadout(int enable)
+{
+  if(TIPp == NULL) 
+    {
+      printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
+      return ERROR;
+    }
+
+  TIPLOCK;
+  if(enable)
+    tipWrite(&TIPp->dataFormat,
+	       tipRead(&TIPp->dataFormat) | TIP_DATAFORMAT_FPINPUT_READOUT);
+  else
+    tipWrite(&TIPp->dataFormat,
+	       tipRead(&TIPp->dataFormat) & ~TIP_DATAFORMAT_FPINPUT_READOUT);
   TIPUNLOCK;
 
   return OK;
@@ -2586,9 +2622,9 @@ tipReadBlock(volatile unsigned int *data, int nwrds, int rflag)
     { /* Programmed IO */
       int blocklevel=0;
       int iev=0, idata=0;
-      int ev_nwords=0;
+      int ntrig = 0, trigwords = 0;
+      int trailerFound = 0;
       dCnt = 0;
-      ii=0;
       
       /* Read Block header - should be first word */
       val = tipRead(&TIPp->fifo);
@@ -2597,8 +2633,101 @@ tipReadBlock(volatile unsigned int *data, int nwrds, int rflag)
       if((val & TIP_DATA_TYPE_DEFINE_MASK) && 
 	 ((val & TIP_WORD_TYPE_MASK) == TIP_BLOCK_HEADER_WORD_TYPE))
 	{
-	  /* data[dCnt++] = val; */
-	}
+	  ntrig = val & TIP_DATA_BLKLEVEL_MASK;
+	  
+	  /* Next word is the CODA 3.0 header */
+	  val = tipRead(&TIPp->fifo);
+	  data[dCnt++] = val;
+	      
+	  if( ((val & 0xFF100000)>>16 == 0xFF10) && 
+	      ((val & 0xFF00)>>8 == 0x20) )
+	    {
+	      blocklevel = val & TIP_DATA_BLKLEVEL_MASK;
+	      
+	      if((blocklevel & 0xff) != ntrig)
+		{
+		  printf("\n%s: ERROR: TI Blocklevel %d inconsistent with TI Trigger Bank Header (0x%08x)",
+			 __func__, ntrig, val);
+		  // return?
+
+		}
+
+	      /* Loop through each event in the block */
+	      for(iev=0; iev<blocklevel; iev++)
+		{
+		  /* Event header */
+		TRYAGAIN:
+		  val = tipRead(&TIPp->fifo);
+		  data[dCnt++] = val;
+		  
+		  if((val & 0xFF0000)>>16 == 0x01)
+		    {
+		      trigwords = val & 0xffff;
+		      for(idata=0; idata<trigwords; idata++)
+			{
+			  val = tipRead(&TIPp->fifo);
+			  data[dCnt++] = val;
+			}
+
+		    } /* Event Header test */
+		  else
+		    {
+		      tipTriedAgain++;
+		      usleep(1);
+		      if(tipTriedAgain>20)
+			{
+			  printf("%s: ERROR: Invalid Event Header Word 0x%08x\n",
+				 __FUNCTION__,val);
+			  TIPUNLOCK;
+			  return -1;
+			}
+		      goto TRYAGAIN;
+		    }
+		} /* Loop through each event in block */
+
+	      /* Read Block Trailer */
+	      val = tipRead(&TIPp->fifo);
+	      data[dCnt++] = val;
+	      
+	      if((val & TIP_DATA_TYPE_DEFINE_MASK) &&
+		 (val & TIP_WORD_TYPE_MASK)==TIP_BLOCK_TRAILER_WORD_TYPE)
+		{
+		  trailerFound = 1;
+
+		  if((dCnt%2)!=0)
+		    {
+		      /* Read out an extra word (filler) in the fifo */
+		      val = tipRead(&TIPp->fifo);
+
+		      if(((val & TIP_DATA_TYPE_DEFINE_MASK) != TIP_DATA_TYPE_DEFINE_MASK) ||
+			 ((val & TIP_WORD_TYPE_MASK) != TIP_FILLER_WORD_TYPE))
+			{
+			  printf("\n%s: ERROR: Unexpected word after block trailer (0x%08x)\n",
+				 __func__, val);
+			}
+		    }
+
+
+		} // Block trailer test */
+	      else
+		{
+		  printf("%s: ERROR: Invalid Block Trailer Word 0x%08x\n",
+			 __FUNCTION__,val);
+		  TIPUNLOCK;
+		  return ERROR;
+		}
+
+	    } /* CODA 3.0 header test */
+	  else
+	    {
+	      printf("%s: ERROR: Invalid Trigger Bank Header Word 0x%08x\n",
+		     __FUNCTION__,val);
+	      TIPUNLOCK;
+	      return(ERROR);
+	    }
+	  
+	  
+	} /* Block Header test */
       else
 	{
 	  printf("%s: ERROR: Invalid Block Header Word 0x%08x\n",
@@ -2607,89 +2736,6 @@ tipReadBlock(volatile unsigned int *data, int nwrds, int rflag)
 	  return(dCnt);
 	}
 
-      /* Read trigger bank header - 2nd word */
-      val = tipRead(&TIPp->fifo);
-
-      if( ((val & 0xFF100000)>>16 == 0xFF10) && 
-	  ((val & 0xFF00)>>8 == 0x20) )
-	{
-	  data[dCnt++] = val;
-	}
-      else
-	{
-	  printf("%s: ERROR: Invalid Trigger Bank Header Word 0x%08x\n",
-		 __FUNCTION__,val);
-	  TIPUNLOCK;
-	  return(ERROR);
-	}
-
-      blocklevel = val & TIP_DATA_BLKLEVEL_MASK;
-
-      /* Loop through each event in the block */
-      for(iev=0; iev<blocklevel; iev++)
-	{
-	  /* Event header */
-	TRYAGAIN:
-	  val = tipRead(&TIPp->fifo);
-
-	  if((val & 0xFF0000)>>16 == 0x01)
-	    {
-	      data[dCnt++] = val;
-	      ev_nwords = val & 0xffff;
-	      for(idata=0; idata<ev_nwords; idata++)
-		{
-		  val = tipRead(&TIPp->fifo);
-		  data[dCnt++] = val;
-		}
-	    }
-	  else
-	    {
-	      tipTriedAgain++;
-	      usleep(1);
-	      if(tipTriedAgain>20)
-		{
-		  printf("%s: ERROR: Invalid Event Header Word 0x%08x\n",
-			 __FUNCTION__,val);
-		  TIPUNLOCK;
-		  return -1;
-		}
-	      goto TRYAGAIN;
-	    }
-	}
-
-      /* Read Block header */
-      val = tipRead(&TIPp->fifo);
-
-      if((val & TIP_DATA_TYPE_DEFINE_MASK) &&
-	 (val & TIP_WORD_TYPE_MASK)==TIP_BLOCK_TRAILER_WORD_TYPE)
-	{
-	  data[dCnt++] = val;
-	}
-      else
-	{
-	  printf("%s: ERROR: Invalid Block Trailer Word 0x%08x\n",
-		 __FUNCTION__,val);
-	  TIPUNLOCK;
-	  return ERROR;
-	}
-
-      /* Readout an extra filler word, if we need an even word count */
-      if((dCnt%2)!=0)
-	{
-	  val = tipRead(&TIPp->fifo);
-	  if((val & TIP_DATA_TYPE_DEFINE_MASK) &&
-	     (val & TIP_WORD_TYPE_MASK)==TIP_FILLER_WORD_TYPE)
-	    {
-	      data[dCnt++] = val;
-	    }
-	  else
-	    {
-	      printf("%s: ERROR: Invalid Filler Word 0x%08x\n",
-		     __FUNCTION__,val);
-	      TIPUNLOCK;
-	      return ERROR;
-	    }
-	}
 
       TIPUNLOCK;
       return(dCnt);
@@ -2699,6 +2745,57 @@ tipReadBlock(volatile unsigned int *data, int nwrds, int rflag)
 
   return OK;
 }
+
+/**
+ * @ingroup Config
+ *
+ * @brief Option to generate a fake trigger bank when
+ *        @tipReadTriggerBlock finds an ERROR.
+ *        Enabled by library default.
+ *
+ * @param enable Enable fake trigger bank if enable != 0.
+ *
+ * @return OK
+ *
+ */
+int
+tipFakeTriggerBankOnError(int enable)
+{
+  TIPLOCK;
+  if(enable)
+    tipFakeTriggerBank = 1;
+  else
+    tipFakeTriggerBank = 0;
+  TIPUNLOCK;
+
+  return OK;
+}
+
+/**
+ * @ingroup Readout
+ * @brief Generate a fake trigger bank.  Called by @tipReadTriggerBlock if ERROR.
+ *
+ * @param   data  - local memory address to place data
+ *
+ * @return Number of words generated to data if successful, ERROR otherwise
+ *
+ */
+int
+tipGenerateTriggerBank(volatile unsigned int *data)
+{
+  int bl = 0;
+  int iword, nwords = 2;
+  unsigned int error_tag = 0;
+  unsigned int word;
+  
+  bl = tipGetCurrentBlockLevel();
+  data[0] = nwords - 1;
+  data[1] = 0xFF102000 | (error_tag << 16)| bl;
+  
+  return nwords;
+}
+
+
 
 /**
  * @ingroup Readout
@@ -2726,7 +2823,7 @@ tipReadTriggerBlock(volatile unsigned int *data)
     }
 
   /* Determine the maximum number of words to expect, from the block level */
-  nwrds = (4*tipBlockLevel) + 8;
+  nwrds = (5*tipBlockLevel) + 8;
 
   /* Optimize the transfer type based on the blocklevel */
   if(tipBlockLevel>2)
@@ -2745,14 +2842,22 @@ tipReadTriggerBlock(volatile unsigned int *data)
       /* Error occurred */
       printf("%s: ERROR: tiReadBlock returned ERROR\n",
 	     __FUNCTION__);
-      return ERROR;
+
+      if(tipFakeTriggerBank)
+	return tipGenerateTriggerBank(data);
+      else
+	return ERROR;
     }
   else if (rval == 0)
     {
       /* No data returned */
       printf("%s: WARN: No data available\n",
 	     __FUNCTION__);
-      return 0; 
+
+      if(tipFakeTriggerBank)
+	return tipGenerateTriggerBank(data);
+      else
+	return 0; 
     }
 
   /* Work down to find index of block header */
@@ -2777,7 +2882,11 @@ tipReadTriggerBlock(volatile unsigned int *data)
     {
       printf("%s: ERROR: Failed to find TI Block Header\n",
 	     __FUNCTION__);
-      return ERROR;
+
+      if(tipFakeTriggerBank)
+	return tipGenerateTriggerBank(data);
+      else
+	return ERROR;
     }
   if(iblkhead != 0)
     {
@@ -2812,7 +2921,11 @@ tipReadTriggerBlock(volatile unsigned int *data)
     {
       printf("%s: ERROR: Failed to find TI Block Trailer\n",
 	     __FUNCTION__);
-      return ERROR;
+
+      if(tipFakeTriggerBank)
+	return tipGenerateTriggerBank(data);
+      else
+	return ERROR;
     }
 
   /* Get the block trailer, and check the number of words contained in it */
@@ -2822,7 +2935,11 @@ tipReadTriggerBlock(volatile unsigned int *data)
       printf("%s: Number of words inconsistent (index count = %d, block trailer count = %d\n",
 	     __FUNCTION__,
 	     (iblktrl - iblkhead + 1), word & 0x3fffff);
-      return ERROR;
+
+      if(tipFakeTriggerBank)
+	return tipGenerateTriggerBank(data);
+      else
+	return ERROR;
     }
 
   /* Modify the total words returned */
@@ -4310,8 +4427,8 @@ tipAddSlave(unsigned int fiber)
 static int tiTriggerRuleClockPrescale[3][4] =
   {
     {4, 4, 8, 16}, // 250 MHz ref
-    {16, 32, 64, 128}, // 33.3 MHz ref
-    {16, 32, 64, 128} // 33.3 MHz ref prescaled by 32
+    {16, 32, 64, 128}, // 100.0 MHz ref
+    {16, 32, 64, 128} // 100.0 MHz ref prescaled by 32
   };
 
 int
@@ -4320,7 +4437,7 @@ tipPrintTriggerHoldoff(int dflag)
   unsigned long TIBase = 0;
   unsigned int triggerRule = 0, triggerRuleMin = 0, vmeControl = 0;
   int irule = 0, slowclock = 0, clockticks = 0, timestep = 0, minticks = 0;
-  float clock[3] = {250, 33.3, 33.3/32.}, stepsize = 0., time = 0., min = 0.;
+  float clock[3] = {250, 100.0, 100.0/32.}, stepsize = 0., time = 0., min = 0.;
 
   if(TIPp == NULL) 
     {
@@ -4408,7 +4525,7 @@ tipPrintTriggerHoldoff(int dflag)
  *                         rule
  *    timestep    1      2       3       4
  *    -------   ----- ------- ------- -------
- *       0       16ns    16ns    16ns    16ns 
+ *       0       16ns    16ns    32ns    64ns 
  *       1      160ns   320ns   640ns  1280ns 
  *       2     5120ns 10240ns 20480ns 40960ns
  *</pre>

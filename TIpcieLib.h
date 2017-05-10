@@ -586,8 +586,8 @@ struct TIPCIE_RegStruct
 #define TIP_INIT_USE_DMA                 (1<<2)
 
 /* Some pre-initialization routine prototypes */
-int  tiSetFiberLatencyOffset_preInit(int flo);
-int  tiSetCrateID_prIinit(int cid);
+int  tipSetFiberLatencyOffset_preInit(int flo);
+int  tipSetCrateID_preInit(int cid);
 
 /* Function prototypes */
 int  tipInit(unsigned int mode, int force);
@@ -619,10 +619,13 @@ int  tipEnableTriggerSource();
 int  tipDisableTriggerSource(int fflag);
 int  tipSetSyncSource(unsigned int sync);
 int  tipSetEventFormat(int format);
+int  tipSetFPInputReadout(int enable);
 int  tipSoftTrig(int trigger, unsigned int nevents, unsigned int period_inc, int range);
 int  tipSetRandomTrigger(int trigger, int setting);
 int  tipDisableRandomTrigger();
 int  tipReadBlock(volatile unsigned int *data, int nwrds, int rflag);
+int  tipFakeTriggerBankOnError(int enable);
+int  tipGenerateTriggerBank(volatile unsigned int *data);
 int  tipReadTriggerBlock(volatile unsigned int *data);
 int  tipCheckTriggerBlock(volatile unsigned int *data);
 int  tipEnableFiber(unsigned int fiber);
