@@ -144,8 +144,8 @@ struct TIPCIE_RegStruct
 #define TIP_READOUT_TS_POLL    3
 
 /* Supported firmware version */
-#define TIP_SUPPORTED_FIRMWARE 0x042
-#define TIP_SUPPORTED_TYPE     2
+#define TIP_SUPPORTED_FIRMWARE 0x072
+#define TIP_SUPPORTED_TYPE     3
 
 /* Firmware Masks */
 #define TIP_FIRMWARE_ID_MASK              0xFFFF0000
@@ -228,6 +228,9 @@ struct TIPCIE_RegStruct
 #define TIP_DATAFORMAT_TWOBLOCK_PLACEHOLDER (1<<0)
 #define TIP_DATAFORMAT_TIMING_WORD          (1<<1)
 #define TIP_DATAFORMAT_HIGHERBITS_WORD      (1<<2)
+#define TIP_DATAFORMAT_FPINPUT_READOUT         (1<<3)
+#define TIP_DATAFORMAT_BCAST_BUFFERLEVEL_MASK  0xFF000000
+
 
 /* 0x1C vmeControl bits and masks */
 #define TIP_VMECONTROL_BERR           (1<<0)
@@ -242,7 +245,9 @@ struct TIPCIE_RegStruct
 #define TIP_VMECONTROL_LAST_BOARD     (1<<11)
 #define TIP_VMECONTROL_BUFFER_DISABLE (1<<15)
 #define TIP_VMECONTROL_BLOCKLEVEL_UPDATE (1<<21)
-#define TIP_VMECONTROL_BIT22          (1<<22)
+#define TIP_VMECONTROL_USE_LOCAL_BUFFERLEVEL (1<<22)
+#define TIP_VMECONTROL_BUSY_ON_BUFFERLEVEL   (1<<23)
+#define TIP_VMECONTROL_DMA_DATA_ENABLE  (1<<26)
 #define TIP_VMECONTROL_SLOWER_TRIGGER_RULES (1<<31)
 #define TIP_VMECONTROL_DMASETTING_MASK 0x01c00000
 
@@ -349,6 +354,7 @@ struct TIPCIE_RegStruct
 #define TIP_TRIGGERWINDOW_COINC_MASK   0x000000FF
 #define TIP_TRIGGERWINDOW_INHIBIT_MASK 0x0000FF00
 #define TIP_TRIGGERWINDOW_TRIG21_MASK  0x01FF0000
+#define TIP_TRIGGERWINDOW_LEVEL_LATCH  (1<<31)
 
 /* 0x48 tsInput bits and masks */
 #define TIP_TSINPUT_MASK      0x0000003F
@@ -419,6 +425,7 @@ struct TIPCIE_RegStruct
 #define TIP_TRIGGERCOMMAND_TRIG2          0x00000200
 #define TIP_TRIGGERCOMMAND_SYNC_EVENT     0x00000300
 #define TIP_TRIGGERCOMMAND_SET_BLOCKLEVEL 0x00000800
+#define TIP_TRIGGERCOMMAND_SET_BUFFERLEVEL 0x00000C00
 
 /* 0x88 randomPulser bits and masks */
 #define TIP_RANDOMPULSER_TRIG1_RATE_MASK 0x0000000F
@@ -490,6 +497,8 @@ struct TIPCIE_RegStruct
 #define TIP_ROCENABLE_MASK             0x000000FF
 #define TIP_ROCENABLE_ROC(x)           (1<<(x))
 #define TIP_ROCENABLE_FIFO_ENABLE      (1<<1)
+#define TIP_ROCENABLE_SYNCRESET_REQUEST_ENABLE_MASK  0x0007FC00
+#define TIP_ROCENABLE_SYNCRESET_REQUEST_MONITOR_MASK 0x1FF00000
 
 /* 0x100 reset bits and masks */
 #define TIP_RESET_I2C                  (1<<1)
@@ -511,6 +520,7 @@ struct TIPCIE_RegStruct
 #define TIP_RESET_TAKE_TOKEN           (1<<16)
 #define TIP_RESET_BLOCK_READOUT        (1<<17)
 #define TIP_RESET_FORCE_SYNCEVENT      (1<<20)
+#define TIP_RESET_MGT_RECEIVER         (1<<22)
 #define TIP_RESET_SYNCRESET_REQUEST    (1<<23)
 #define TIP_RESET_SCALERS_LATCH        (1<<24)
 #define TIP_RESET_SCALERS_RESET        (1<<25)
@@ -576,8 +586,8 @@ struct TIPCIE_RegStruct
 #define TIP_INIT_USE_DMA                 (1<<2)
 
 /* Some pre-initialization routine prototypes */
-int  tiSetFiberLatencyOffset_preInit(int flo);
-int  tiSetCrateID_prIinit(int cid);
+int  tipSetFiberLatencyOffset_preInit(int flo);
+int  tipSetCrateID_preInit(int cid);
 
 /* Function prototypes */
 int  tipInit(unsigned int mode, int force);
@@ -609,10 +619,13 @@ int  tipEnableTriggerSource();
 int  tipDisableTriggerSource(int fflag);
 int  tipSetSyncSource(unsigned int sync);
 int  tipSetEventFormat(int format);
+int  tipSetFPInputReadout(int enable);
 int  tipSoftTrig(int trigger, unsigned int nevents, unsigned int period_inc, int range);
 int  tipSetRandomTrigger(int trigger, int setting);
 int  tipDisableRandomTrigger();
 int  tipReadBlock(volatile unsigned int *data, int nwrds, int rflag);
+int  tipFakeTriggerBankOnError(int enable);
+int  tipGenerateTriggerBank(volatile unsigned int *data);
 int  tipReadTriggerBlock(volatile unsigned int *data);
 int  tipCheckTriggerBlock(volatile unsigned int *data);
 int  tipEnableFiber(unsigned int fiber);
@@ -642,6 +655,9 @@ int  tipGetSyncEventFlag();
 int  tipGetSyncEventReceived();
 int  tipGetReadoutEvents();
 int  tipSetBlockBufferLevel(unsigned int level);
+int  tipGetBroadcastBlockBufferLevel();
+int  tipBusyOnBufferLevel(int enable);
+int  tipUseBroadcastBufferLevel(int enable);
 int  tipEnableTSInput(unsigned int inpMask);
 int  tipDisableTSInput(unsigned int inpMask);
 int  tipSetOutputPort(unsigned int set1, unsigned int set2, unsigned int set3, unsigned int set4);
@@ -651,6 +667,7 @@ void  tipSetFiberDelay(unsigned int delay, unsigned int offset);
 int  tipAddSlave(unsigned int fiber);
 int  tipSetTriggerHoldoff(int rule, unsigned int value, int timestep);
 int  tipGetTriggerHoldoff(int rule);
+int  tipPrintTriggerHoldoff(int dflag);
 int  tipSetTriggerHoldoffMin(int rule, unsigned int value);
 int  tipGetTriggerHoldoffMin(int rule, int pflag);
 
@@ -671,6 +688,8 @@ int  tipSetTriggerInhibitWindow(int window_width);
 int  tipGetTriggerInhibitWindow();
 int  tipSetTrig21Delay(int delay);
 int  tipGetTrig21Delay();
+int  tipSetTriggerLatchOnLevel(int enable);
+int  tipGetTriggerLatchOnLevel();
 int  tipLatchTimers();
 unsigned int tipGetLiveTime();
 unsigned int tipGetBusyTime();
@@ -690,6 +709,8 @@ int  tipGetSyncEventInterval();
 int  tipForceSyncEvent();
 int  tipSyncResetRequest();
 int  tipGetSyncResetRequest();
+int  tipEnableSyncResetRequest(unsigned int portMask, int self);
+int  tipSyncResetRequestStatus(int pflag);
 void tipTriggerReadyReset();
 int  tipFillToEndBlock();
 int  tipResetMGT();
@@ -714,8 +735,8 @@ void tipIntDisable();
 unsigned int  tipGetIntCount();
 unsigned int  tipGetAckCount();
 
-unsigned int tipGetBusyCounter(int busysrc);
-int  tiprintBusyCounters();
+int  tipReadFiberFifo(int fiber, volatile unsigned int *data, int maxwords);
+int  tipPrintFiberFifo(int fiber);
 
 #ifdef NOTSUPPORTED
 int  tipRocEnable(int roc);

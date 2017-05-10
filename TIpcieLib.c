@@ -101,6 +101,7 @@ int tipMaster=1;                               /* Whether or not this TIP is the
 int tipCrateID=0x59;                           /* Crate ID */
 int tipBlockLevel=0;                           /* Current Block level for TIP */
 int tipNextBlockLevel=0;                       /* Next Block level for TIP */
+int tipBlockBufferLevel=0;                     /**< Current Block Buffer level for TIP */
 unsigned int        tipIntCount    = 0;
 unsigned int        tipAckCount    = 0;
 unsigned int        tipDaqCount    = 0;       /* Block count from previous update (in daqStatus) */
@@ -122,6 +123,7 @@ static int          tipSyncEventFlag = 0;     /* Sync Event/Block Flag */
 static int          tipSyncEventReceived = 0; /* Indicates reception of sync event */
 static int          tipNReadoutEvents = 0;    /* Number of events to readout from crate modules */
 static int          tipDoSyncResetRequest =0; /* Option to request a sync reset during readout ack */
+static int          tipFakeTriggerBank=1;
 static int          tipSyncResetType=TIP_SYNCCOMMAND_SYNCRESET_4US;  /* Set default SyncReset Type to Fixed 4 us */
 static int          tipVersion     = 0x0;     /* Firmware version */
 int                 tipFiberLatencyOffset = 0xbf; /* Default offset for fiber latency */
@@ -449,7 +451,6 @@ tipInit(unsigned int mode, int iFlag)
     }
   tipReadoutMode = mode;
 
-#ifdef SKIPTHIS
   /* Setup some Other Library Defaults */
   if(tipMaster!=1)
     {
@@ -458,33 +459,33 @@ tipInit(unsigned int mode, int iFlag)
       tipWrite(&TIPp->syncWidth, 0x24);
       // TI IODELAY reset
       tipWrite(&TIPp->reset,TIP_RESET_IODELAY);
-      usleep(10000);
+      usleep(10);
 
       // TI Sync auto alignment
       tipWrite(&TIPp->reset,TIP_RESET_AUTOALIGN_HFBR1_SYNC);
-      usleep(10000);
+      usleep(10);
 
       // TI auto fiber delay measurement
       tipWrite(&TIPp->reset,TIP_RESET_MEASURE_LATENCY);
-      usleep(10000);
+      usleep(10);
 
       // TI auto alignement fiber delay
       tipWrite(&TIPp->reset,TIP_RESET_FIBER_AUTO_ALIGN);
-      usleep(10000);
+      usleep(10);
     }
   else
     {
       // TI IODELAY reset
       tipWrite(&TIPp->reset,TIP_RESET_IODELAY);
-      usleep(10000);
+      usleep(10);
 
       // TI Sync auto alignment
       tipWrite(&TIPp->reset,TIP_RESET_AUTOALIGN_HFBR1_SYNC);
-      usleep(10000);
+      usleep(10);
 
       // Perform a trigger link reset
       tipTrigLinkReset();
-      usleep(10000);
+      usleep(10);
     }
 
   /* Setup a default Sync Delay and Pulse width */
@@ -495,8 +496,6 @@ tipInit(unsigned int mode, int iFlag)
   if(tipMaster==1)
     tipWrite(&TIPp->fiberSyncDelay,
 	       (tipFiberLatencyOffset<<16)&TIP_FIBERSYNCDELAY_LOOPBACK_SYNCDELAY_MASK);
-
-#endif /* SKIPTHIS */
 
   /* Set Default Block Level to 1, and default crateID */
   if(tipMaster==1)
@@ -582,7 +581,7 @@ tipCheckAddresses()
 void
 tipStatus(int pflag)
 {
-  struct TIPCIE_RegStruct ro;
+  struct TIPCIE_RegStruct *ro;
   int iinp, iblock, ifiber;
   unsigned int blockStatus[5], nblocksReady, nblocksNeedAck;
   unsigned int fibermask;
@@ -595,52 +594,62 @@ tipStatus(int pflag)
       return;
     }
 
+  ro = (struct TIPCIE_RegStruct *) malloc(sizeof(struct TIPCIE_RegStruct));
+  if(ro == NULL)
+    {
+      printf("%s: ERROR allocating memory for TI register structure\n",
+	     __FUNCTION__);
+      return;
+    }
+
   /* latch live and busytime scalers */
   tipLatchTimers();
   l1a_count    = tipGetEventCounter();
   tipGetCurrentBlockLevel();
 
   TIPLOCK;
-  ro.boardID      = tipRead(&TIPp->boardID);
-  ro.fiber        = tipRead(&TIPp->fiber);
-  ro.intsetup     = tipRead(&TIPp->intsetup);
-  ro.trigDelay    = tipRead(&TIPp->trigDelay);
-  ro.__adr32      = tipRead(&TIPp->__adr32);
-  ro.blocklevel   = tipRead(&TIPp->blocklevel);
-  ro.vmeControl   = tipRead(&TIPp->vmeControl);
-  ro.trigsrc      = tipRead(&TIPp->trigsrc);
-  ro.sync         = tipRead(&TIPp->sync);
-  ro.busy         = tipRead(&TIPp->busy);
-  ro.clock        = tipRead(&TIPp->clock);
-  ro.trig1Prescale = tipRead(&TIPp->trig1Prescale);
-  ro.blockBuffer  = tipRead(&TIPp->blockBuffer);
+  ro->boardID      = tipRead(&TIPp->boardID);
+  ro->fiber        = tipRead(&TIPp->fiber);
+  ro->intsetup     = tipRead(&TIPp->intsetup);
+  ro->trigDelay    = tipRead(&TIPp->trigDelay);
+  ro->__adr32      = tipRead(&TIPp->__adr32);
+  ro->blocklevel   = tipRead(&TIPp->blocklevel);
+  ro->dataFormat   = tipRead(&TIPp->dataFormat);
+  ro->vmeControl   = tipRead(&TIPp->vmeControl);
+  ro->trigsrc      = tipRead(&TIPp->trigsrc);
+  ro->sync         = tipRead(&TIPp->sync);
+  ro->busy         = tipRead(&TIPp->busy);
+  ro->clock        = tipRead(&TIPp->clock);
+  ro->trig1Prescale = tipRead(&TIPp->trig1Prescale);
+  ro->blockBuffer  = tipRead(&TIPp->blockBuffer);
 
-  ro.tsInput      = tipRead(&TIPp->tsInput);
+  ro->tsInput      = tipRead(&TIPp->tsInput);
 
-  ro.output       = tipRead(&TIPp->output);
-  ro.blocklimit   = tipRead(&TIPp->blocklimit);
-  ro.fiberSyncDelay = tipRead(&TIPp->fiberSyncDelay);
+  ro->output       = tipRead(&TIPp->output);
+  ro->syncEventCtrl= tipRead(&TIPp->syncEventCtrl);
+  ro->blocklimit   = tipRead(&TIPp->blocklimit);
+  ro->fiberSyncDelay = tipRead(&TIPp->fiberSyncDelay);
 
-  ro.GTPStatusA   = tipRead(&TIPp->GTPStatusA);
-  ro.GTPStatusB   = tipRead(&TIPp->GTPStatusB);
+  ro->GTPStatusA   = tipRead(&TIPp->GTPStatusA);
+  ro->GTPStatusB   = tipRead(&TIPp->GTPStatusB);
 
   /* Latch scalers first */
   tipWrite(&TIPp->reset,TIP_RESET_SCALERS_LATCH);
-  ro.livetime     = tipRead(&TIPp->livetime);
-  ro.busytime     = tipRead(&TIPp->busytime);
+  ro->livetime     = tipRead(&TIPp->livetime);
+  ro->busytime     = tipRead(&TIPp->busytime);
 
-  ro.inputCounter = tipRead(&TIPp->inputCounter);
+  ro->inputCounter = tipRead(&TIPp->inputCounter);
 
   for(iblock=0;iblock<4;iblock++)
     blockStatus[iblock] = tipRead(&TIPp->blockStatus[iblock]);
 
   blockStatus[4] = tipRead(&TIPp->adr24);
 
-  ro.nblocks      = tipRead(&TIPp->nblocks);
+  ro->nblocks      = tipRead(&TIPp->nblocks);
 
-  ro.GTPtriggerBufferLength = tipRead(&TIPp->GTPtriggerBufferLength);
+  ro->GTPtriggerBufferLength = tipRead(&TIPp->GTPtriggerBufferLength);
 
-  ro.rocEnable    = tipRead(&TIPp->rocEnable);
+  ro->rocEnable    = tipRead(&TIPp->rocEnable);
   TIPUNLOCK;
 
   TIBase = (unsigned long)TIPp;
@@ -648,15 +657,6 @@ tipStatus(int pflag)
   printf("\n");
   printf("STATUS for TIpcie\n");
   printf("--------------------------------------------------------------------------------\n");
-  /* printf(" A32 Data buffer "); */
-  /* if((ro.vmeControl&TIP_VMECONTROL_A32) == TIP_VMECONTROL_A32) */
-  /*   { */
-  /*     printf("ENABLED at "); */
-  /*     printf("VME (Local) base address 0x%08lx (0x%lx)\n", */
-  /* 	     (unsigned long)TIPpd - tiA32Offset, (unsigned long)TIPpd); */
-  /*   } */
-  /* else */
-  /*   printf("DISABLED\n"); */
 
   if(tipMaster)
     printf(" Configured as a TI Master\n");
@@ -666,36 +666,37 @@ tipStatus(int pflag)
   printf(" Readout Count: %d\n",tipIntCount);
   printf("     Ack Count: %d\n",tipAckCount);
   printf("     L1A Count: %llu\n",l1a_count);
-  printf("   Block Limit: %d   %s\n",ro.blocklimit,
-	 (ro.blockBuffer & TIP_BLOCKBUFFER_BUSY_ON_BLOCKLIMIT)?"* Finished *":"- In Progress -");
-  printf("   Block Count: %d\n",ro.nblocks & TIP_NBLOCKS_COUNT_MASK);
+  printf("   Block Limit: %d   %s\n",ro->blocklimit,
+	 (ro->blockBuffer & TIP_BLOCKBUFFER_BUSY_ON_BLOCKLIMIT)?"* Finished *":"");
+  printf("   Block Count: %d\n",ro->nblocks & TIP_NBLOCKS_COUNT_MASK);
 
   if(pflag>0)
     {
+      printf("\n");
       printf(" Registers (offset):\n");
-      printf("  boardID        (0x%04lx) = 0x%08x\t", (unsigned long)&TIPp->boardID - TIBase, ro.boardID);
-      printf("  fiber          (0x%04lx) = 0x%08x\n", (unsigned long)(&TIPp->fiber) - TIBase, ro.fiber);
-      printf("  intsetup       (0x%04lx) = 0x%08x\t", (unsigned long)(&TIPp->intsetup) - TIBase, ro.intsetup);
-      printf("  trigDelay      (0x%04lx) = 0x%08x\n", (unsigned long)(&TIPp->trigDelay) - TIBase, ro.trigDelay);
-      printf("  __adr32        (0x%04lx) = 0x%08x\t", (unsigned long)(&TIPp->__adr32) - TIBase, ro.__adr32);
-      printf("  blocklevel     (0x%04lx) = 0x%08x\n", (unsigned long)(&TIPp->blocklevel) - TIBase, ro.blocklevel);
-      printf("  vmeControl     (0x%04lx) = 0x%08x\n", (unsigned long)(&TIPp->vmeControl) - TIBase, ro.vmeControl);
-      printf("  trigger        (0x%04lx) = 0x%08x\t", (unsigned long)(&TIPp->trigsrc) - TIBase, ro.trigsrc);
-      printf("  sync           (0x%04lx) = 0x%08x\n", (unsigned long)(&TIPp->sync) - TIBase, ro.sync);
-      printf("  busy           (0x%04lx) = 0x%08x\t", (unsigned long)(&TIPp->busy) - TIBase, ro.busy);
-      printf("  clock          (0x%04lx) = 0x%08x\n", (unsigned long)(&TIPp->clock) - TIBase, ro.clock);
-      printf("  blockBuffer    (0x%04lx) = 0x%08x\t", (unsigned long)(&TIPp->blockBuffer) - TIBase, ro.blockBuffer);
+      printf("  boardID        (0x%04lx) = 0x%08x\t", (unsigned long)&TIPp->boardID - TIBase, ro->boardID);
+      printf("  fiber          (0x%04lx) = 0x%08x\n", (unsigned long)(&TIPp->fiber) - TIBase, ro->fiber);
+      printf("  intsetup       (0x%04lx) = 0x%08x\t", (unsigned long)(&TIPp->intsetup) - TIBase, ro->intsetup);
+      printf("  trigDelay      (0x%04lx) = 0x%08x\n", (unsigned long)(&TIPp->trigDelay) - TIBase, ro->trigDelay);
+      printf("  __adr32        (0x%04lx) = 0x%08x\t", (unsigned long)(&TIPp->__adr32) - TIBase, ro->__adr32);
+      printf("  blocklevel     (0x%04lx) = 0x%08x\n", (unsigned long)(&TIPp->blocklevel) - TIBase, ro->blocklevel);
+      printf("  vmeControl     (0x%04lx) = 0x%08x\n", (unsigned long)(&TIPp->vmeControl) - TIBase, ro->vmeControl);
+      printf("  trigger        (0x%04lx) = 0x%08x\t", (unsigned long)(&TIPp->trigsrc) - TIBase, ro->trigsrc);
+      printf("  sync           (0x%04lx) = 0x%08x\n", (unsigned long)(&TIPp->sync) - TIBase, ro->sync);
+      printf("  busy           (0x%04lx) = 0x%08x\t", (unsigned long)(&TIPp->busy) - TIBase, ro->busy);
+      printf("  clock          (0x%04lx) = 0x%08x\n", (unsigned long)(&TIPp->clock) - TIBase, ro->clock);
+      printf("  blockBuffer    (0x%04lx) = 0x%08x\t", (unsigned long)(&TIPp->blockBuffer) - TIBase, ro->blockBuffer);
       
-      printf("  output         (0x%04lx) = 0x%08x\n", (unsigned long)(&TIPp->output) - TIBase, ro.output);
-      printf("  fiberSyncDelay (0x%04lx) = 0x%08x\n", (unsigned long)(&TIPp->fiberSyncDelay) - TIBase, ro.fiberSyncDelay);
+      printf("  output         (0x%04lx) = 0x%08x\n", (unsigned long)(&TIPp->output) - TIBase, ro->output);
+      printf("  fiberSyncDelay (0x%04lx) = 0x%08x\n", (unsigned long)(&TIPp->fiberSyncDelay) - TIBase, ro->fiberSyncDelay);
 
-      printf("  GTPStatusA     (0x%04lx) = 0x%08x\t", (unsigned long)(&TIPp->GTPStatusA) - TIBase, ro.GTPStatusA);
-      printf("  GTPStatusB     (0x%04lx) = 0x%08x\n", (unsigned long)(&TIPp->GTPStatusB) - TIBase, ro.GTPStatusB);
+      printf("  GTPStatusA     (0x%04lx) = 0x%08x\t", (unsigned long)(&TIPp->GTPStatusA) - TIBase, ro->GTPStatusA);
+      printf("  GTPStatusB     (0x%04lx) = 0x%08x\n", (unsigned long)(&TIPp->GTPStatusB) - TIBase, ro->GTPStatusB);
       
-      printf("  livetime       (0x%04lx) = 0x%08x\t", (unsigned long)(&TIPp->livetime) - TIBase, ro.livetime);
-      printf("  busytime       (0x%04lx) = 0x%08x\n", (unsigned long)(&TIPp->busytime) - TIBase, ro.busytime);
-      printf("  GTPTrgBufLen   (0x%04lx) = 0x%08x\t", (unsigned long)(&TIPp->GTPtriggerBufferLength) - TIBase, ro.GTPtriggerBufferLength);
-      printf("  rocEnable      (0x%04lx) = 0x%08x\n", (unsigned long)(&TIPp->rocEnable) - TIBase, ro.rocEnable);
+      printf("  livetime       (0x%04lx) = 0x%08x\t", (unsigned long)(&TIPp->livetime) - TIBase, ro->livetime);
+      printf("  busytime       (0x%04lx) = 0x%08x\n", (unsigned long)(&TIPp->busytime) - TIBase, ro->busytime);
+      printf("  GTPTrgBufLen   (0x%04lx) = 0x%08x\t", (unsigned long)(&TIPp->GTPtriggerBufferLength) - TIBase, ro->GTPtriggerBufferLength);
+      printf("  rocEnable      (0x%04lx) = 0x%08x\n", (unsigned long)(&TIPp->rocEnable) - TIBase, ro->rocEnable);
     }
   printf("\n");
 
@@ -712,24 +713,50 @@ tipStatus(int pflag)
 	printf("\n");
     }
 
-  fibermask = ro.fiber;
+  printf(" Block Buffer Level = ");
+  if(ro->vmeControl & TIP_VMECONTROL_USE_LOCAL_BUFFERLEVEL)
+    {
+      printf("%d -Local- ",
+	     ro->blockBuffer & TIP_BLOCKBUFFER_BUFFERLEVEL_MASK);
+    }
+  else
+    {
+      printf("%d -Broadcast- ",
+	     (ro->dataFormat & TIP_DATAFORMAT_BCAST_BUFFERLEVEL_MASK) >> 24);
+    }
+
+  printf("(%s)\n",(ro->vmeControl & TIP_VMECONTROL_BUSY_ON_BUFFERLEVEL)?
+	 "Busy Enabled":"Busy not enabled");
+      
   if(tipMaster)
     {
-      if(fibermask)
-	{
-	  printf(" HFBR enabled (0x%x)= \n",fibermask&0xf);
-	  for(ifiber=0; ifiber<8; ifiber++)
-	    {
-	      if( fibermask & (1<<ifiber) ) 
-		printf("   %d: -%s-   -%s-\n",ifiber+1,
-		       (ro.fiber & TIP_FIBER_CONNECTED_TI(ifiber+1))?"    CONNECTED":"NOT CONNECTED",
-		       (ro.fiber & TIP_FIBER_TRIGSRC_ENABLED_TI(ifiber+1))?"TRIGSRC ENABLED":"TRIGSRC DISABLED");
-	    }
-	  printf("\n");
-	}
+      if((ro->syncEventCtrl & TIP_SYNCEVENTCTRL_NBLOCKS_MASK) == 0)
+	printf(" Sync Events DISABLED\n");
       else
-	printf(" All HFBR Disabled\n");
+	printf(" Sync Event period  = %d blocks\n",
+	       ro->syncEventCtrl & TIP_SYNCEVENTCTRL_NBLOCKS_MASK);
     }
+
+  printf("\n");
+  printf(" Fiber Status         1   \n");
+  printf("                    ----- \n");
+  printf("  Connected          ");
+  for(ifiber=0; ifiber<1; ifiber++)
+    {
+      printf("%s   ",
+	     (ro->fiber & TIP_FIBER_CONNECTED_TI(ifiber+1))?"YES":"   ");
+    }
+  printf("\n");
+  if(tipMaster)
+    {
+      printf("  Trig Src Enabled   ");
+      for(ifiber=0; ifiber<1; ifiber++)
+	{
+	  printf("%s   ",
+		 (ro->fiber & TIP_FIBER_TRIGSRC_ENABLED_TI(ifiber+1))?"YES":"   ");
+	}
+    }
+  printf("\n\n");
 
   if(tipMaster)
     {
@@ -737,7 +764,7 @@ tipStatus(int pflag)
 	{
 	  printf(" TI Slaves Configured on HFBR (0x%x) = ",tipSlaveMask);
 	  fibermask = tipSlaveMask;
-	  for(ifiber=0; ifiber<8; ifiber++)
+	  for(ifiber=0; ifiber<1; ifiber++)
 	    {
 	      if( fibermask & (1<<ifiber)) 
 		printf(" %d",ifiber+1);
@@ -749,8 +776,8 @@ tipStatus(int pflag)
       
     }
 
-  printf(" Clock Source (%d) = \n",ro.clock & TIP_CLOCK_MASK);
-  switch(ro.clock & TIP_CLOCK_MASK)
+  printf(" Clock Source (%d) = \n",ro->clock & TIP_CLOCK_MASK);
+  switch(ro->clock & TIP_CLOCK_MASK)
     {
     case TIP_CLOCK_INTERNAL:
       printf("   Internal\n");
@@ -774,9 +801,9 @@ tipStatus(int pflag)
 
   if(tipTriggerSource&TIP_TRIGSRC_SOURCEMASK)
     {
-      if(ro.trigsrc)
+      if(ro->trigsrc)
 	printf(" Trigger input source (%s) =\n",
-	       (ro.blockBuffer & TIP_BLOCKBUFFER_BUSY_ON_BLOCKLIMIT)?"DISABLED on Block Limit":
+	       (ro->blockBuffer & TIP_BLOCKBUFFER_BUSY_ON_BLOCKLIMIT)?"DISABLED on Block Limit":
 	       "ENABLED");
       else
 	printf(" Trigger input source (DISABLED) =\n");
@@ -812,12 +839,74 @@ tipStatus(int pflag)
       printf(" No Trigger input sources\n");
     }
 
-  if(ro.tsInput & TIP_TSINPUT_MASK)
+  if(ro->sync&TIP_SYNC_SOURCEMASK)
+    {
+      printf(" Sync source = \n");
+      if(ro->sync & TIP_SYNC_P0)
+	printf("   P0 Input\n");
+      if(ro->sync & TIP_SYNC_HFBR1)
+	printf("   HFBR #1 Input\n");
+      if(ro->sync & TIP_SYNC_HFBR5)
+	printf("   HFBR #5 Input\n");
+      if(ro->sync & TIP_SYNC_FP)
+	printf("   Front Panel Input\n");
+      if(ro->sync & TIP_SYNC_LOOPBACK)
+	printf("   Loopback\n");
+      if(ro->sync & TIP_SYNC_USER_SYNCRESET_ENABLED)
+	printf("   User SYNCRESET Receieve Enabled\n");
+    }
+  else
+    {
+      printf(" No SYNC input source configured\n");
+    }
+
+  if(ro->busy&TIP_BUSY_SOURCEMASK)
+    {
+      printf(" BUSY input source = \n");
+      if(ro->busy & TIP_BUSY_SWA)
+	printf("   Switch Slot A    %s\n",(ro->busy&TIP_BUSY_MONITOR_SWA)?"** BUSY **":"");
+      if(ro->busy & TIP_BUSY_SWB)
+	printf("   Switch Slot B    %s\n",(ro->busy&TIP_BUSY_MONITOR_SWB)?"** BUSY **":"");
+      if(ro->busy & TIP_BUSY_P2)
+	printf("   P2 Input         %s\n",(ro->busy&TIP_BUSY_MONITOR_P2)?"** BUSY **":"");
+      if(ro->busy & TIP_BUSY_TRIGGER_LOCK)
+	printf("   Trigger Lock     \n");
+      if(ro->busy & TIP_BUSY_FP_FTDC)
+	printf("   Front Panel TDC  %s\n",(ro->busy&TIP_BUSY_MONITOR_FP_FTDC)?"** BUSY **":"");
+      if(ro->busy & TIP_BUSY_FP_FADC)
+	printf("   Front Panel ADC  %s\n",(ro->busy&TIP_BUSY_MONITOR_FP_FADC)?"** BUSY **":"");
+      if(ro->busy & TIP_BUSY_FP)
+	printf("   Front Panel      %s\n",(ro->busy&TIP_BUSY_MONITOR_FP)?"** BUSY **":"");
+      if(ro->busy & TIP_BUSY_LOOPBACK)
+	printf("   Loopback         %s\n",(ro->busy&TIP_BUSY_MONITOR_LOOPBACK)?"** BUSY **":"");
+      if(ro->busy & TIP_BUSY_HFBR1)
+	printf("   HFBR #1          %s\n",(ro->busy&TIP_BUSY_MONITOR_HFBR1)?"** BUSY **":"");
+      if(ro->busy & TIP_BUSY_HFBR2)
+	printf("   HFBR #2          %s\n",(ro->busy&TIP_BUSY_MONITOR_HFBR2)?"** BUSY **":"");
+      if(ro->busy & TIP_BUSY_HFBR3)
+	printf("   HFBR #3          %s\n",(ro->busy&TIP_BUSY_MONITOR_HFBR3)?"** BUSY **":"");
+      if(ro->busy & TIP_BUSY_HFBR4)
+	printf("   HFBR #4          %s\n",(ro->busy&TIP_BUSY_MONITOR_HFBR4)?"** BUSY **":"");
+      if(ro->busy & TIP_BUSY_HFBR5)
+	printf("   HFBR #5          %s\n",(ro->busy&TIP_BUSY_MONITOR_HFBR5)?"** BUSY **":"");
+      if(ro->busy & TIP_BUSY_HFBR6)
+	printf("   HFBR #6          %s\n",(ro->busy&TIP_BUSY_MONITOR_HFBR6)?"** BUSY **":"");
+      if(ro->busy & TIP_BUSY_HFBR7)
+	printf("   HFBR #7          %s\n",(ro->busy&TIP_BUSY_MONITOR_HFBR7)?"** BUSY **":"");
+      if(ro->busy & TIP_BUSY_HFBR8)
+	printf("   HFBR #8          %s\n",(ro->busy&TIP_BUSY_MONITOR_HFBR8)?"** BUSY **":"");
+    }
+  else
+    {
+      printf(" No BUSY input source configured\n");
+    }
+
+  if(ro->tsInput & TIP_TSINPUT_MASK)
     {
       printf(" Front Panel TS Inputs Enabled: ");
       for(iinp=0; iinp<6; iinp++)
 	{
-	  if( (ro.tsInput & TIP_TSINPUT_MASK) & (1<<iinp)) 
+	  if( (ro->tsInput & TIP_TSINPUT_MASK) & (1<<iinp)) 
 	    printf(" %d",iinp+1);
 	}
       printf("\n");	
@@ -827,83 +916,59 @@ tipStatus(int pflag)
       printf(" All Front Panel TS Inputs Disabled\n");
     }
 
-  if(ro.sync&TIP_SYNC_SOURCEMASK)
+  if(tipMaster)
     {
-      printf(" Sync source = \n");
-      if(ro.sync & TIP_SYNC_P0)
-	printf("   P0 Input\n");
-      if(ro.sync & TIP_SYNC_HFBR1)
-	printf("   HFBR #1 Input\n");
-      if(ro.sync & TIP_SYNC_HFBR5)
-	printf("   HFBR #5 Input\n");
-      if(ro.sync & TIP_SYNC_FP)
-	printf("   Front Panel Input\n");
-      if(ro.sync & TIP_SYNC_LOOPBACK)
-	printf("   Loopback\n");
-      if(ro.sync & TIP_SYNC_USER_SYNCRESET_ENABLED)
-	printf("   User SYNCRESET Receieve Enabled\n");
-    }
-  else
-    {
-      printf(" No SYNC input source configured\n");
+      printf("\n");
+      printf(" Trigger Rules:\n");
+      tipPrintTriggerHoldoff(pflag);
     }
 
-  if(ro.busy&TIP_BUSY_SOURCEMASK)
+  if(tipMaster)
     {
-      printf(" BUSY input source = \n");
-      if(ro.busy & TIP_BUSY_SWA)
-	printf("   Switch Slot A    %s\n",(ro.busy&TIP_BUSY_MONITOR_SWA)?"** BUSY **":"");
-      if(ro.busy & TIP_BUSY_SWB)
-	printf("   Switch Slot B    %s\n",(ro.busy&TIP_BUSY_MONITOR_SWB)?"** BUSY **":"");
-      if(ro.busy & TIP_BUSY_P2)
-	printf("   P2 Input         %s\n",(ro.busy&TIP_BUSY_MONITOR_P2)?"** BUSY **":"");
-      if(ro.busy & TIP_BUSY_TRIGGER_LOCK)
-	printf("   Trigger Lock     \n");
-      if(ro.busy & TIP_BUSY_FP_FTDC)
-	printf("   Front Panel TDC  %s\n",(ro.busy&TIP_BUSY_MONITOR_FP_FTDC)?"** BUSY **":"");
-      if(ro.busy & TIP_BUSY_FP_FADC)
-	printf("   Front Panel ADC  %s\n",(ro.busy&TIP_BUSY_MONITOR_FP_FADC)?"** BUSY **":"");
-      if(ro.busy & TIP_BUSY_FP)
-	printf("   Front Panel      %s\n",(ro.busy&TIP_BUSY_MONITOR_FP)?"** BUSY **":"");
-      if(ro.busy & TIP_BUSY_LOOPBACK)
-	printf("   Loopback         %s\n",(ro.busy&TIP_BUSY_MONITOR_LOOPBACK)?"** BUSY **":"");
-      if(ro.busy & TIP_BUSY_HFBR1)
-	printf("   HFBR #1          %s\n",(ro.busy&TIP_BUSY_MONITOR_HFBR1)?"** BUSY **":"");
-      if(ro.busy & TIP_BUSY_HFBR2)
-	printf("   HFBR #2          %s\n",(ro.busy&TIP_BUSY_MONITOR_HFBR2)?"** BUSY **":"");
-      if(ro.busy & TIP_BUSY_HFBR3)
-	printf("   HFBR #3          %s\n",(ro.busy&TIP_BUSY_MONITOR_HFBR3)?"** BUSY **":"");
-      if(ro.busy & TIP_BUSY_HFBR4)
-	printf("   HFBR #4          %s\n",(ro.busy&TIP_BUSY_MONITOR_HFBR4)?"** BUSY **":"");
-      if(ro.busy & TIP_BUSY_HFBR5)
-	printf("   HFBR #5          %s\n",(ro.busy&TIP_BUSY_MONITOR_HFBR5)?"** BUSY **":"");
-      if(ro.busy & TIP_BUSY_HFBR6)
-	printf("   HFBR #6          %s\n",(ro.busy&TIP_BUSY_MONITOR_HFBR6)?"** BUSY **":"");
-      if(ro.busy & TIP_BUSY_HFBR7)
-	printf("   HFBR #7          %s\n",(ro.busy&TIP_BUSY_MONITOR_HFBR7)?"** BUSY **":"");
-      if(ro.busy & TIP_BUSY_HFBR8)
-	printf("   HFBR #8          %s\n",(ro.busy&TIP_BUSY_MONITOR_HFBR8)?"** BUSY **":"");
+      if(ro->rocEnable & TIP_ROCENABLE_SYNCRESET_REQUEST_ENABLE_MASK)
+	{
+	  printf(" SyncReset Request ENABLED from ");
+	  
+	  if(ro->rocEnable & (1 << 10))
+	    {
+	      printf("SELF ");
+	    }
+	  
+	  for(ifiber=0; ifiber<1; ifiber++)
+	    {
+	      if(ro->rocEnable & (1 << (ifiber + 1 + 10)))
+		{
+		  printf("%d ", ifiber + 1);
+		}
+	    }
+	  
+	  printf("\n");
+	}
+      else
+	{
+	  printf(" SyncReset Requests DISABLED\n");
+	}
+      
+      printf("\n");
+      tipSyncResetRequestStatus(1);
     }
-  else
-    {
-      printf(" No BUSY input source configured\n");
-    }
-
-  if(ro.intsetup&TIP_INTSETUP_ENABLE)
+  printf("\n");
+  
+  if(ro->intsetup&TIP_INTSETUP_ENABLE)
     printf(" Interrupts ENABLED\n");
   else
     printf(" Interrupts DISABLED\n");
   printf("   Level = %d   Vector = 0x%02x\n",
-	 (ro.intsetup&TIP_INTSETUP_LEVEL_MASK)>>8, (ro.intsetup&TIP_INTSETUP_VECTOR_MASK));
+	 (ro->intsetup&TIP_INTSETUP_LEVEL_MASK)>>8, (ro->intsetup&TIP_INTSETUP_VECTOR_MASK));
   
-  printf(" Blocks ready for readout: %d\n",(ro.blockBuffer&TIP_BLOCKBUFFER_BLOCKS_READY_MASK)>>8);
+  printf(" Blocks ready for readout: %d\n",(ro->blockBuffer&TIP_BLOCKBUFFER_BLOCKS_READY_MASK)>>8);
   if(tipMaster)
     {
       printf(" Slave Block Status:   %s\n",
-	     (ro.busy&TIP_BUSY_MONITOR_TRIG_LOST)?"** Waiting for Trigger Ack **":"");
+	     (ro->busy&TIP_BUSY_MONITOR_TRIG_LOST)?"** Waiting for Trigger Ack **":"");
       /* TI slave block status */
       fibermask = tipSlaveMask;
-      for(ifiber=0; ifiber<8; ifiber++)
+      for(ifiber=0; ifiber<1; ifiber++)
 	{
 	  if( fibermask & (1<<ifiber) )
 	    {
@@ -929,11 +994,13 @@ tipStatus(int pflag)
 	     nblocksReady, nblocksNeedAck);
 
     }
-  printf(" Input counter %d\n",ro.inputCounter);
+  printf(" Input counter %d\n",ro->inputCounter);
 
   printf("--------------------------------------------------------------------------------\n");
   printf("\n\n");
 
+  if(ro)
+    free(ro);
 }
 
 /**
@@ -985,19 +1052,19 @@ tipSetSlavePort(int port)
   /* TI IODELAY reset */
   TIPLOCK;
   tipWrite(&TIPp->reset,TIP_RESET_IODELAY);
-  usleep(10000);
+  usleep(10);
   
   /* TI Sync auto alignment */
   tipWrite(&TIPp->reset,TIP_RESET_AUTOALIGN_HFBR1_SYNC);
-  usleep(10000);
+  usleep(10);
   
   /* TI auto fiber delay measurement */
   tipWrite(&TIPp->reset,TIP_RESET_MEASURE_LATENCY);
-  usleep(10000);
+  usleep(10);
   
   /* TI auto alignement fiber delay */
   tipWrite(&TIPp->reset,TIP_RESET_FIBER_AUTO_ALIGN);
-  usleep(10000);
+  usleep(10);
   TIPUNLOCK;
 
   printf("%s: INFO: TI Slave configured to use port %d.\n",
@@ -2107,6 +2174,9 @@ tipSetEventFormat(int format)
 
   TIPLOCK;
 
+  formatset = tipRead(&TIPp->dataFormat)
+    & ~(TIP_DATAFORMAT_TIMING_WORD | TIP_DATAFORMAT_HIGHERBITS_WORD);
+
   switch(format)
     {
     case 0:
@@ -2128,6 +2198,38 @@ tipSetEventFormat(int format)
  
   tipWrite(&TIPp->dataFormat,formatset);
 
+  TIPUNLOCK;
+
+  return OK;
+}
+
+/**
+ * @ingroup Config
+ * @brief Set whether or not the latched pattern of FP Inputs in block readout
+ *
+ * @param enable
+ *    - 0: Disable
+ *    - >0: Enable
+ *    
+ * @return OK if successful, otherwise ERROR
+ *    
+ */
+int
+tipSetFPInputReadout(int enable)
+{
+  if(TIPp == NULL) 
+    {
+      printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
+      return ERROR;
+    }
+
+  TIPLOCK;
+  if(enable)
+    tipWrite(&TIPp->dataFormat,
+	       tipRead(&TIPp->dataFormat) | TIP_DATAFORMAT_FPINPUT_READOUT);
+  else
+    tipWrite(&TIPp->dataFormat,
+	       tipRead(&TIPp->dataFormat) & ~TIP_DATAFORMAT_FPINPUT_READOUT);
   TIPUNLOCK;
 
   return OK;
@@ -2518,9 +2620,9 @@ tipReadBlock(volatile unsigned int *data, int nwrds, int rflag)
     { /* Programmed IO */
       int blocklevel=0;
       int iev=0, idata=0;
-      int ev_nwords=0;
+      int ntrig = 0, trigwords = 0;
+      int trailerFound = 0;
       dCnt = 0;
-      ii=0;
       
       /* Read Block header - should be first word */
       val = tipRead(&TIPp->fifo);
@@ -2529,8 +2631,101 @@ tipReadBlock(volatile unsigned int *data, int nwrds, int rflag)
       if((val & TIP_DATA_TYPE_DEFINE_MASK) && 
 	 ((val & TIP_WORD_TYPE_MASK) == TIP_BLOCK_HEADER_WORD_TYPE))
 	{
-	  /* data[dCnt++] = val; */
-	}
+	  ntrig = val & TIP_DATA_BLKLEVEL_MASK;
+	  
+	  /* Next word is the CODA 3.0 header */
+	  val = tipRead(&TIPp->fifo);
+	  data[dCnt++] = val;
+	      
+	  if( ((val & 0xFF100000)>>16 == 0xFF10) && 
+	      ((val & 0xFF00)>>8 == 0x20) )
+	    {
+	      blocklevel = val & TIP_DATA_BLKLEVEL_MASK;
+	      
+	      if((blocklevel & 0xff) != ntrig)
+		{
+		  printf("\n%s: ERROR: TI Blocklevel %d inconsistent with TI Trigger Bank Header (0x%08x)",
+			 __func__, ntrig, val);
+		  // return?
+
+		}
+
+	      /* Loop through each event in the block */
+	      for(iev=0; iev<blocklevel; iev++)
+		{
+		  /* Event header */
+		TRYAGAIN:
+		  val = tipRead(&TIPp->fifo);
+		  data[dCnt++] = val;
+		  
+		  if((val & 0xFF0000)>>16 == 0x01)
+		    {
+		      trigwords = val & 0xffff;
+		      for(idata=0; idata<trigwords; idata++)
+			{
+			  val = tipRead(&TIPp->fifo);
+			  data[dCnt++] = val;
+			}
+
+		    } /* Event Header test */
+		  else
+		    {
+		      tipTriedAgain++;
+		      usleep(1);
+		      if(tipTriedAgain>20)
+			{
+			  printf("%s: ERROR: Invalid Event Header Word 0x%08x\n",
+				 __FUNCTION__,val);
+			  TIPUNLOCK;
+			  return -1;
+			}
+		      goto TRYAGAIN;
+		    }
+		} /* Loop through each event in block */
+
+	      /* Read Block Trailer */
+	      val = tipRead(&TIPp->fifo);
+	      data[dCnt++] = val;
+	      
+	      if((val & TIP_DATA_TYPE_DEFINE_MASK) &&
+		 (val & TIP_WORD_TYPE_MASK)==TIP_BLOCK_TRAILER_WORD_TYPE)
+		{
+		  trailerFound = 1;
+
+		  if((dCnt%2)!=0)
+		    {
+		      /* Read out an extra word (filler) in the fifo */
+		      val = tipRead(&TIPp->fifo);
+
+		      if(((val & TIP_DATA_TYPE_DEFINE_MASK) != TIP_DATA_TYPE_DEFINE_MASK) ||
+			 ((val & TIP_WORD_TYPE_MASK) != TIP_FILLER_WORD_TYPE))
+			{
+			  printf("\n%s: ERROR: Unexpected word after block trailer (0x%08x)\n",
+				 __func__, val);
+			}
+		    }
+
+
+		} // Block trailer test */
+	      else
+		{
+		  printf("%s: ERROR: Invalid Block Trailer Word 0x%08x\n",
+			 __FUNCTION__,val);
+		  TIPUNLOCK;
+		  return ERROR;
+		}
+
+	    } /* CODA 3.0 header test */
+	  else
+	    {
+	      printf("%s: ERROR: Invalid Trigger Bank Header Word 0x%08x\n",
+		     __FUNCTION__,val);
+	      TIPUNLOCK;
+	      return(ERROR);
+	    }
+	  
+	  
+	} /* Block Header test */
       else
 	{
 	  printf("%s: ERROR: Invalid Block Header Word 0x%08x\n",
@@ -2539,89 +2734,6 @@ tipReadBlock(volatile unsigned int *data, int nwrds, int rflag)
 	  return(dCnt);
 	}
 
-      /* Read trigger bank header - 2nd word */
-      val = tipRead(&TIPp->fifo);
-
-      if( ((val & 0xFF100000)>>16 == 0xFF10) && 
-	  ((val & 0xFF00)>>8 == 0x20) )
-	{
-	  data[dCnt++] = val;
-	}
-      else
-	{
-	  printf("%s: ERROR: Invalid Trigger Bank Header Word 0x%08x\n",
-		 __FUNCTION__,val);
-	  TIPUNLOCK;
-	  return(ERROR);
-	}
-
-      blocklevel = val & TIP_DATA_BLKLEVEL_MASK;
-
-      /* Loop through each event in the block */
-      for(iev=0; iev<blocklevel; iev++)
-	{
-	  /* Event header */
-	TRYAGAIN:
-	  val = tipRead(&TIPp->fifo);
-
-	  if((val & 0xFF0000)>>16 == 0x01)
-	    {
-	      data[dCnt++] = val;
-	      ev_nwords = val & 0xffff;
-	      for(idata=0; idata<ev_nwords; idata++)
-		{
-		  val = tipRead(&TIPp->fifo);
-		  data[dCnt++] = val;
-		}
-	    }
-	  else
-	    {
-	      tipTriedAgain++;
-	      usleep(1);
-	      if(tipTriedAgain>20)
-		{
-		  printf("%s: ERROR: Invalid Event Header Word 0x%08x\n",
-			 __FUNCTION__,val);
-		  TIPUNLOCK;
-		  return -1;
-		}
-	      goto TRYAGAIN;
-	    }
-	}
-
-      /* Read Block header */
-      val = tipRead(&TIPp->fifo);
-
-      if((val & TIP_DATA_TYPE_DEFINE_MASK) &&
-	 (val & TIP_WORD_TYPE_MASK)==TIP_BLOCK_TRAILER_WORD_TYPE)
-	{
-	  data[dCnt++] = val;
-	}
-      else
-	{
-	  printf("%s: ERROR: Invalid Block Trailer Word 0x%08x\n",
-		 __FUNCTION__,val);
-	  TIPUNLOCK;
-	  return ERROR;
-	}
-
-      /* Readout an extra filler word, if we need an even word count */
-      if((dCnt%2)!=0)
-	{
-	  val = tipRead(&TIPp->fifo);
-	  if((val & TIP_DATA_TYPE_DEFINE_MASK) &&
-	     (val & TIP_WORD_TYPE_MASK)==TIP_FILLER_WORD_TYPE)
-	    {
-	      data[dCnt++] = val;
-	    }
-	  else
-	    {
-	      printf("%s: ERROR: Invalid Filler Word 0x%08x\n",
-		     __FUNCTION__,val);
-	      TIPUNLOCK;
-	      return ERROR;
-	    }
-	}
 
       TIPUNLOCK;
       return(dCnt);
@@ -2631,6 +2743,57 @@ tipReadBlock(volatile unsigned int *data, int nwrds, int rflag)
 
   return OK;
 }
+
+/**
+ * @ingroup Config
+ *
+ * @brief Option to generate a fake trigger bank when
+ *        @tipReadTriggerBlock finds an ERROR.
+ *        Enabled by library default.
+ *
+ * @param enable Enable fake trigger bank if enable != 0.
+ *
+ * @return OK
+ *
+ */
+int
+tipFakeTriggerBankOnError(int enable)
+{
+  TIPLOCK;
+  if(enable)
+    tipFakeTriggerBank = 1;
+  else
+    tipFakeTriggerBank = 0;
+  TIPUNLOCK;
+
+  return OK;
+}
+
+/**
+ * @ingroup Readout
+ * @brief Generate a fake trigger bank.  Called by @tipReadTriggerBlock if ERROR.
+ *
+ * @param   data  - local memory address to place data
+ *
+ * @return Number of words generated to data if successful, ERROR otherwise
+ *
+ */
+int
+tipGenerateTriggerBank(volatile unsigned int *data)
+{
+  int bl = 0;
+  int iword, nwords = 2;
+  unsigned int error_tag = 0;
+  unsigned int word;
+  
+  bl = tipGetCurrentBlockLevel();
+  data[0] = nwords - 1;
+  data[1] = 0xFF102000 | (error_tag << 16)| bl;
+  
+  return nwords;
+}
+
+
 
 /**
  * @ingroup Readout
@@ -2658,7 +2821,7 @@ tipReadTriggerBlock(volatile unsigned int *data)
     }
 
   /* Determine the maximum number of words to expect, from the block level */
-  nwrds = (4*tipBlockLevel) + 8;
+  nwrds = (5*tipBlockLevel) + 8;
 
   /* Optimize the transfer type based on the blocklevel */
   if(tipBlockLevel>2)
@@ -2677,14 +2840,22 @@ tipReadTriggerBlock(volatile unsigned int *data)
       /* Error occurred */
       printf("%s: ERROR: tiReadBlock returned ERROR\n",
 	     __FUNCTION__);
-      return ERROR;
+
+      if(tipFakeTriggerBank)
+	return tipGenerateTriggerBank(data);
+      else
+	return ERROR;
     }
   else if (rval == 0)
     {
       /* No data returned */
       printf("%s: WARN: No data available\n",
 	     __FUNCTION__);
-      return 0; 
+
+      if(tipFakeTriggerBank)
+	return tipGenerateTriggerBank(data);
+      else
+	return 0; 
     }
 
   /* Work down to find index of block header */
@@ -2709,7 +2880,11 @@ tipReadTriggerBlock(volatile unsigned int *data)
     {
       printf("%s: ERROR: Failed to find TI Block Header\n",
 	     __FUNCTION__);
-      return ERROR;
+
+      if(tipFakeTriggerBank)
+	return tipGenerateTriggerBank(data);
+      else
+	return ERROR;
     }
   if(iblkhead != 0)
     {
@@ -2744,7 +2919,11 @@ tipReadTriggerBlock(volatile unsigned int *data)
     {
       printf("%s: ERROR: Failed to find TI Block Trailer\n",
 	     __FUNCTION__);
-      return ERROR;
+
+      if(tipFakeTriggerBank)
+	return tipGenerateTriggerBank(data);
+      else
+	return ERROR;
     }
 
   /* Get the block trailer, and check the number of words contained in it */
@@ -2754,7 +2933,11 @@ tipReadTriggerBlock(volatile unsigned int *data)
       printf("%s: Number of words inconsistent (index count = %d, block trailer count = %d\n",
 	     __FUNCTION__,
 	     (iblktrl - iblkhead + 1), word & 0x3fffff);
-      return ERROR;
+
+      if(tipFakeTriggerBank)
+	return tipGenerateTriggerBank(data);
+      else
+	return ERROR;
     }
 
   /* Modify the total words returned */
@@ -3422,13 +3605,13 @@ tipTrigLinkReset()
   
   TIPLOCK;
   tipWrite(&TIPp->syncCommand,TIP_SYNCCOMMAND_TRIGGERLINK_DISABLE); 
-  usleep(10000);
+  usleep(10);
 
   tipWrite(&TIPp->syncCommand,TIP_SYNCCOMMAND_TRIGGERLINK_DISABLE); 
-  usleep(10000);
+  usleep(10);
 
   tipWrite(&TIPp->syncCommand,TIP_SYNCCOMMAND_TRIGGERLINK_ENABLE);
-  usleep(10000);
+  usleep(10);
 
   TIPUNLOCK;
 
@@ -3481,9 +3664,9 @@ tipSyncReset(int blflag)
   
   TIPLOCK;
   tipWrite(&TIPp->syncCommand,tipSyncResetType); 
-  usleep(10000);
+  usleep(10);
   tipWrite(&TIPp->syncCommand,TIP_SYNCCOMMAND_RESET_EVNUM); 
-  usleep(10000);
+  usleep(10);
   TIPUNLOCK;
   
   if(blflag) /* Set the block level from "Next" to Current */
@@ -3491,6 +3674,7 @@ tipSyncReset(int blflag)
       printf("%s: INFO: Setting Block Level to %d\n",
 	     __FUNCTION__,tipNextBlockLevel);
       tipBroadcastNextBlockLevel(tipNextBlockLevel);
+      tipSetBlockBufferLevel(tipBlockBufferLevel);
     }
 
 }
@@ -3806,6 +3990,8 @@ tipGetReadoutEvents()
 int
 tipSetBlockBufferLevel(unsigned int level)
 {
+  unsigned int trigsrc = 0;
+
   if(TIPp==NULL) 
     {
       printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
@@ -3821,10 +4007,112 @@ tipSetBlockBufferLevel(unsigned int level)
 
   TIPLOCK;
   tipWrite(&TIPp->blockBuffer, level);
+
+    tipBlockBufferLevel = level;
+  
+    if(tipMaster)
+      {
+	/* Broadcast buffer level to TI-slaves */
+	trigsrc = tipRead(&TIPp->trigsrc);
+	
+	/* Turn on the VME trigger, if not enabled */
+	if(!(trigsrc & TIP_TRIGSRC_VME))
+	tipWrite(&TIPp->trigsrc, TIP_TRIGSRC_VME | trigsrc);
+      
+	/* Broadcast using trigger command */
+	tipWrite(&TIPp->triggerCommand, TIP_TRIGGERCOMMAND_SET_BUFFERLEVEL | level);
+      
+	/* Turn off the VME trigger, if it was initially disabled */
+	if(!(trigsrc & TIP_TRIGSRC_VME))
+	  tipWrite(&TIPp->trigsrc, trigsrc);
+    }
+
   TIPUNLOCK;
 
   return OK;
 }
+
+/**
+ *  @ingroup Status
+ *  @brief Get the block buffer level, as broadcasted from the TS
+ *
+ * @return Broadcasted block buffer level if successful, otherwise ERROR
+ */
+int
+tipGetBroadcastBlockBufferLevel()
+{
+  int rval = 0;
+
+  if(TIPp == NULL)
+    {
+      printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
+      return ERROR;
+    }
+
+  TIPLOCK;
+  rval =
+    (int) ((tipRead(&TIPp->dataFormat) &
+	    TIP_DATAFORMAT_BCAST_BUFFERLEVEL_MASK) >> 24);
+  TIPUNLOCK;
+  
+  return rval;
+}
+
+/**
+ *  @ingroup Config
+ *  @brief Set the TI to be BUSY if number of stored blocks is equal to
+ *         the set block buffer level
+ *
+ * @return OK if successful, otherwise ERROR
+ */
+int
+tipBusyOnBufferLevel(int enable)
+{
+  if(TIPp == NULL)
+    {
+      printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
+      return ERROR;
+    }
+
+  TIPLOCK;
+  tipWrite(&TIPp->vmeControl,
+	     tipRead(&TIPp->vmeControl) | TIP_VMECONTROL_BUSY_ON_BUFFERLEVEL);
+  TIPUNLOCK;
+  
+  return OK;
+}
+
+/**
+ *  @ingroup Config
+ *  @brief Enable/Disable the use of the broadcasted buffer level, instead of the 
+ *         value set locally with @tiSetBlockBufferLevel.
+ *
+ *  @param enable - 1: Enable, 0: Disable
+ *
+ * @return OK if successful, otherwise ERROR
+ */
+int
+tipUseBroadcastBufferLevel(int enable)
+{
+  if(TIPp == NULL)
+    {
+      printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
+      return ERROR;
+    }
+
+  
+  TIPLOCK;
+  if(enable)
+    tipWrite(&TIPp->vmeControl,
+	       tipRead(&TIPp->vmeControl) & ~TIP_VMECONTROL_USE_LOCAL_BUFFERLEVEL);
+  else
+    tipWrite(&TIPp->vmeControl,
+	       tipRead(&TIPp->vmeControl) | TIP_VMECONTROL_USE_LOCAL_BUFFERLEVEL);
+  TIPUNLOCK;
+  
+  return OK;
+}
+
 
 /**
  * @ingroup MasterConfig
@@ -3997,7 +4285,7 @@ tipSetClockSource(unsigned int source)
   if(source==1) /* Turn on running mode for External Clock verification */
     {
       tipWrite(&TIPp->runningMode,TIP_RUNNINGMODE_ENABLE);
-      usleep(10000);
+      usleep(10);
       clkread = tipRead(&TIPp->clock) & TIP_CLOCK_MASK;
       if(clkread != clkset)
 	{
@@ -4134,6 +4422,93 @@ tipAddSlave(unsigned int fiber)
 
 }
 
+static int tiTriggerRuleClockPrescale[3][4] =
+  {
+    {4, 4, 8, 16}, // 250 MHz ref
+    {16, 32, 64, 128}, // 100.0 MHz ref
+    {16, 32, 64, 128} // 100.0 MHz ref prescaled by 32
+  };
+
+int
+tipPrintTriggerHoldoff(int dflag)
+{
+  unsigned long TIBase = 0;
+  unsigned int triggerRule = 0, triggerRuleMin = 0, vmeControl = 0;
+  int irule = 0, slowclock = 0, clockticks = 0, timestep = 0, minticks = 0;
+  float clock[3] = {250, 100.0, 100.0/32.}, stepsize = 0., time = 0., min = 0.;
+
+  if(TIPp == NULL) 
+    {
+      printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
+      return ERROR;
+    }
+  
+  TIPLOCK;
+  triggerRule    = tipRead(&TIPp->triggerRule);
+  triggerRuleMin = tipRead(&TIPp->triggerRuleMin);
+  vmeControl     = tipRead(&TIPp->vmeControl);
+  TIPUNLOCK;
+
+  if(dflag)
+    {
+      printf("  Registers:\n");
+      TIBase = (unsigned long)TIPp;
+      printf("   triggerRule    (0x%04lx) = 0x%08x\t",
+	     (unsigned long)(&TIPp->triggerRule) - TIBase, triggerRule);
+      printf(" triggerRuleMin (0x%04lx) = 0x%08x\n",
+	     (unsigned long)(&TIPp->triggerRuleMin) - TIBase, triggerRuleMin);
+    }
+
+  printf("\n");
+  printf("    Rule   Timesteps    + Up to     Minimum  ");
+  if(dflag)
+    printf("  ticks   clock   prescale\n");
+  else
+    printf("\n");
+  printf("    ----   ---[ns]---  ---[ns]---  ---[ns]---");
+  if(dflag)
+    printf("  -----  -[MHz]-  --------\n");
+  else
+    printf("\n");
+
+  slowclock = (vmeControl & (1 << 31)) >> 31;
+  for(irule = 0; irule < 4; irule++)
+    {
+      clockticks = (triggerRule >> (irule*8)) & 0x7F;
+      timestep   = ((triggerRule >> (irule*8)) >> 7) & 0x1;
+      if((triggerRuleMin >> (irule*8)) & 0x80)
+	minticks = (triggerRuleMin >> (irule*8)) & 0x7F;
+      else
+	minticks = 0;
+      
+      if((timestep == 1) && (slowclock == 1))
+	{
+	  timestep = 2;
+	}
+
+      stepsize = ((float) tiTriggerRuleClockPrescale[timestep][irule] /
+		  (float) clock[timestep]);
+
+      time = (float)clockticks * stepsize;
+
+      min = (float) minticks * stepsize;
+      
+      printf("    %4d     %8.1f    %8.1f    %8.1f ",
+	     irule + 1, 1E3 * time, 1E3 * stepsize, min);
+
+      if(dflag)
+	printf("   %3d    %5.1f       %3d\n",
+	       clockticks, clock[timestep],
+	       tiTriggerRuleClockPrescale[timestep][irule]);
+      else
+	printf("\n");
+
+    }
+  printf("\n");
+  
+  return OK;
+}
+
 /**
  * @ingroup MasterConfig
  * @brief Set the value for a specified trigger rule.
@@ -4148,7 +4523,7 @@ tipAddSlave(unsigned int fiber)
  *                         rule
  *    timestep    1      2       3       4
  *    -------   ----- ------- ------- -------
- *       0       16ns    16ns    16ns    16ns 
+ *       0       16ns    16ns    32ns    64ns 
  *       1      160ns   320ns   640ns  1280ns 
  *       2     5120ns 10240ns 20480ns 40960ns
  *</pre>
@@ -5009,6 +5384,62 @@ tipGetTrig21Delay()
   return rval;
 }
 
+/**
+ *  @ingroup MasterConfig
+ *  @brief Set the trigger latch pattern readout in the data stream to include
+ *          the Level of the input trigger OR the transition to Hi.
+ *
+ *  @param enable
+ *      1 to enable
+ *     <1 to disable
+ *
+ *  @return OK if successful, otherwise ERROR
+ */
+
+int
+tipSetTriggerLatchOnLevel(int enable)
+{
+  if(TIPp == NULL) 
+    {
+      printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
+      return ERROR;
+    }
+
+  if(enable < 1)
+    enable = 0;
+
+  TIPLOCK;
+  tipWrite(&TIPp->triggerWindow, 
+	     (tipRead(&TIPp->triggerWindow) & ~TIP_TRIGGERWINDOW_LEVEL_LATCH) |
+	     (enable<<31));
+  TIPUNLOCK;
+  return OK;
+}
+
+/**
+ *  @ingroup MasterStatus
+ *  @brief Get the trigger latch pattern readout in the data stream to include
+ *          the Level of the input trigger OR the transition to Hi.
+ *
+ *  @return 1 if enabled, 0 if disabled, otherwise ERROR
+ */
+
+int
+tipGetTriggerLatchOnLevel()
+{
+  int rval=0;
+  if(TIPp == NULL) 
+    {
+      printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
+      return ERROR;
+    }
+
+  TIPLOCK;
+  rval = (tipRead(&TIPp->triggerWindow) & TIP_TRIGGERWINDOW_LEVEL_LATCH)>>31;
+  TIPUNLOCK;
+
+return rval;
+}
 
 /**
  *  @ingroup MasterConfig
@@ -5714,6 +6145,112 @@ tipGetSyncResetRequest()
 
 /**
  * @ingroup MasterConfig
+ * @brief Configure which ports (and self) to enable response of a SyncReset request.
+ * @param portMask Mask of ports to enable (port 1 = bit 0)
+ * @param self 1 to enable self, 0 to disable
+ *
+ * @return OK if successful, otherwise ERROR
+ */
+int
+tipEnableSyncResetRequest(unsigned int portMask, int self)
+{
+  if(TIPp == NULL) 
+    {
+      printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
+      return ERROR;
+    }
+
+  if(!tipMaster)
+    {
+      printf("%s: ERROR: TI is not the TI Master.\n",__FUNCTION__);
+      return ERROR;
+    }
+
+  if(portMask > 0x1)
+    {
+      printf("%s: ERROR: Invalid portMask (0x%x)\n",
+	     __FUNCTION__, portMask);
+      return ERROR;
+    }
+
+  /* Mask sure self is binary */
+  if(self)
+    self = 1;
+  else
+    self = 0;
+  
+  TIPLOCK;
+  tipWrite(&TIPp->rocEnable,
+	   (tipRead(&TIPp->rocEnable) & TIP_ROCENABLE_MASK) |
+	   (portMask << 11) | (self << 10) );
+  TIPUNLOCK;
+  
+  return OK;
+}
+
+/**
+ * @ingroup MasterStatus
+ * @brief Status of SyncReset Request received bits.
+ * @param pflag Print to standard out if not 0
+ * @return Port mask of SyncReset Request received (port 1 = bit 0, TI-Master = bit 8), otherwise ERROR;
+ */
+int
+tipSyncResetRequestStatus(int pflag)
+{
+  int self = 0, rval = 0, ibit = 0;
+  if(TIPp == NULL) 
+    {
+      printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
+      return ERROR;
+    }
+
+  if(!tipMaster)
+    {
+      printf("%s: ERROR: TI is not the TI Master.\n",__FUNCTION__);
+      return ERROR;
+    }
+
+  TIPLOCK;
+  rval = (int)(tipRead(&TIPp->rocEnable) & TIP_ROCENABLE_SYNCRESET_REQUEST_MONITOR_MASK);
+  TIPUNLOCK;
+
+  /* Reorganize the bits */
+  if(rval)
+    {
+      self = (rval & 0x1);
+      rval = rval >> 1;
+      rval = rval | (self<<8);
+    }
+
+  if(pflag)
+    {
+      if(rval)
+	{
+	  printf("    ***** SyncReset Requested from ");
+
+	  for(ibit = 0; ibit < 8; ibit++)
+	    {
+	      printf("%d ", ibit + 1);
+	    }
+	  
+	  if(rval & (1 << 8))
+	    {
+	      printf("SELF ");
+	    }
+	  
+	  printf("*****\n");
+	}
+      else
+	{
+	  printf("    No SyncReset Requested\n");
+	}
+    }
+  
+  return rval;
+}
+
+/**
+ * @ingroup MasterConfig
  * @brief Reset the registers that record the triggers enabled status of TI Slaves.
  *
  */
@@ -5791,7 +6328,35 @@ tipResetMGT()
   TIPLOCK;
   tipWrite(&TIPp->reset, TIP_RESET_MGT);
   TIPUNLOCK;
-  usleep(10000);
+  usleep(10);
+
+  return OK;
+}
+
+/**
+ * @ingroup MasterConfig
+ * @brief Reset the MGT Receiver
+ * @return OK if successful, otherwise ERROR
+ */
+int
+tipResetMGTReceiver()
+{
+  if(TIPp==NULL) 
+    {
+      printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
+      return ERROR;
+    }
+
+  if(!tipMaster)
+    {
+      printf("%s: ERROR: TI is not the TI Master.\n",__FUNCTION__);
+      return ERROR;
+    }
+
+  TIPLOCK;
+  tipWrite(&TIPp->reset, TIP_RESET_MGT_RECEIVER);
+  TIPUNLOCK;
+  usleep(10);
 
   return OK;
 }
@@ -6053,7 +6618,7 @@ tipDmaConfig(int packet_size, int adr_mode, int dma_size)
 	   (adr_mode<<31) );
 
   tipWrite(&TIPp->vmeControl, 
-	   tipRead(&TIPp->vmeControl) | TIP_VMECONTROL_BIT22);
+	   tipRead(&TIPp->vmeControl) | TIP_VMECONTROL_DMA_DATA_ENABLE);
   TIPUNLOCK;
 
   return OK;
@@ -6769,6 +7334,122 @@ tipGetAckCount()
 
   return(rval);
 }
+
+/**
+ * @ingroup Status
+ * @brief Read the fiber fifo from the TI 
+ *
+ * @param   fiber - Fiber fifo to read. 1 and 5 only supported.
+ * @param   data  - local memory address to place data
+ * @param  maxwords - Maximum number of 32bit words to put into data array.
+ *
+ * @return Number of words transferred to data if successful, ERROR otherwise
+ *
+ */
+int
+tipReadFiberFifo(int fiber, volatile unsigned int *data, int maxwords)
+{
+  int nwords = 0;
+  unsigned int word = 0;
+  
+  if(data==NULL) 
+    {
+      printf("%s: ERROR: Invalid Destination address\n",
+	     __func__);
+      return(ERROR);
+    }
+
+  if((fiber != 1) && (fiber !=5))
+    {
+      printf("%s: Invalid fiber (%d)\n",
+	     __func__, fiber);
+      return ERROR;
+    }
+
+  TIPLOCK;
+  while(nwords < maxwords)
+    {
+      if(fiber == 1)
+	word = tipRead(&TIPp->trigTable[12]);
+      else
+      	word = tipRead(&TIPp->trigTable[13]);
+
+      if(word & (1<<31))
+	break;
+      
+      data[nwords++] = word;
+    }
+  TIPUNLOCK;
+  
+  return nwords;
+}
+
+
+/**
+ * @ingroup Status
+ * @brief Read the fiber fifo from the TI and print to standard out.
+ *
+ * @param   fiber - Fiber fifo to read. 1 and 5 only supported.
+ *
+ * @return OK if successful, ERROR otherwise
+ *
+ */
+int
+tipPrintFiberFifo(int fiber)
+{
+  volatile unsigned int *data;
+  int maxwords = 256, iword, rwords = 0;
+
+  if((fiber != 1) && (fiber !=5))
+    {
+      printf("%s: Invalid fiber (%d)\n",
+	     __func__, fiber);
+      return ERROR;
+    }
+  
+  data = (volatile unsigned int *)malloc(maxwords * sizeof(unsigned int));
+  if(!data)
+    {
+      printf("%s: Unable to acquire memory\n",
+	     __func__);
+      return ERROR;
+    }
+
+  rwords = tipReadFiberFifo(fiber, data, maxwords);
+
+  if(rwords == 0)
+    {
+      printf("%s: No data in fifo\n\n",
+	     __func__);
+      return OK;
+    }
+  else if(rwords == ERROR)
+    {
+      printf("%s: tipReadFiberFifo(..) returned ERROR\n",
+	     __func__);
+      return ERROR;
+    }
+  
+  printf(" Fiber %d fifo (%d words)\n",
+	 fiber, rwords);
+  printf("      Timestamp     Data\n");
+  printf("----------------------------\n");
+  for(iword = 0; iword < rwords; iword++)
+    {
+      printf("%3d:    0x%04x     0x%04x\n",
+	     iword,
+	     (data[iword] & 0xFFFF0000)>>16,
+	     (data[iword] & 0xFFFF));
+    }
+  printf("----------------------------\n");
+  printf("\n");
+  
+  if(data)
+    free((void *)data);
+  
+  return OK;
+}
+
 
 #ifdef NOTSUPPORTED
 /* Module TI Routines */
