@@ -628,6 +628,7 @@ int  tipFakeTriggerBankOnError(int enable);
 int  tipGenerateTriggerBank(volatile unsigned int *data);
 int  tipReadTriggerBlock(volatile unsigned int *data);
 int  tipCheckTriggerBlock(volatile unsigned int *data);
+int  tipDecodeTriggerType(volatile unsigned int *data, int data_len, int event);
 int  tipEnableFiber(unsigned int fiber);
 int  tipDisableFiber(unsigned int fiber);
 int  tipSetBusySource(unsigned int sourcemask, int rFlag);

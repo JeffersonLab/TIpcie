@@ -11,10 +11,11 @@ general readout
 
 # TRIG_MODE = TIP_READOUT_EXT_POLL for polling mode (External input)
 #           = TIP_READOUT_TS_POLL  for polling mode (TS input)
-const TRIG_MODE = TIP_READOUT_EXT_POLL
-const BLOCKLEVEL = 1
+const TRIG_MODE = TIP_READOUT_TS_POLL
 
 extern int bigendian_out;
+int blockLevel=1;
+unsigned int *tiData=NULL;
 
 ############################################################
 # DOWNLOAD
@@ -29,21 +30,28 @@ bigendian_out = 1;
 {
   tipInit(TRIG_MODE,0);
 
-  tipLoadTriggerTable(0);
-    
-  tipSetTriggerHoldoff(1,4,0);
-  tipSetTriggerHoldoff(2,4,0);
-
-  tipSetPrescale(0);
-  tipSetBlockLevel(BLOCKLEVEL);
-
-  tipSetTriggerSource(TIP_TRIGGER_PULSER);
-
-  tipSetBusySource(TIP_BUSY_LOOPBACK ,1);
-
-  tipSetBlockBufferLevel(1);
-
-  tipSetSyncEventInterval(0);
+  if(TRIG_MODE == TIP_READOUT_EXT_POLL)
+    {
+      tipSetBlockLimit(0);
+      
+      tipLoadTriggerTable(0);
+      
+      tipSetTriggerHoldoff(1,4,0);
+      tipSetTriggerHoldoff(2,4,0);
+      
+      tipSetPrescale(0);
+      tipSetBlockLevel(blockLevel);
+      
+      tipSetTriggerSource(TIP_TRIGGER_TSINPUTS);
+      
+      tipSetBusySource(TIP_BUSY_LOOPBACK ,1);
+      
+      tipSetBlockBufferLevel(1);
+      
+      tipSetSyncEventInterval(0);
+    }
+  
+  tipStatus(1);
 }
 %%
   log inform "User Download Executed"
@@ -67,12 +75,15 @@ begin prestart
 
 %%
 {
-  tipSetBlockLimit(0);
+
   tipStatus(1);
 
-  tipTrigLinkReset();
-  usleep(10000);
-  tipSyncReset(1);
+  if(TRIG_MODE == TIP_READOUT_EXT_POLL)
+    {
+      tipTrigLinkReset();
+      usleep(10000);
+      tipSyncReset(1);
+    }
 
 }
 %%
@@ -86,11 +97,20 @@ begin go
   
   log inform "Entering User Go"
 
+%%
+{
   tipStatus(1);
   CDOENABLE(GEN,1,0);
+  
+  blockLevel = tipGetCurrentBlockLevel();
+  printf("%s: Current Block Level = %d\n",
+	 __FUNCTION__, blockLevel);
 
-  tipSetRandomTrigger(1,0x7);
-
+  /* Allocate some memory for TI data */
+  tiData = (unsigned int*)malloc((8+5*blockLevel)*sizeof(unsigned int));
+}
+%%
+  
   log inform "User Go Executed"
 
 end go
@@ -101,12 +121,18 @@ end go
 ############################################################
 begin end
 
-  tipDisableRandomTrigger();
-
+%%
   CDODISABLE(GEN,1,0);
-
   tipStatus(1);
 
+/* Free up the allocated memory for the tiData */
+  if(tiData!=NULL)
+    {
+      free(tiData);
+      tiData=NULL;
+    } 
+%%
+  
   log inform "User End Executed"
 
 end end
@@ -127,18 +153,15 @@ end pause
 ############################################################
 begin trigger titrig
 
- variable ii, event_ty, event_no
+  variable ii, event_ty, event_no, dCnt
 
- event_ty = EVTYPE;
  event_no = *rol->nevents;
 
  rol->dabufp = (long *) 0;
- open event type EVTYPE of BT_UI4
 
 %%
  {
-   int dCnt=0;
-   dCnt = tipReadBlock((volatile unsigned int *)rol->dabufp,32,0);
+   dCnt = tipReadBlock(tiData,8+5*blockLevel,0);
    if(dCnt<=0)
      {
        printf("**************************************************\n");
@@ -147,10 +170,36 @@ begin trigger titrig
        tipSetBlockLimit(1);
      }
    else
-     rol->dabufp += dCnt;
+     {
+       event_ty = tipDecodeTriggerType(tiData, dCnt, 1);
+       if(event_ty <= 0)
+	 {
+	   /* Could not find trigger type */
+	   event_ty = 1;
+	 }
+       
+       /* CODA 2.x only allows for 4 bits of trigger type */
+       event_ty &= 0xF; 
+
+     }
  }
 %%
 
+ open event type event_ty of BT_UI4
+%%
+{
+  if(dCnt<=0)
+    {
+      printf("No data or error.  dCnt = %d\n",dCnt);
+    }
+  else
+    {
+      for(ii=0; ii<dCnt; ii++)
+	*rol->dabufp++ = tiData[ii];
+    }
+}
+%%
+ 
  close event
 
 end trigger

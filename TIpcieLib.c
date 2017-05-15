@@ -3071,6 +3071,79 @@ tipCheckTriggerBlock(volatile unsigned int *data)
   return rval;
 }
 
+int
+tipDecodeTriggerType(volatile unsigned int *data, int data_len, int event)
+{
+  int rval = -1;
+  int iword = 0;
+  int blocklevel = -1;
+  int event_len = -1;
+  int ievent = 1;
+  int trigger_type = -1;
+  unsigned int dataword = 0;
+  
+  /* Loop until we find the trigger bank */
+  while(iword < data_len)
+    {
+      dataword = data[iword];
+
+      if( ((dataword & 0xFF100000)>>16 == 0xFF10) &&
+	  ((dataword & 0x0000FF00)>>8 == 0x20) )
+	{
+	  blocklevel =  dataword & 0xFF;
+	  iword++;
+	  break;
+	}
+      iword++;
+    }
+
+  if(blocklevel == -1)
+    {
+      printf("%s: ERROR: Failed to find Trigger Bank header\n",
+	     __func__);
+      return ERROR;
+    }
+
+  if(event > blocklevel)
+    {
+      printf("%s: ERROR: event (%d) greater than blocklevel (%d)\n",
+	     __func__, event, blocklevel);
+      return ERROR;
+    }
+  
+  /* Loop until we get to the event requested */
+  while((iword < data_len) && (ievent <= blocklevel))
+    {
+      dataword = data[iword];
+
+      if((dataword & 0x00FF0000)>>16 == 0x01)
+	{
+	  trigger_type = (dataword & 0xFF000000) >> 24;
+	  if(ievent == event)
+	    {
+	      rval = trigger_type;
+	      break;
+	    }
+	  event_len = dataword & 0xFFFF;
+	  ievent++;
+	  iword += event_len + 1;
+	}
+      else
+	{
+	  /* we're lost... just increment */
+	  iword++;
+	}
+    }
+
+  if(rval == -1)
+    {
+      printf("%s: ERROR: Failed to find trigger type for event %d\n",
+	     __func__, event);
+    }
+  
+  return rval;
+}
+
 /**
  * @ingroup Config
  * @brief Enable Fiber transceiver
@@ -5959,7 +6032,7 @@ tipPrintSyncHistory()
       syncHistory = tipRead(&TIPp->syncHistory);
       TIPUNLOCK;
 
-      printf("     TimeStamp: Code (valid)\n");
+      /* printf("     TimeStamp: Code (valid)\n"); */
 
       if(tipMaster)
 	{
@@ -7040,6 +7113,10 @@ tipIntConnect(unsigned int vector, VOIDFUNCPTR routine, unsigned int arg)
 	  return(ERROR);
 	}
       break;
+#else
+      printf("%s: ERROR: Interrupt Mode (%d) not yet supported\n",
+	     __FUNCTION__,tipReadoutMode);
+      return ERROR;
 #endif
     default:
       printf("%s: ERROR: TI Mode not defined (%d)\n",
@@ -7122,6 +7199,9 @@ tipIntDisconnect()
 	  printf("vmeIntDisconnect failed\n");
 	}
       break;
+#else
+      printf("%s: ERROR: Interrupt mode not yet supported\n",
+	     __func__);
 #endif
     default:
       break;
