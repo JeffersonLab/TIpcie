@@ -165,7 +165,7 @@ static void tipStartPollingThread(void);
 pthread_attr_t tippollthread_attr;
 pthread_t      tippollthread=0;
 
-static void FiberMeas();
+static int FiberMeas();
 
 /**
  * @defgroup PreInit Pre-Initialization
@@ -454,7 +454,12 @@ tipInit(unsigned int mode, int iFlag)
   /* Setup some Other Library Defaults */
   if(tipMaster!=1)
     {
-      FiberMeas();
+      if(FiberMeas() == ERROR)
+	{
+	  printf("%s: Fiber Measurement failure.  Check fiber and/or fiber port,\n",
+		 __FUNCTION__);
+	  return ERROR;
+	}
 
       tipWrite(&TIPp->syncWidth, 0x24);
       // TI IODELAY reset
@@ -1047,7 +1052,8 @@ tipSetSlavePort(int port)
   tipSetTriggerSource(TIP_TRIGGER_HFBR1);
 
   /* Measure and apply fiber compensation */
-  FiberMeas();
+  if(FiberMeas() == ERROR)
+    return ERROR;
   
   /* TI IODELAY reset */
   TIPLOCK;
@@ -5769,12 +5775,14 @@ tipBlockStatus(int fiber, int pflag)
   return rval;
 }
 
-static void 
+static int
 FiberMeas()
 {
-  int clksrc=0;
+  int clksrc = 0, itry = 0, ntries = 2;
   unsigned int defaultDelay=0x1f1f1f00, fiberLatency=0, syncDelay=0, syncDelay_write=0;
-
+  unsigned int firstMeas = 0;
+  int failed = 0;
+  int rval = OK;
 
   clksrc = tipGetClockSource();
   /* Check to be sure the TI has external HFBR1 clock enabled */
@@ -5789,31 +5797,58 @@ FiberMeas()
       tipWrite(&TIPp->fiberSyncDelay,defaultDelay);
       TIPUNLOCK;
 
-      return;
+      return ERROR;
     }
 
   TIPLOCK;
-  tipWrite(&TIPp->reset,TIP_RESET_IODELAY); // reset the IODELAY
-  usleep(100);
-  tipWrite(&TIPp->reset,TIP_RESET_FIBER_AUTO_ALIGN);  // auto adjust the return signal phase
-  usleep(100);
-  tipWrite(&TIPp->reset,TIP_RESET_MEASURE_LATENCY);  // measure the fiber latency
-  usleep(1000);
+  for(itry = 0; itry < ntries; itry++)
+    {
+      /* Reset the IODELAY */
+      tipWrite(&TIPp->reset,TIP_RESET_IODELAY);
+      usleep(100);
 
-  fiberLatency = tipRead(&TIPp->fiberLatencyMeasurement);  //fiber 1 latency measurement result
+      /* Auto adjust the return signal phase */
+      tipWrite(&TIPp->reset,TIP_RESET_FIBER_AUTO_ALIGN);
+      usleep(100);
 
-  printf("Software offset = 0x%08x (%d)\n",tipFiberLatencyOffset, tipFiberLatencyOffset);
-  printf("Fiber Latency is 0x%08x\n",fiberLatency);
-  printf("  Latency data = 0x%08x (%d ns)\n",(fiberLatency>>23), (fiberLatency>>23) * 4);
+      /* Measure the fiber latency */
+      tipWrite(&TIPp->reset,TIP_RESET_MEASURE_LATENCY);
+      usleep(1000);
+      
+      /* Get the fiber latency measurement result */
+      fiberLatency = tipRead(&TIPp->fiberLatencyMeasurement);
+      
+#ifdef DEBUGFIBERMEAS
+      printf("Software offset = 0x%08x (%d)\n",
+	     tipFiberLatencyOffset, tipFiberLatencyOffset);
+      printf("Fiber Latency is 0x%08x\n",
+	     fiberLatency);
+      printf("  Latency data = 0x%08x (%d ns)\n",
+	     (fiberLatency>>23), (fiberLatency>>23) * 4);
+#endif
 
 
-  tipWrite(&TIPp->reset,TIP_RESET_AUTOALIGN_HFBR1_SYNC);   // auto adjust the sync phase for HFBR#1
+      /* Auto adjust the sync phase */
+      tipWrite(&TIPp->reset,TIP_RESET_AUTOALIGN_HFBR1_SYNC);
+      
+      usleep(100);
+      
+      /* Get the fiber latency measurement result */
+      fiberLatency = tipRead(&TIPp->fiberLatencyMeasurement);
+      
+      /* Divide by two to get the one way trip */
+      tipFiberLatencyMeasurement =
+	((fiberLatency & TIP_FIBERLATENCYMEASUREMENT_DATA_MASK)>>23)>>1;
 
-  usleep(100);
+      if(itry == 0)
+	firstMeas = tipFiberLatencyMeasurement;
+      else
+	{
+	  if(firstMeas != tipFiberLatencyMeasurement)
+	    failed = 1;
+	}
+    }
 
-  fiberLatency = tipRead(&TIPp->fiberLatencyMeasurement);  //fiber 1 latency measurement result
-
-  tipFiberLatencyMeasurement = ((fiberLatency & TIP_FIBERLATENCYMEASUREMENT_DATA_MASK)>>23)>>1;
   syncDelay = (tipFiberLatencyOffset-(((fiberLatency>>23)&0x1ff)>>1));
   syncDelay_write = (syncDelay&0xFF)<<8 | (syncDelay&0xFF)<<16 | (syncDelay&0xFF)<<24;
   usleep(100);
@@ -5823,8 +5858,41 @@ FiberMeas()
   syncDelay = tipRead(&TIPp->fiberSyncDelay);
   TIPUNLOCK;
 
+#ifdef DEBUGFIBERMEAS
   printf (" \n The fiber latency of 0xA0 is: 0x%08x\n", fiberLatency);
   printf (" \n The sync latency of 0x50 is: 0x%08x\n",syncDelay);
+#endif /* DEBUGFIBERMEAS */
+
+  if(failed == 1)
+    {
+      printf("\n");
+      printf("%s: ERROR: TI Fiber Measurement failed!"
+	     "\n\tFirst Measurement != Second Measurement (%d != %d)\n\n",
+	     __FUNCTION__,
+	     firstMeas, tipFiberLatencyMeasurement);
+      tipFiberLatencyMeasurement = 0;
+      rval = ERROR;
+    }  
+  else if(!((tipFiberLatencyMeasurement > 0) && (tipFiberLatencyMeasurement <= 0xFF)))
+    {
+      printf("\n");
+      printf("%s: ERROR: TI Fiber Measurement failed!"
+	     "\n\tMeasurement out of bounds (%d)\n\n",
+	     __FUNCTION__,
+	     tipFiberLatencyMeasurement);
+      tipFiberLatencyMeasurement = 0;
+      rval = ERROR;
+    }
+  else
+    {
+      printf("%s: TI Fiber Measurement success!"
+	     "  tipFiberLatencyMeasurement = 0x%x (%d)\n",
+	     __FUNCTION__,
+	     tipFiberLatencyMeasurement, tipFiberLatencyMeasurement);
+      rval = OK;
+    }
+      
+  return rval;
 }
 
 /**
