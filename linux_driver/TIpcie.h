@@ -35,6 +35,8 @@
 #define TIPCIE_RSRC_MAP1      (1U << 8)       /* TIPCIE registers 1      */
 #define TIPCIE_RSRC_MAP2      (1U << 9)       /* TIPCIE registers 2      */
 #define TIPCIE_RSRC_MEM       (1U << 10)      /* Memory mapped for DMA */
+#define TIPCIE_RSRC_CLASS     (1U << 11)
+#define TIPCIE_RSRC_DEV       (1U << 12)
 
 #define TIPCIE_MEM0_SIZE      512
 #define TIPCIE_MEM1_SIZE     4096

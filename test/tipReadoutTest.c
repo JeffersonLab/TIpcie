@@ -111,6 +111,14 @@ mytiISR(int arg)
       getchar();
     }
 
+  if(tipGetSyncEventReceived() && !tipGetSyncEventFlag())
+    {
+      printf("**** Sync Event Received (%8d) ****\n",tiIntCount);
+    }
+
+  if(tipGetSyncEventFlag())
+      printf("**** Sync Event          (%8d) ****\n",tiIntCount);
+
 }
 
 
@@ -155,7 +163,7 @@ main(int argc, char *argv[])
 
   tipLoadTriggerTable(0);
     
-  tipSetTriggerHoldoff(1,2,2);
+  tipSetTriggerHoldoff(1,1,2);
   /* tipSetTriggerHoldoff(2,4,0); */
 
   tipSetPrescale(0);
@@ -183,13 +191,14 @@ main(int argc, char *argv[])
   /*     tiSetGenInput(0xffff); */
   /*     tiSetGTPInput(0x0); */
 
-  tipSetBusySource(TIP_BUSY_LOOPBACK ,1);
+  tipSetBusySource(TIP_BUSY_LOOPBACK | TIP_BUSY_FP ,1);
 
-  tipSetBlockBufferLevel(10);
+  tipSetBlockBufferLevel(40);
 
 /*   tiSetFiberDelay(1,2); */
 /*   tiSetSyncDelayWidth(1,0x3f,1); */
-    
+  tipSetSyncEventInterval(1000);
+  
   tipSetBlockLimit(0);
 
   printf("Hit enter to reset stuff\n");

@@ -7,10 +7,18 @@
 #    using PC running Linux
 #
 # Uncomment DEBUG line, to include some debugging info ( -g and -Wall)
-DEBUG=1
+#DEBUG=1
 #
 #
 BASENAME=TIpcie
+ARCH=${shell uname -m}
+KERNEL_VERSION=${shell uname -r}
+# BUILD 64bit for EL7
+ifneq (,$(findstring el7,${KERNEL_VERSION}))
+	ifndef BUILD32
+		BUILD64=1
+	endif
+endif
 
 ifdef BUILD64
 CC			= gcc

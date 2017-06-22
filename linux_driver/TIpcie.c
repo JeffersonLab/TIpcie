@@ -17,6 +17,8 @@
 #include <linux/cdev.h>
 #include <linux/sched.h>
 #include <linux/compat.h>
+#include <linux/version.h>
+#include <linux/seq_file.h>
 #define SUPPORT_DMA
 #include "TIpcie.h"
 
@@ -34,13 +36,17 @@ static struct pci_device_id ids[] = {
 MODULE_DEVICE_TABLE(pci, ids);
 
 static void   clean_module(void);
-static int TIpcie_procinfo(char *buf, char **start, off_t fpos, int lenght, int *eof, void *data);
 static void register_proc( void );
 static void unregister_proc( void );
 /* static int probe(struct pci_dev *dev, const struct pci_device_id *id); */
 static void remove(struct pci_dev *dev);
-static int TIpcie_ioctl(struct inode *inode, struct file *filp,
-	       unsigned int cmd, unsigned long arg);
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,11)
+static long TIpcie_ioctl(struct inode *inode, struct file *filp,
+			 unsigned int cmd, unsigned long arg);
+#else
+static long TIpcie_ioctl(struct file *filp,
+			 unsigned int cmd, unsigned long arg);
+#endif
 static long TIpcie_compat_ioctl(struct file *filep, unsigned int cmd,
 				unsigned long arg);
 static int TIpcie_mmap(struct file *file,struct vm_area_struct *vma);
@@ -73,13 +79,19 @@ wait_queue_head_t  irq_queue;
 
 /* static struct resource *iores1; */
 /* static struct resource *iores2; */
-static struct proc_dir_entry *TIpcie_procdir;
+static struct proc_dir_entry *TIpcie_proc_devices;
+static struct class *TIpcie_class;
+static struct device *TIpcie_dev;
 static const struct file_operations TIpcie_fops = 
 {
-  .ioctl        = TIpcie_ioctl,
-  .mmap         = TIpcie_mmap,
-  .read         = TIpcie_read,
-  .compat_ioctl = TIpcie_compat_ioctl,
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,11)
+ ioctl:        TIpcie_ioctl,
+#else
+ unlocked_ioctl: TIpcie_ioctl,
+#endif
+ mmap:         TIpcie_mmap,
+ read:         TIpcie_read,
+ compat_ioctl: TIpcie_compat_ioctl,
 /*   open:     TIpcie_open, */
   /* release:  remove */
 };
@@ -112,7 +124,10 @@ TIpcie_read(struct file *filp, char __user *buf, size_t count,
 {
   unsigned long long before=0, after=0;
   read_open=1;
-  
+
+#ifndef rdtscl
+#define rdtscl(x) x==1
+#endif
   rdtscl(before);
   wait_event_interruptible(irq_queue,irq_flag!=0);
   irq_flag=0;
@@ -310,6 +325,7 @@ __init TIpcie_init(void)
   int rval=0;
   unsigned int temp, status;
   struct resource pcimemres;
+  void *ptr_err;
 
   TIpcie_init_flags=0;
   printk("TIpcie driver loaded\n");
@@ -330,6 +346,18 @@ __init TIpcie_init(void)
 
   ADD_RESOURCE(TIpcie_init_flags, TIPCIE_RSRC_CHR);
 
+  TIpcie_class = class_create(THIS_MODULE, "TIpcie");
+  if (IS_ERR(ptr_err = TIpcie_class))
+    goto BailOut;
+  
+  ADD_RESOURCE(TIpcie_init_flags, TIPCIE_RSRC_CLASS);
+
+  TIpcie_dev = device_create(TIpcie_class, NULL, MKDEV(TIPCIE_MAJOR, 0), NULL, "TIpcie");
+  if (IS_ERR(ptr_err = TIpcie_dev))
+    goto BailOut;
+
+  ADD_RESOURCE(TIpcie_init_flags, TIPCIE_RSRC_DEV);
+
   ti_pci_dev = findTIpcie();
   if(ti_pci_dev==NULL)
     {
@@ -342,13 +370,16 @@ __init TIpcie_init(void)
 
   pcimemres.flags = IORESOURCE_MEM;
   tipcimem = pci_find_parent_resource(ti_pci_dev, &pcimemres);
-  if(tipcimem == 0){
-    printk("TIpcie: Can't get TI parent device PCI resource\n");
-    goto BailOut;
-  }
-  
-  printk("TIpcie: Initial PCI MEM start: 0x%0lx end: 0x%0lx\n", 
-	 (unsigned long)tipcimem->start, (unsigned long)tipcimem->end);
+  if(tipcimem == 0)
+    {
+      printk("TIpcie: Can't get TI parent device PCI resource\n");
+      /* goto BailOut; */
+    }
+  else
+    {
+      printk("TIpcie: Initial PCI MEM start: 0x%0lx end: 0x%0lx\n", 
+	     (unsigned long)tipcimem->start, (unsigned long)tipcimem->end);
+    }
 
   // Map in TIpcie registers.
   if(mapInTIpcie(ti_pci_dev)){
@@ -443,6 +474,24 @@ clean_module(void)
       DEL_RESOURCE(TIpcie_init_flags, TIPCIE_RSRC_PROC);
     }
 
+  if (HAS_RESOURCE(TIpcie_init_flags, TIPCIE_RSRC_DEV)) 
+    {
+#ifdef DEBUGCLEAN
+      printk("%s: Destroy device\n",__FUNCTION__);
+#endif
+      device_destroy(TIpcie_class, MKDEV(TIPCIE_MAJOR,0));
+      DEL_RESOURCE(TIpcie_init_flags, TIPCIE_RSRC_DEV);
+    }
+
+  if (HAS_RESOURCE(TIpcie_init_flags, TIPCIE_RSRC_CLASS)) 
+    {
+#ifdef DEBUGCLEAN
+      printk("%s: Destroy class\n",__FUNCTION__);
+#endif
+      class_destroy(TIpcie_class);
+      DEL_RESOURCE(TIpcie_init_flags, TIPCIE_RSRC_CLASS);
+    }
+
   if (HAS_RESOURCE(TIpcie_init_flags, TIPCIE_RSRC_CHR)) 
     {
 #ifdef DEBUGCLEAN
@@ -470,60 +519,99 @@ __exit TIpcie_exit(void)
   clean_module();
 }
 
+
+
 static int 
-TIpcie_procinfo(char *buf, char **start, off_t fpos, int lenght, int *eof, void *data)
+TIpcie_proc_show(struct seq_file *m, void *v)
 {
-  char *p;
   int ireg=0;
 
-  p = buf;
-  p += sprintf(p,"  PCIexpress TI Driver\n");
+  seq_printf(m,"  PCIexpress TI Driver\n");
 
-  p += sprintf(p,"\n");
+  seq_printf(m,"\n");
 
-  p += sprintf(p,"  pci0 addr = %0lx\n",(unsigned long)pci_bar0);
-  p += sprintf(p,"  pci1 addr = %0lx\n",(unsigned long)pci_bar1);
-  p += sprintf(p,"  pci2 addr = %0lx\n",(unsigned long)pci_bar2);
+  seq_printf(m,"  pci0 addr = %0lx\n",(unsigned long)pci_bar0);
+  seq_printf(m,"  pci1 addr = %0lx\n",(unsigned long)pci_bar1);
+  seq_printf(m,"  pci2 addr = %0lx\n",(unsigned long)pci_bar2);
 
-  p += sprintf(p,"  mem0 addr = %0lx\n",(unsigned long)TIpcie_resaddr0);
-  p += sprintf(p,"  mem1 addr = %0lx\n",(unsigned long)TIpcie_resaddr1);
-  p += sprintf(p,"  mem2 addr = %0lx\n",(unsigned long)TIpcie_resaddr2);
+  seq_printf(m,"  mem0 addr = %0lx\n",(unsigned long)TIpcie_resaddr0);
+  seq_printf(m,"  mem1 addr = %0lx\n",(unsigned long)TIpcie_resaddr1);
+  seq_printf(m,"  mem2 addr = %0lx\n",(unsigned long)TIpcie_resaddr2);
 
-  p += sprintf(p,"\n");
+  seq_printf(m,"\n");
 
-  p += sprintf(p,"  int count = %d\n",TIpcie_interrupt_count);
+  seq_printf(m,"  int count = %d\n",TIpcie_interrupt_count);
 
-  p += sprintf(p,"\n");
+  seq_printf(m,"\n");
 
-  p += sprintf(p,"  Base Registers: \n");
+  seq_printf(m,"  Base Registers: \n");
   for(ireg=0; ireg<=0x100; ireg=ireg+0x10)
     {
-      p += sprintf(p,"   0x%04x: 0x%08x",ireg, ioread32(TIpcie_resaddr0+ireg));
-      p += sprintf(p,"  0x%08x", ioread32(TIpcie_resaddr0+ireg+0x4));
-      p += sprintf(p,"  0x%08x", ioread32(TIpcie_resaddr0+ireg+0x8));
-      p += sprintf(p,"  0x%08x\n", ioread32(TIpcie_resaddr0+ireg+0xc));
+      seq_printf(m,"   0x%04x: 0x%08x",ireg, ioread32(TIpcie_resaddr0+ireg));
+      seq_printf(m,"  0x%08x", ioread32(TIpcie_resaddr0+ireg+0x4));
+      seq_printf(m,"  0x%08x", ioread32(TIpcie_resaddr0+ireg+0x8));
+      seq_printf(m,"  0x%08x\n", ioread32(TIpcie_resaddr0+ireg+0xc));
     }
-  p += sprintf(p,"\n");
+  seq_printf(m,"\n");
 
-
-  *eof = 1;
-  return p - buf;
+  return 0;
 }
+
+static int
+TIpcie_proc_open(struct inode *inode, struct file *file)
+{
+  return single_open(file, TIpcie_proc_show, NULL);
+}
+
+static const struct 
+file_operations TIpcie_proc_ops =
+  {
+    .open	= TIpcie_proc_open,
+    .read	= seq_read,
+    .llseek	= seq_lseek,
+    .release	= single_release,
+  };
 
 static void 
 register_proc( void )
 {
-  TIpcie_procdir = create_proc_entry("TIpcie", S_IFREG | S_IRUGO, 0);
-  TIpcie_procdir->read_proc = TIpcie_procinfo;
+
+  TIpcie_proc_devices =
+    proc_create("TIpcie", S_IFREG | S_IRUGO | S_IWUSR, NULL,
+		&TIpcie_proc_ops);
+
+  if (TIpcie_proc_devices == NULL) 
+    {
+      return;
+    }
+  
 }
+
+//----------------------------------------------------------------------------
+//  unregister_proc()
+//----------------------------------------------------------------------------
+static void unregister_proc( void )
+{
+  if (TIpcie_proc_devices != NULL)
+    remove_proc_entry("TIpcie", NULL);
+  
+}
+
 
 /*
  * The ioctl() implementation
  */
 
-static int 
+
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,11)
+static long 
 TIpcie_ioctl(struct inode *inode, struct file *filp,
-                 unsigned int cmd, unsigned long arg)
+	     unsigned int cmd, unsigned long arg)
+#else
+static long 
+TIpcie_ioctl(struct file *filp,
+	     unsigned int cmd, unsigned long arg)
+#endif
 {
   TIPCIE_IOCTL_INFO user_info;
   DMA_BUF_INFO dma_info;
@@ -565,7 +653,6 @@ TIpcie_ioctl(struct inode *inode, struct file *filp,
 	    printk("TIpcie: copy_from_user (values) failed\n");
 	    return -EFAULT;
 	  }
-
 
 #ifdef DEBUGDRIVER
 	printk("%s:\n",__FUNCTION__);
@@ -1021,7 +1108,11 @@ TIpcie_mmap(struct file *file,struct vm_area_struct *vma)
 {
 
   /* Don't swap these pages out */
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3,7,0)
   vma->vm_flags |= VM_RESERVED | VM_IO;
+#else
+  vma->vm_flags |= VM_DONTEXPAND | VM_DONTDUMP | VM_IO;
+#endif
 
   if (io_remap_pfn_range(vma, vma->vm_start, vma->vm_pgoff,
 		      vma->vm_end - vma->vm_start, vma->vm_page_prot)) {
@@ -1323,14 +1414,6 @@ TIpcieFreeDmaHandles(void)
 }
 
 
-
-//----------------------------------------------------------------------------
-//  unregister_proc()
-//----------------------------------------------------------------------------
-static void unregister_proc( void )
-{
-  remove_proc_entry("TIpcie",0);
-}
 
 MODULE_LICENSE("GPL");
 
