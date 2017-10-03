@@ -15,7 +15,9 @@ ARCH=${shell uname -m}
 KERNEL_VERSION=${shell uname -r}
 # BUILD 64bit for EL7
 ifneq (,$(findstring el7,${KERNEL_VERSION}))
-	ifndef BUILD32
+	ifdef BUILD32
+		ARCH=i686
+	else
 		BUILD64=1
 	endif
 endif
