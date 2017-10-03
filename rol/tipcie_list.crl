@@ -1,4 +1,4 @@
-# 
+#
 #  User example readout list using a TIpcie
 #
 #    Bryan Moffit, TJNAF 2015
@@ -11,7 +11,7 @@ general readout
 
 # TRIG_MODE = TIP_READOUT_EXT_POLL for polling mode (External input)
 #           = TIP_READOUT_TS_POLL  for polling mode (TS input)
-const TRIG_MODE = TIP_READOUT_TS_POLL
+const TRIG_MODE = TIP_READOUT_EXT_POLL
 
 extern int bigendian_out;
 int blockLevel=1;
@@ -33,31 +33,34 @@ bigendian_out = 1;
   if(TRIG_MODE == TIP_READOUT_EXT_POLL)
     {
       tipSetBlockLimit(0);
-      
+
       tipLoadTriggerTable(0);
-      
+
       tipSetTriggerHoldoff(1,4,0);
       tipSetTriggerHoldoff(2,4,0);
-      
+
       tipSetPrescale(0);
       tipSetBlockLevel(blockLevel);
-      
-      tipSetTriggerSource(TIP_TRIGGER_TSINPUTS);
-      
+
+      tipSetTriggerSource(TIP_TRIGGER_PULSER);
+
       tipSetBusySource(TIP_BUSY_LOOPBACK ,1);
-      
-      tipSetBlockBufferLevel(1);
-      
+
+      tipSetBlockBufferLevel(10);
+
       tipSetSyncEventInterval(0);
+
+      tipAddSlave(1);
+
     }
-  
+
   tipStatus(1);
 }
 %%
   log inform "User Download Executed"
 
 end download
-    
+
 ############################################################
 # PRESTART
 ############################################################
@@ -94,14 +97,15 @@ end prestart
 # GO
 ############################################################
 begin go
-  
+
   log inform "Entering User Go"
 
 %%
 {
   tipStatus(1);
+  tipSetRandomTrigger(1,0x7);
   CDOENABLE(GEN,1,0);
-  
+
   blockLevel = tipGetCurrentBlockLevel();
   printf("%s: Current Block Level = %d\n",
 	 __FUNCTION__, blockLevel);
@@ -110,7 +114,7 @@ begin go
   tiData = (unsigned int*)malloc((8+5*blockLevel)*sizeof(unsigned int));
 }
 %%
-  
+
   log inform "User Go Executed"
 
 end go
@@ -124,15 +128,16 @@ begin end
 %%
   CDODISABLE(GEN,1,0);
   tipStatus(1);
+  tipDisableRandomTrigger();
 
 /* Free up the allocated memory for the tiData */
   if(tiData!=NULL)
     {
       free(tiData);
       tiData=NULL;
-    } 
+    }
 %%
-  
+
   log inform "User End Executed"
 
 end end
@@ -177,9 +182,9 @@ begin trigger titrig
 	   /* Could not find trigger type */
 	   event_ty = 1;
 	 }
-       
+
        /* CODA 2.x only allows for 4 bits of trigger type */
-       event_ty &= 0xF; 
+       event_ty &= 0xF;
 
      }
  }
@@ -199,7 +204,7 @@ begin trigger titrig
     }
 }
 %%
- 
+
  close event
 
 end trigger
@@ -218,5 +223,3 @@ end done
 begin status
 
 end status
-
-

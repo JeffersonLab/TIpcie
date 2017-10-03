@@ -144,7 +144,7 @@ struct TIPCIE_RegStruct
 #define TIP_READOUT_TS_POLL    3
 
 /* Supported firmware version */
-#define TIP_SUPPORTED_FIRMWARE 0x072
+#define TIP_SUPPORTED_FIRMWARE 0x073
 #define TIP_SUPPORTED_TYPE     3
 
 /* Firmware Masks */
@@ -268,6 +268,7 @@ struct TIPCIE_RegStruct
 #define TIP_TRIGSRC_PART_3           (1<<14)
 #define TIP_TRIGSRC_PART_4           (1<<15)
 #define TIP_TRIGSRC_MONITOR_MASK     0xFFFF0000
+#define TIP_TRIGSRC_FORCE_SEND       0x00FC0000
 
 /* 0x24 sync bits and masks */
 #define TIP_SYNC_SOURCEMASK              0x000000FF
@@ -616,6 +617,7 @@ int  tipGetInstantBlockLevelChange();
 int  tipSetTriggerSource(int trig);
 int  tipSetTriggerSourceMask(int trigmask);
 int  tipEnableTriggerSource();
+int  tipForceSendTriggerSourceEnable();
 int  tipDisableTriggerSource(int fflag);
 int  tipSetSyncSource(unsigned int sync);
 int  tipSetEventFormat(int format);
