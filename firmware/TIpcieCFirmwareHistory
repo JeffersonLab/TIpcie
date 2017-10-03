@@ -99,3 +99,6 @@ V7.1 May 4, 2017: Up to date with the common TI changes. (Reg 0x3c bit#31 levelR
    bufferlevel setting)
 V7.2 May 9, 2017: Change the MEMenable from VMEsetting(22) to VmeSetting(26), so that VMEsetting(22) is used for bufferlevel.
    Change the firmware type from 2 to 3, so the FPGA usercode is 71e03VVR.
+V7.3 June 15, 2017: If the trigger_source_en (0x20) is set to 0xFCxxxx, the TI will send the trgsrc back even when the board is BUSY
+  (highest priority in status_feneration block)
+V7.4, Aug. 17, 2017: recompile as the StatusGen common block was changed, Sync the SendID to Clk625.

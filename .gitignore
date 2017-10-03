@@ -1,0 +1,15 @@
+*~
+*.so
+*.a
+*.o
+*.d
+*.d.*
+*.ko
+*.cmd
+*.mod.c
+doc/*
+.tramp_history
+/firmware/TIpcieFirmwareUpdate
+linux_driver/.tmp_versions/*
+linux_driver/Module.symvers
+/rol/event_list.c
