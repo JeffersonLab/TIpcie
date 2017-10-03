@@ -13,9 +13,9 @@
 ARCH=${shell uname -m}
 KERNEL_VERSION=${shell uname -r}
 # BUILD 64bit for EL7
-ifneq (,$(findstring el7,${KERNEL_VERSION}))
-	BUILD64=1
-endif
+#ifneq (,$(findstring el7,${KERNEL_VERSION}))
+#	BUILD64=0
+#endif
 
 ifdef BUILD64
 CC			= gcc

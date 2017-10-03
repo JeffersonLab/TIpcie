@@ -65,7 +65,7 @@ gentenable(int code, int card)
   int lockkey;
 
   tsLiveCalc=1;
-  tsLiveFunc = tipLive;
+  tsLiveFunc = &tipLive;
 
   if(GEN_isAsync==0)
     {

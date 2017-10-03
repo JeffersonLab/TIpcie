@@ -2073,6 +2073,33 @@ tipEnableTriggerSource()
 
 /**
  * @ingroup Config
+ * @brief Force TI to send trigger source enabled bits to TI-master or TD
+ *
+ * @return OK if successful, ERROR otherwise
+ *
+ */
+int
+tipForceSendTriggerSourceEnable()
+{
+  if(TIPp==NULL)
+    {
+      printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
+      return ERROR;
+    }
+
+  TIPLOCK;
+  tipWrite(&TIPp->trigsrc,
+	   (tipRead(&TIPp->trigsrc) & TIP_TRIGSRC_SOURCEMASK) |
+	   TIP_TRIGSRC_FORCE_SEND);
+  TIPUNLOCK;
+
+  return OK;
+
+}
+
+
+/**
+ * @ingroup Config
  * @brief Disable trigger sources
  *    
  * @param fflag 
