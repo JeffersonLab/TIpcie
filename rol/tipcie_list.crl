@@ -12,7 +12,9 @@ general readout
 # TRIG_MODE = TIP_READOUT_EXT_POLL for polling mode (External input)
 #           = TIP_READOUT_TS_POLL  for polling mode (TS input)
 const TRIG_MODE = TIP_READOUT_EXT_POLL
+const FIBER_LATENCY_OFFSET = 0x4A  /* measured longest fiber length */
 
+  
 extern int bigendian_out;
 int blockLevel=1;
 unsigned int *tiData=NULL;
@@ -28,6 +30,8 @@ bigendian_out = 1;
 # Setup TIpcie
 %%
 {
+  tipSetFiberLatencyOffset_preInit(FIBER_LATENCY_OFFSET);
+
   tipInit(TRIG_MODE,0);
 
   if(TRIG_MODE == TIP_READOUT_EXT_POLL)
