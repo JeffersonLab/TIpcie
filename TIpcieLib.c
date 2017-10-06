@@ -16,7 +16,7 @@
  *----------------------------------------------------------------------------*
  *
  * Description:
- *     Primitive trigger control for Intel CPUs running Linux using the TJNAF 
+ *     Primitive trigger control for Intel CPUs running Linux using the TJNAF
  *     Trigger Interface (TI) PCIexpress card
  *
  * </pre>
@@ -96,7 +96,7 @@ static unsigned long tipDmaAddrBase=0;
 static void          *tipMappedBase;
 static void          *tipJTAGMappedBase;
 
-static int tipUseDma=0; 
+static int tipUseDma=0;
 int tipMaster=1;                               /* Whether or not this TIP is the Master */
 int tipCrateID=0x59;                           /* Crate ID */
 int tipBlockLevel=0;                           /* Current Block level for TIP */
@@ -190,7 +190,7 @@ unsigned long long int rdtsc(void)
 {
   /*    unsigned long long int x; */
   unsigned a, d;
-   
+
   __asm__ volatile("rdtsc" : "=a" (a), "=d" (d));
 
   return ((unsigned long long)a) | (((unsigned long long)d) << 32);
@@ -293,12 +293,12 @@ tipInit(unsigned int mode, int iFlag)
       if(tipOpen()==ERROR)
 	return -1;
     }
-  
+
   /* Check if TI board is readable */
   /* Read the boardID reg */
   rval = tipRead(&TIPp->boardID);
 
-  if (rval == ERROR) 
+  if (rval == ERROR)
     {
       printf("%s: ERROR: TIpcie card not addressable\n",__FUNCTION__);
       TIPp=NULL;
@@ -307,7 +307,7 @@ tipInit(unsigned int mode, int iFlag)
   else
     {
       /* Check that it is a TI */
-      if(((rval&TIP_BOARDID_TYPE_MASK)>>16) != TIP_BOARDID_TYPE_TI) 
+      if(((rval&TIP_BOARDID_TYPE_MASK)>>16) != TIP_BOARDID_TYPE_TI)
 	{
 	  printf("%s: ERROR: Invalid Board ID: 0x%x (rval = 0x%08x)\n",
 		 __FUNCTION__,
@@ -328,7 +328,7 @@ tipInit(unsigned int mode, int iFlag)
 	  /* tiReload(); */
 	  /* taskDelay(60); */
 	}
-      tipDisableTriggerSource(0);  
+      tipDisableTriggerSource(0);
     }
 
   /* Get the Firmware Information and print out some details */
@@ -537,7 +537,7 @@ int
 tipCheckAddresses()
 {
   unsigned long offset=0, expected=0, base=0;
-  
+
   if(TIPp==NULL)
     {
       printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
@@ -559,26 +559,26 @@ tipCheckAddresses()
   if(offset != expected)
     printf("%s: ERROR TIPp->syncWidth not at offset = 0x%lx (@ 0x%lx)\n",
 	   __FUNCTION__,expected,offset);
-    
+
   offset = ((unsigned long) &TIPp->adr24) - base;
   expected = 0xD0;
   if(offset != expected)
     printf("%s: ERROR TIPp->adr24 not at offset = 0x%lx (@ 0x%lx)\n",
 	   __FUNCTION__,expected,offset);
-    
+
   offset = ((unsigned long) &TIPp->reset) - base;
   expected = 0x100;
   if(offset != expected)
     printf("%s: ERROR TIPp->reset not at offset = 0x%lx (@ 0x%lx)\n",
 	   __FUNCTION__,expected,offset);
-    
+
   return OK;
 }
 
 /**
  * @ingroup Status
  * @brief Print some status information of the TI to standard out
- * 
+ *
  * @param pflag if pflag>0, print out raw registers
  *
  */
@@ -691,13 +691,13 @@ tipStatus(int pflag)
       printf("  busy           (0x%04lx) = 0x%08x\t", (unsigned long)(&TIPp->busy) - TIBase, ro->busy);
       printf("  clock          (0x%04lx) = 0x%08x\n", (unsigned long)(&TIPp->clock) - TIBase, ro->clock);
       printf("  blockBuffer    (0x%04lx) = 0x%08x\t", (unsigned long)(&TIPp->blockBuffer) - TIBase, ro->blockBuffer);
-      
+
       printf("  output         (0x%04lx) = 0x%08x\n", (unsigned long)(&TIPp->output) - TIBase, ro->output);
       printf("  fiberSyncDelay (0x%04lx) = 0x%08x\n", (unsigned long)(&TIPp->fiberSyncDelay) - TIBase, ro->fiberSyncDelay);
 
       printf("  GTPStatusA     (0x%04lx) = 0x%08x\t", (unsigned long)(&TIPp->GTPStatusA) - TIBase, ro->GTPStatusA);
       printf("  GTPStatusB     (0x%04lx) = 0x%08x\n", (unsigned long)(&TIPp->GTPStatusB) - TIBase, ro->GTPStatusB);
-      
+
       printf("  livetime       (0x%04lx) = 0x%08x\t", (unsigned long)(&TIPp->livetime) - TIBase, ro->livetime);
       printf("  busytime       (0x%04lx) = 0x%08x\n", (unsigned long)(&TIPp->busytime) - TIBase, ro->busytime);
       printf("  GTPTrgBufLen   (0x%04lx) = 0x%08x\t", (unsigned long)(&TIPp->GTPtriggerBufferLength) - TIBase, ro->GTPtriggerBufferLength);
@@ -708,7 +708,7 @@ tipStatus(int pflag)
   if((!tipMaster) && (tipBlockLevel==0))
     {
       printf(" Block Level not yet received\n");
-    }      
+    }
   else
     {
       printf(" Block Level = %d ", tipBlockLevel);
@@ -732,7 +732,7 @@ tipStatus(int pflag)
 
   printf("(%s)\n",(ro->vmeControl & TIP_VMECONTROL_BUSY_ON_BUFFERLEVEL)?
 	 "Busy Enabled":"Busy not enabled");
-      
+
   if(tipMaster)
     {
       if((ro->syncEventCtrl & TIP_SYNCEVENTCTRL_NBLOCKS_MASK) == 0)
@@ -771,14 +771,14 @@ tipStatus(int pflag)
 	  fibermask = tipSlaveMask;
 	  for(ifiber=0; ifiber<1; ifiber++)
 	    {
-	      if( fibermask & (1<<ifiber)) 
+	      if( fibermask & (1<<ifiber))
 		printf(" %d",ifiber+1);
 	    }
-	  printf("\n");	
+	  printf("\n");
 	}
       else
 	printf(" No TI Slaves Configured on HFBR\n");
-      
+
     }
 
   printf(" Clock Source (%d) = \n",ro->clock & TIP_CLOCK_MASK);
@@ -839,7 +839,7 @@ tipStatus(int pflag)
       if(tipTriggerSource & TIP_TRIGSRC_PART_4)
 	printf("   TS Partition 4 (HFBR #1)\n");
     }
-  else 
+  else
     {
       printf(" No Trigger input sources\n");
     }
@@ -911,10 +911,10 @@ tipStatus(int pflag)
       printf(" Front Panel TS Inputs Enabled: ");
       for(iinp=0; iinp<6; iinp++)
 	{
-	  if( (ro->tsInput & TIP_TSINPUT_MASK) & (1<<iinp)) 
+	  if( (ro->tsInput & TIP_TSINPUT_MASK) & (1<<iinp))
 	    printf(" %d",iinp+1);
 	}
-      printf("\n");	
+      printf("\n");
     }
   else
     {
@@ -933,12 +933,12 @@ tipStatus(int pflag)
       if(ro->rocEnable & TIP_ROCENABLE_SYNCRESET_REQUEST_ENABLE_MASK)
 	{
 	  printf(" SyncReset Request ENABLED from ");
-	  
+
 	  if(ro->rocEnable & (1 << 10))
 	    {
 	      printf("SELF ");
 	    }
-	  
+
 	  for(ifiber=0; ifiber<1; ifiber++)
 	    {
 	      if(ro->rocEnable & (1 << (ifiber + 1 + 10)))
@@ -946,26 +946,26 @@ tipStatus(int pflag)
 		  printf("%d ", ifiber + 1);
 		}
 	    }
-	  
+
 	  printf("\n");
 	}
       else
 	{
 	  printf(" SyncReset Requests DISABLED\n");
 	}
-      
+
       printf("\n");
       tipSyncResetRequestStatus(1);
     }
   printf("\n");
-  
+
   if(ro->intsetup&TIP_INTSETUP_ENABLE)
     printf(" Interrupts ENABLED\n");
   else
     printf(" Interrupts DISABLED\n");
   printf("   Level = %d   Vector = 0x%02x\n",
 	 (ro->intsetup&TIP_INTSETUP_LEVEL_MASK)>>8, (ro->intsetup&TIP_INTSETUP_VECTOR_MASK));
-  
+
   printf(" Blocks ready for readout: %d\n",(ro->blockBuffer&TIP_BLOCKBUFFER_BLOCKS_READY_MASK)>>8);
   if(tipMaster)
     {
@@ -1054,20 +1054,20 @@ tipSetSlavePort(int port)
   /* Measure and apply fiber compensation */
   if(FiberMeas() == ERROR)
     return ERROR;
-  
+
   /* TI IODELAY reset */
   TIPLOCK;
   tipWrite(&TIPp->reset,TIP_RESET_IODELAY);
   usleep(10);
-  
+
   /* TI Sync auto alignment */
   tipWrite(&TIPp->reset,TIP_RESET_AUTOALIGN_HFBR1_SYNC);
   usleep(10);
-  
+
   /* TI auto fiber delay measurement */
   tipWrite(&TIPp->reset,TIP_RESET_MEASURE_LATENCY);
   usleep(10);
-  
+
   /* TI auto alignement fiber delay */
   tipWrite(&TIPp->reset,TIP_RESET_FIBER_AUTO_ALIGN);
   usleep(10);
@@ -1153,20 +1153,20 @@ tipSlaveStatus(int pflag)
   /* Master first */
   /* Slot and Port number */
   printf("L     ");
-  
+
   /* Port Name */
   printf("%5d      ",
 	 (master_tiID&TIP_ID_CRATEID_MASK)>>8);
-  
+
   /* Connection Status */
   printf("%s      %s       ",
 	 "YES",
 	 (trigsrc & TIP_TRIGSRC_LOOPBACK)?"ENABLED ":"DISABLED");
-  
+
   /* Busy Status */
   printf("%s       ",
 	 (busy & TIP_BUSY_MONITOR_LOOPBACK)?"BUSY":"    ");
-  
+
   /* Block Status */
   nblocksReady   = (blockStatus[4] & TIP_BLOCKSTATUS_NBLOCKS_READY1)>>16;
   nblocksNeedAck = (blockStatus[4] & TIP_BLOCKSTATUS_NBLOCKS_NEEDACK1)>>24;
@@ -1179,14 +1179,14 @@ tipSlaveStatus(int pflag)
     {
       /* Only continue of this port has been configured as a slave */
       if((tipSlaveMask & (1<<(iport-1)))==0) continue;
-      
+
       /* Slot and Port number */
       printf("%d     ", iport);
 
       /* Port Name */
       printf("%5d      ",
 	     (hfbr_tiID[iport-1]&TIP_ID_CRATEID_MASK)>>8);
-	  
+
       /* Connection Status */
       printf("%s      %s       ",
 	     (fiber & TIP_FIBER_CONNECTED_TI(iport))?"YES":"NO ",
@@ -1254,7 +1254,7 @@ tipGetFirmwareVersion()
   /* shift in 32-bit to FPGA JTAG */
   tipJTAGWrite(0x7dc,0);
   usleep(delay);
-  
+
   /* Readback the firmware version */
   rval = tipJTAGRead(0x00);
   TIPUNLOCK;
@@ -1279,7 +1279,7 @@ tipGetSerialNumber(char **rSN)
   int delay=10000;
 
   memset(retSN,0,sizeof(retSN));
-  
+
   if(TIPp==NULL)
     {
       printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
@@ -1305,11 +1305,11 @@ tipGetSerialNumber(char **rSN)
     }
 
 
-  printf("%s: TI Serial Number is %s (0x%08x)\n", 
+  printf("%s: TI Serial Number is %s (0x%08x)\n",
 	 __FUNCTION__,retSN,rval);
 
   return rval;
-  
+
 
 }
 
@@ -1330,12 +1330,12 @@ tipPrintTempVolt()
   tipWrite(&TIPp->reset,TIP_RESET_JTAG);           /* reset */
   usleep(delay);
 
-  tipJTAGWrite(0x3c,0x0); // Reset_idle 
+  tipJTAGWrite(0x3c,0x0); // Reset_idle
   usleep(delay);
 
   tipJTAGWrite(0x26c,0x3f7); // load the UserCode Enable
   usleep(delay);
-  
+
   tipJTAGWrite(0x7dc,0x04000000);     // shift in 32-bit of data
   usleep(delay);
   rval = tipJTAGRead(0x1f1c);
@@ -1345,10 +1345,10 @@ tipPrintTempVolt()
   usleep(delay);
   rval = tipJTAGRead(0x7dc);
 
-  printf("%s: FPGA silicon temperature readout is %x \n", 
+  printf("%s: FPGA silicon temperature readout is %x \n",
 	 __FUNCTION__,rval);
 
-  Temperature = 504*((rval >>6) & 0x3ff)/1024-273; 
+  Temperature = 504*((rval >>6) & 0x3ff)/1024-273;
   printf("\tThe temperature is : %d \n", Temperature);
 
   // maximum temperature readout
@@ -1361,9 +1361,9 @@ tipPrintTempVolt()
   usleep(delay);
   rval = tipJTAGRead(0x7dc);
 
-  printf ("%s: FPGA silicon max. temperature readout is %x\n", 
+  printf ("%s: FPGA silicon max. temperature readout is %x\n",
 	  __FUNCTION__,rval);
-  Temperature = 504*((rval >>6) & 0x3ff)/1024-273; 
+  Temperature = 504*((rval >>6) & 0x3ff)/1024-273;
   printf("\tThe max. temperature is : %d \n", Temperature);
 
   // minimum temperature readout
@@ -1378,7 +1378,7 @@ tipPrintTempVolt()
 
   printf("%s: FPGA silicon min. temperature readout is %x\n",
 	 __FUNCTION__,rval);
-  Temperature = 504*((rval >>6) & 0x3ff)/1024-273; 
+  Temperature = 504*((rval >>6) & 0x3ff)/1024-273;
   printf ("\tThe min. temperature is : %d \n", Temperature);
 
   TIPUNLOCK;
@@ -1396,7 +1396,7 @@ tipPrintTempVolt()
 
   printf("%s: FPGA silicon VccInt readout is %x\n",
 	 __FUNCTION__,rval);
-  Temperature = 3000*((rval >>6) & 0x3ff)/1024; 
+  Temperature = 3000*((rval >>6) & 0x3ff)/1024;
   printf ("\tThe VccInt is : %d mV \n", Temperature);
 
   // maximum VccInt readout
@@ -1408,9 +1408,9 @@ tipPrintTempVolt()
   tipJTAGWrite(0x7dc,0x04210000);    // shift in 32-bit of data
   usleep(delay);
   rval = tipJTAGRead(0x7dc);
-  printf("%s: FPGA silicon Max. VccInt readout is %x\n", 
+  printf("%s: FPGA silicon Max. VccInt readout is %x\n",
 	 __FUNCTION__,rval);
-  Temperature = 3000*((rval >>6) & 0x3ff)/1024; 
+  Temperature = 3000*((rval >>6) & 0x3ff)/1024;
   printf("\tThe Max. VccInt is : %d mV \n", Temperature);
 
   // minimum VccInt readout
@@ -1424,7 +1424,7 @@ tipPrintTempVolt()
   rval = tipJTAGRead(0x7dc);
   printf("%s: FPGA silicon Min. VccInt readout is %x\n",
 	 __FUNCTION__,rval);
-  Temperature = 3000*((rval >>6) & 0x3ff)/1024; 
+  Temperature = 3000*((rval >>6) & 0x3ff)/1024;
   printf("\tThe Min. VccInt is : %d mV \n", Temperature);
 
   // VccAux readout
@@ -1439,7 +1439,7 @@ tipPrintTempVolt()
 
   printf("%s: FPGA silicon VccAux readout is %x\n",
 	 __FUNCTION__,rval);
-  Temperature = 3000*((rval >>6) & 0x3ff)/1024; 
+  Temperature = 3000*((rval >>6) & 0x3ff)/1024;
   printf("\tThe VccAux is : %d mV \n", Temperature);
 
   // maximum VccAux readout
@@ -1454,7 +1454,7 @@ tipPrintTempVolt()
 
   printf("%s: FPGA silicon Max. VccAux readout is %x\n",
 	 __FUNCTION__,rval);
-  Temperature = 3000*((rval >>6) & 0x3ff)/1024; 
+  Temperature = 3000*((rval >>6) & 0x3ff)/1024;
   printf("\tThe Max. VccAux is : %d mV \n", Temperature);
 
   // minimum VccAux readout
@@ -1469,7 +1469,7 @@ tipPrintTempVolt()
 
   printf("%s: FPGA silicon Min. VccAux readout is %x\n",
 	 __FUNCTION__,rval);
-  Temperature = 3000*((rval >>6) & 0x3ff)/1024; 
+  Temperature = 3000*((rval >>6) & 0x3ff)/1024;
   printf("\tThe Min. VccAux is : %d mV \n", Temperature);
 
   TIPUNLOCK;
@@ -1493,14 +1493,14 @@ tipClockResync()
       return ERROR;
     }
 
-  
+
   TIPLOCK;
-  tipWrite(&TIPp->syncCommand,TIP_SYNCCOMMAND_AD9510_RESYNC); 
+  tipWrite(&TIPp->syncCommand,TIP_SYNCCOMMAND_AD9510_RESYNC);
   TIPUNLOCK;
 
   printf ("%s: \n\t AD9510 ReSync ! \n",__FUNCTION__);
   return OK;
-  
+
 }
 
 /**
@@ -1518,7 +1518,7 @@ tipReset()
       printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
       return ERROR;
     }
-  
+
   TIPLOCK;
   tipWrite(&TIPp->reset,TIP_RESET_SOFT);
   TIPUNLOCK;
@@ -1527,7 +1527,7 @@ tipReset()
 
 /**
  * @ingroup Config
- * @brief Set the crate ID 
+ * @brief Set the crate ID
  *
  * @return OK if successful, ERROR otherwise
  *
@@ -1546,14 +1546,14 @@ tipSetCrateID(unsigned int crateID)
       printf("%s: ERROR: Invalid crate id (0x%x)\n",__FUNCTION__,crateID);
       return ERROR;
     }
-  
+
   TIPLOCK;
   tipWrite(&TIPp->boardID,
 	   (tipRead(&TIPp->boardID) & ~TIP_BOARDID_CRATEID_MASK)  | crateID);
   TIPUNLOCK;
 
   return OK;
-  
+
 }
 
 /**
@@ -1571,7 +1571,7 @@ int
 tipGetCrateID(int port)
 {
   int rval=0;
-  if(TIPp==NULL) 
+  if(TIPp==NULL)
     {
       printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
       return ERROR;
@@ -1607,7 +1607,7 @@ tipGetCrateID(int port)
  *
  * @return bitmask of rigger sources enabled if successful, otherwise ERROR
  *         bitmask
- *         - 0 - P0 
+ *         - 0 - P0
  *         - 1 - Fiber 1
  *         - 2 - Loopback
  *         - 3 - TRG (FP)
@@ -1621,7 +1621,7 @@ int
 tipGetPortTrigSrcEnabled(int port)
 {
   int rval=0;
-  if(TIPp==NULL) 
+  if(TIPp==NULL)
     {
       printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
       return ERROR;
@@ -1660,7 +1660,7 @@ int
 tipGetSlaveBlocklevel(int port)
 {
   int rval=0;
-  if(TIPp==NULL) 
+  if(TIPp==NULL)
     {
       printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
       return ERROR;
@@ -1825,13 +1825,13 @@ tipSetInstantBlockLevelChange(int enable)
 
   TIPLOCK;
   if(enable)
-    tipWrite(&TIPp->vmeControl, 
+    tipWrite(&TIPp->vmeControl,
 	       tipRead(&TIPp->vmeControl) | TIP_VMECONTROL_BLOCKLEVEL_UPDATE);
   else
-    tipWrite(&TIPp->vmeControl, 
+    tipWrite(&TIPp->vmeControl,
 	       tipRead(&TIPp->vmeControl) & ~TIP_VMECONTROL_BLOCKLEVEL_UPDATE);
   TIPUNLOCK;
-  
+
   return OK;
 }
 
@@ -1855,7 +1855,7 @@ tipGetInstantBlockLevelChange()
   TIPLOCK;
   rval = (tipRead(&TIPp->vmeControl) & TIP_VMECONTROL_BLOCKLEVEL_UPDATE)>>21;
   TIPUNLOCK;
-  
+
   return rval;
 }
 
@@ -1863,18 +1863,18 @@ tipGetInstantBlockLevelChange()
  * @ingroup Config
  * @brief Set the trigger source
  *     This routine will set a library variable to be set in the TI registers
- *     at a call to tiIntEnable.  
+ *     at a call to tiIntEnable.
  *
  *  @param trig - integer indicating the trigger source
  *         - 0: P0
  *         - 1: HFBR#1
  *         - 2: Front Panel (TRG)
  *         - 3: Front Panel TS Inputs
- *         - 4: TS (rev2) 
+ *         - 4: TS (rev2)
  *         - 5: Random
  *         - 6-9: TS Partition 1-4
  *         - 10: HFBR#5
- *         - 11: Pulser Trig 2 then Trig1 after specified delay 
+ *         - 11: Pulser Trig 2 then Trig1 after specified delay
  *
  * @return OK if successful, ERROR otherwise
  *
@@ -1899,7 +1899,7 @@ tipSetTriggerSource(int trig)
 
 
   if(!tipMaster)
-    { 
+    {
       /* Setup for TI Slave */
       trigenable = TIP_TRIGSRC_VME;
 
@@ -1912,11 +1912,11 @@ tipSetTriggerSource(int trig)
 	    case TIP_TRIGGER_PART_1:
 	      trigenable |= TIP_TRIGSRC_PART_1;
 	      break;
-	  
+
 	    case TIP_TRIGGER_PART_2:
 	      trigenable |= TIP_TRIGSRC_PART_2;
 	      break;
-	  
+
 	    case TIP_TRIGGER_PART_3:
 	      trigenable |= TIP_TRIGSRC_PART_3;
 	      break;
@@ -1998,17 +1998,17 @@ tipSetTriggerSource(int trig)
  *    This routine is for special use when tiSetTriggerSource(...) does
  *    not set all of the trigger sources that is required by the user.
  *
- * @param trigmask bits:  
+ * @param trigmask bits:
  *        -         0:  P0
- *        -         1:  HFBR #1 
+ *        -         1:  HFBR #1
  *        -         2:  TI Master Loopback
  *        -         3:  Front Panel (TRG) Input
  *        -         4:  VME Trigger
  *        -         5:  Front Panel TS Inputs
  *        -         6:  TS (rev 2) Input
  *        -         7:  Random Trigger
- *        -         8:  FP/Ext/GTP 
- *        -         9:  P2 Busy 
+ *        -         8:  FP/Ext/GTP
+ *        -         9:  P2 Busy
  *        -        10:  HFBR #5
  *        -        11:  Pulser Trig2 with delayed Trig1 (only compatible with 2 and 7)
  *
@@ -2040,7 +2040,7 @@ tipSetTriggerSourceMask(int trigmask)
 /**
  * @ingroup Config
  * @brief Enable trigger sources
- * Enable trigger sources set by 
+ * Enable trigger sources set by
  *                          tiSetTriggerSource(...) or
  *                          tiSetTriggerSourceMask(...)
  * @sa tiSetTriggerSource
@@ -2101,8 +2101,8 @@ tipForceSendTriggerSourceEnable()
 /**
  * @ingroup Config
  * @brief Disable trigger sources
- *    
- * @param fflag 
+ *
+ * @param fflag
  *   -  0: Disable Triggers
  *   - >0: Disable Triggers and generate enough triggers to fill the current block
  *
@@ -2129,7 +2129,7 @@ tipDisableTriggerSource(int fflag)
   TIPUNLOCK;
   if(fflag && tipMaster)
     {
-      tipFillToEndBlock();      
+      tipFillToEndBlock();
     }
 
   return OK;
@@ -2228,7 +2228,7 @@ tipSetEventFormat(int format)
       break;
 
     }
- 
+
   tipWrite(&TIPp->dataFormat,formatset);
 
   TIPUNLOCK;
@@ -2243,14 +2243,14 @@ tipSetEventFormat(int format)
  * @param enable
  *    - 0: Disable
  *    - >0: Enable
- *    
+ *
  * @return OK if successful, otherwise ERROR
- *    
+ *
  */
 int
 tipSetFPInputReadout(int enable)
 {
-  if(TIPp == NULL) 
+  if(TIPp == NULL)
     {
       printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
       return ERROR;
@@ -2275,7 +2275,7 @@ tipSetFPInputReadout(int enable)
  *  @param trigger  trigger type 1 or 2 (playback trigger)
  *  @param nevents  integer number of events to trigger
  *  @param period_inc  period multiplier, depends on range (0-0x7FFF)
- *  @param range  
+ *  @param range
  *     - 0: small period range (min: 120ns, increments of 120ns)
  *     - 1: large period range (min: 120ns, increments of 245.7us)
  *
@@ -2391,10 +2391,10 @@ tipSetRandomTrigger(int trigger, int setting)
 
   TIPLOCK;
   if(trigger==1)
-    tipWrite(&TIPp->randomPulser, 
+    tipWrite(&TIPp->randomPulser,
 	       setting | (setting<<4) | TIP_RANDOMPULSER_TRIG1_ENABLE);
   else if (trigger==2)
-    tipWrite(&TIPp->randomPulser, 
+    tipWrite(&TIPp->randomPulser,
 	       (setting | (setting<<4))<<8 | TIP_RANDOMPULSER_TRIG2_ENABLE );
 
   TIPUNLOCK;
@@ -2454,7 +2454,7 @@ tipReadBlock(volatile unsigned int *data, int nwrds, int rflag)
       return ERROR;
     }
 
-  if(data==NULL) 
+  if(data==NULL)
     {
       printf("\n%s: ERROR: Invalid Destination address\n",__FUNCTION__);
       return(ERROR);
@@ -2481,7 +2481,7 @@ tipReadBlock(volatile unsigned int *data, int nwrds, int rflag)
       printf("%s: TIPpd = 0x%lx \n",__FUNCTION__,(long unsigned int)TIPpd);
       printf("%s: 0x10 = 0x%08x\n",
 	     __FUNCTION__,tipRead(&TIPp->__adr32));
-      
+
       printf("%s: val = 0x%08x\n",
 	     __FUNCTION__,val);
 #endif
@@ -2512,7 +2512,7 @@ tipReadBlock(volatile unsigned int *data, int nwrds, int rflag)
 		  wcount++;
 		}
 	      if(((imem-7)%8)==0) {
-		if(wcount) 
+		if(wcount)
 		  printf("[%04x]\n",(imem-7)<<2);
 
 		wcount=0;
@@ -2527,7 +2527,7 @@ tipReadBlock(volatile unsigned int *data, int nwrds, int rflag)
       /* First word should be the 64bit word count from PCIE */
       wCnt = ((val>>16)&0xFFF)*2;
 
-      
+
 
       if(wCnt<nwrds)
       	nwrds=(wCnt);
@@ -2571,9 +2571,9 @@ tipReadBlock(volatile unsigned int *data, int nwrds, int rflag)
 	  return dCnt;
 	}
 #endif
-      
-      *TIPpd++;      
-      while(ii<nwrds) 
+
+      *TIPpd++;
+      while(ii<nwrds)
 	{
 	  val = (volatile unsigned int)*TIPpd++;
 
@@ -2628,7 +2628,7 @@ tipReadBlock(volatile unsigned int *data, int nwrds, int rflag)
 	  newaddr = tipMapInfo.map_addr;
 	  bump=0;
 	}
-					   
+
       /* TIPpd = (unsigned int *)newaddr; */
       TIPpd = (volatile unsigned int*)newaddr;
 
@@ -2656,25 +2656,25 @@ tipReadBlock(volatile unsigned int *data, int nwrds, int rflag)
       int ntrig = 0, trigwords = 0;
       int trailerFound = 0;
       dCnt = 0;
-      
+
       /* Read Block header - should be first word */
       val = tipRead(&TIPp->fifo);
       data[dCnt++] = val;
 
-      if((val & TIP_DATA_TYPE_DEFINE_MASK) && 
+      if((val & TIP_DATA_TYPE_DEFINE_MASK) &&
 	 ((val & TIP_WORD_TYPE_MASK) == TIP_BLOCK_HEADER_WORD_TYPE))
 	{
 	  ntrig = val & TIP_DATA_BLKLEVEL_MASK;
-	  
+
 	  /* Next word is the CODA 3.0 header */
 	  val = tipRead(&TIPp->fifo);
 	  data[dCnt++] = val;
-	      
-	  if( ((val & 0xFF100000)>>16 == 0xFF10) && 
+
+	  if( ((val & 0xFF100000)>>16 == 0xFF10) &&
 	      ((val & 0xFF00)>>8 == 0x20) )
 	    {
 	      blocklevel = val & TIP_DATA_BLKLEVEL_MASK;
-	      
+
 	      if((blocklevel & 0xff) != ntrig)
 		{
 		  printf("\n%s: ERROR: TI Blocklevel %d inconsistent with TI Trigger Bank Header (0x%08x)",
@@ -2690,7 +2690,7 @@ tipReadBlock(volatile unsigned int *data, int nwrds, int rflag)
 		TRYAGAIN:
 		  val = tipRead(&TIPp->fifo);
 		  data[dCnt++] = val;
-		  
+
 		  if((val & 0xFF0000)>>16 == 0x01)
 		    {
 		      trigwords = val & 0xffff;
@@ -2719,7 +2719,7 @@ tipReadBlock(volatile unsigned int *data, int nwrds, int rflag)
 	      /* Read Block Trailer */
 	      val = tipRead(&TIPp->fifo);
 	      data[dCnt++] = val;
-	      
+
 	      if((val & TIP_DATA_TYPE_DEFINE_MASK) &&
 		 (val & TIP_WORD_TYPE_MASK)==TIP_BLOCK_TRAILER_WORD_TYPE)
 		{
@@ -2756,8 +2756,8 @@ tipReadBlock(volatile unsigned int *data, int nwrds, int rflag)
 	      TIPUNLOCK;
 	      return(ERROR);
 	    }
-	  
-	  
+
+
 	} /* Block Header test */
       else
 	{
@@ -2818,11 +2818,11 @@ tipGenerateTriggerBank(volatile unsigned int *data)
   int iword, nwords = 2;
   unsigned int error_tag = 0;
   unsigned int word;
-  
+
   bl = tipGetCurrentBlockLevel();
   data[0] = nwords - 1;
   data[1] = 0xFF102000 | (error_tag << 16)| bl;
-  
+
   return nwords;
 }
 
@@ -2846,7 +2846,7 @@ tipReadTriggerBlock(volatile unsigned int *data)
   int iblkhead=-1, iblktrl=-1;
 
 
-  if(data==NULL) 
+  if(data==NULL)
     {
       printf("\n%s: ERROR: Invalid Destination address\n",
 	     __FUNCTION__);
@@ -2888,12 +2888,12 @@ tipReadTriggerBlock(volatile unsigned int *data)
       if(tipFakeTriggerBank)
 	return tipGenerateTriggerBank(data);
       else
-	return 0; 
+	return 0;
     }
 
   /* Work down to find index of block header */
   while(iword<rval)
-    { 
+    {
 
       word = data[iword];
 
@@ -2904,7 +2904,7 @@ tipReadTriggerBlock(volatile unsigned int *data)
 	      iblkhead = iword;
 	      break;
 	    }
-	}     
+	}
       iword++;
     }
 
@@ -2929,7 +2929,7 @@ tipReadTriggerBlock(volatile unsigned int *data)
   /* Work up to find index of block trailer */
   iword=rval-1;
   while(iword>=0)
-    { 
+    {
 
       word = data[iword];
       if(word & TIP_DATA_TYPE_DEFINE_MASK)
@@ -2943,7 +2943,7 @@ tipReadTriggerBlock(volatile unsigned int *data)
 	      iblktrl = iword;
 	      break;
 	    }
-	}     
+	}
       iword--;
     }
 
@@ -3003,7 +3003,7 @@ tipCheckTriggerBlock(volatile unsigned int *data)
     {
       rval = ERROR;
       printf("%4d: %08X - **** INVALID TRIGGER BANK HEADER ****\n",
-	     iword, 
+	     iword,
 	     data[iword]);
       iword++;
       while(iword<blen+1)
@@ -3028,9 +3028,9 @@ tipCheckTriggerBlock(volatile unsigned int *data)
 	}
       blevel = data[iword] & 0xFF;
       printf("%4d: %08X - TRIGGER BANK HEADER - type = %d  blocklevel = %d\n",
-	     iword, 
+	     iword,
 	     data[iword],
-	     (data[iword] & 0x000F0000)>>16, 
+	     (data[iword] & 0x000F0000)>>16,
 	     blevel);
       iword++;
 
@@ -3041,7 +3041,7 @@ tipCheckTriggerBlock(volatile unsigned int *data)
 	      rval = ERROR;
 	      printf("----: **** ERROR: Data continues past Trigger Bank Length (%d) ****\n",blen);
 	    }
-	  
+
 	  if((data[iword] & 0x00FF0000)>>16!=0x01)
 	    {
 	      rval = ERROR;
@@ -3064,7 +3064,7 @@ tipCheckTriggerBlock(volatile unsigned int *data)
 		  rval = ERROR;
 		  printf("----: **** ERROR: Data continues past Trigger Bank Length (%d) ****\n",blen);
 		}
-	      
+
 	      evlen = data[iword] & 0x0000FFFF;
 	      printf("%4d: %08x - EVENT HEADER - trigtype = %d  len = %d\n",
 		     iword,
@@ -3114,7 +3114,7 @@ tipDecodeTriggerType(volatile unsigned int *data, int data_len, int event)
   int ievent = 1;
   int trigger_type = -1;
   unsigned int dataword = 0;
-  
+
   /* Loop until we find the trigger bank */
   while(iword < data_len)
     {
@@ -3143,7 +3143,7 @@ tipDecodeTriggerType(volatile unsigned int *data, int data_len, int event)
 	     __func__, event, blocklevel);
       return ERROR;
     }
-  
+
   /* Loop until we get to the event requested */
   while((iword < data_len) && (ievent <= blocklevel))
     {
@@ -3173,7 +3173,7 @@ tipDecodeTriggerType(volatile unsigned int *data, int data_len, int event)
       printf("%s: ERROR: Failed to find trigger type for event %d\n",
 	     __func__, event);
     }
-  
+
   return rval;
 }
 
@@ -3181,7 +3181,7 @@ tipDecodeTriggerType(volatile unsigned int *data, int data_len, int event)
  * @ingroup Config
  * @brief Enable Fiber transceiver
  *
- *  Note:  All Fiber are enabled by default 
+ *  Note:  All Fiber are enabled by default
  *         (no harm, except for 1-2W power usage)
  *
  * @sa tiDisableFiber
@@ -3219,7 +3219,7 @@ tipEnableFiber(unsigned int fiber)
   TIPUNLOCK;
 
   return OK;
-  
+
 }
 
 /**
@@ -3262,14 +3262,14 @@ tipDisableFiber(unsigned int fiber)
   TIPUNLOCK;
 
   return rval;
-  
+
 }
 
 /**
  * @ingroup Config
- * @brief Set the busy source with a given sourcemask sourcemask bits: 
+ * @brief Set the busy source with a given sourcemask sourcemask bits:
  *
- * @param sourcemask 
+ * @param sourcemask
  *  - 0: SWA
  *  - 1: SWB
  *  - 2: P2
@@ -3295,7 +3295,7 @@ tipSetBusySource(unsigned int sourcemask, int rFlag)
       printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
       return ERROR;
     }
-  
+
   if(sourcemask>TIP_BUSY_SOURCEMASK)
     {
       printf("%s: ERROR: Invalid value for sourcemask (0x%x)\n",
@@ -3397,7 +3397,7 @@ tipGetTriggerLock()
  *  @ingroup MasterConfig
  *  @brief Set the prescale factor for the external trigger
  *
- *  @param   prescale Factor for prescale.  
+ *  @param   prescale Factor for prescale.
  *               Max {prescale} available is 65535
  *
  *  @return OK if successful, otherwise ERROR.
@@ -3453,7 +3453,7 @@ tipGetPrescale()
  *  @brief Set the prescale factor for the selected input
  *
  *  @param   input Selected trigger input (1-6)
- *  @param   prescale Factor for prescale.  
+ *  @param   prescale Factor for prescale.
  *               Max {prescale} available is 65535
  *
  *  @return OK if successful, otherwise ERROR.
@@ -3564,7 +3564,7 @@ tipSetTriggerPulse(int trigger, int delay, int width, int delay_step)
   TIPLOCK;
   if(trigger==1)
     {
-      rval = tipRead(&TIPp->trigDelay) & 
+      rval = tipRead(&TIPp->trigDelay) &
 	~(TIP_TRIGDELAY_TRIG1_DELAY_MASK | TIP_TRIGDELAY_TRIG1_WIDTH_MASK) ;
       rval |= ( (delay) | (width<<8) );
       if(delay_step)
@@ -3574,7 +3574,7 @@ tipSetTriggerPulse(int trigger, int delay, int width, int delay_step)
     }
   if(trigger==2)
     {
-      rval = tipRead(&TIPp->trigDelay) & 
+      rval = tipRead(&TIPp->trigDelay) &
 	~(TIP_TRIGDELAY_TRIG2_DELAY_MASK | TIP_TRIGDELAY_TRIG2_WIDTH_MASK) ;
       rval |= ( (delay<<16) | (width<<24) );
       if(delay_step)
@@ -3583,7 +3583,7 @@ tipSetTriggerPulse(int trigger, int delay, int width, int delay_step)
       tipWrite(&TIPp->trigDelay, rval);
     }
   TIPUNLOCK;
-  
+
   return OK;
 }
 
@@ -3659,7 +3659,7 @@ tipSetSyncDelayWidth(unsigned int delay, unsigned int width, int widthstep)
 {
   int twidth=0, tdelay=0;
 
-  if(TIPp==NULL) 
+  if(TIPp==NULL)
     {
       printf("%s: ERROR: TS not initialized\n",__FUNCTION__);
       return;
@@ -3700,20 +3700,20 @@ tipSetSyncDelayWidth(unsigned int delay, unsigned int width, int widthstep)
  * @ingroup MasterConfig
  * @brief Reset the trigger link.
  */
-void 
+void
 tipTrigLinkReset()
 {
-  if(TIPp==NULL) 
+  if(TIPp==NULL)
     {
       printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
       return;
     }
-  
+
   TIPLOCK;
-  tipWrite(&TIPp->syncCommand,TIP_SYNCCOMMAND_TRIGGERLINK_DISABLE); 
+  tipWrite(&TIPp->syncCommand,TIP_SYNCCOMMAND_TRIGGERLINK_DISABLE);
   usleep(10);
 
-  tipWrite(&TIPp->syncCommand,TIP_SYNCCOMMAND_TRIGGERLINK_DISABLE); 
+  tipWrite(&TIPp->syncCommand,TIP_SYNCCOMMAND_TRIGGERLINK_DISABLE);
   usleep(10);
 
   tipWrite(&TIPp->syncCommand,TIP_SYNCCOMMAND_TRIGGERLINK_ENABLE);
@@ -3762,19 +3762,19 @@ tipSetSyncResetType(int type)
 void
 tipSyncReset(int blflag)
 {
-  if(TIPp==NULL) 
+  if(TIPp==NULL)
     {
       printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
       return;
     }
-  
+
   TIPLOCK;
-  tipWrite(&TIPp->syncCommand,tipSyncResetType); 
+  tipWrite(&TIPp->syncCommand,tipSyncResetType);
   usleep(10);
-  tipWrite(&TIPp->syncCommand,TIP_SYNCCOMMAND_RESET_EVNUM); 
+  tipWrite(&TIPp->syncCommand,TIP_SYNCCOMMAND_RESET_EVNUM);
   usleep(10);
   TIPUNLOCK;
-  
+
   if(blflag) /* Set the block level from "Next" to Current */
     {
       printf("%s: INFO: Setting Block Level to %d\n",
@@ -3788,21 +3788,21 @@ tipSyncReset(int blflag)
 /**
  * @ingroup MasterConfig
  * @brief Generate a Sync Reset Resync signal.  This signal is sent to the loopback and
- *    all configured TI Slaves.  This type of Sync Reset will NOT reset 
+ *    all configured TI Slaves.  This type of Sync Reset will NOT reset
  *    event numbers
  *
  */
 void
 tipSyncResetResync()
 {
-  if(TIPp==NULL) 
+  if(TIPp==NULL)
     {
       printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
       return;
     }
 
   TIPLOCK;
-  tipWrite(&TIPp->syncCommand,tipSyncResetType); 
+  tipWrite(&TIPp->syncCommand,tipSyncResetType);
   TIPUNLOCK;
 
 }
@@ -3817,7 +3817,7 @@ void
 tipClockReset()
 {
   unsigned int old_syncsrc=0;
-  if(TIPp==NULL) 
+  if(TIPp==NULL)
     {
       printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
       return;
@@ -3828,10 +3828,10 @@ tipClockReset()
       printf("%s: ERROR: TI is not the Master.  No Clock Reset.\n", __FUNCTION__);
       return;
     }
-  
+
   TIPLOCK;
   /* Send a clock reset */
-  tipWrite(&TIPp->syncCommand,TIP_SYNCCOMMAND_CLK250_RESYNC); 
+  tipWrite(&TIPp->syncCommand,TIP_SYNCCOMMAND_CLK250_RESYNC);
   usleep(20000);
 
   /* Store the old sync source */
@@ -3841,7 +3841,7 @@ tipClockReset()
   usleep(20000);
 
   /* Send another clock reset */
-  tipWrite(&TIPp->syncCommand,TIP_SYNCCOMMAND_CLK250_RESYNC); 
+  tipWrite(&TIPp->syncCommand,TIP_SYNCCOMMAND_CLK250_RESYNC);
   usleep(20000);
 
   /* Re-enable the sync source */
@@ -3860,12 +3860,12 @@ tipClockReset()
 int
 tipResetEventCounter()
 {
-  if(TIPp==NULL) 
+  if(TIPp==NULL)
     {
       printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
       return ERROR;
     }
-  
+
   TIPLOCK;
   tipWrite(&TIPp->reset, TIP_RESET_SCALERS_RESET);
   TIPUNLOCK;
@@ -3885,7 +3885,7 @@ tipGetEventCounter()
   unsigned long long int rval=0;
   unsigned int lo=0, hi=0;
 
-  if(TIPp==NULL) 
+  if(TIPp==NULL)
     {
       printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
       return ERROR;
@@ -3897,7 +3897,7 @@ tipGetEventCounter()
 
   rval = lo | ((unsigned long long)hi<<32);
   TIPUNLOCK;
-  
+
   return rval;
 }
 
@@ -3910,7 +3910,7 @@ tipGetEventCounter()
 int
 tipSetBlockLimit(unsigned int limit)
 {
-  if(TIPp==NULL) 
+  if(TIPp==NULL)
     {
       printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
       return ERROR;
@@ -3934,7 +3934,7 @@ unsigned int
 tipGetBlockLimit()
 {
   unsigned int rval=0;
-  if(TIPp==NULL) 
+  if(TIPp==NULL)
     {
       printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
       return ERROR;
@@ -3950,15 +3950,15 @@ tipGetBlockLimit()
 /**
  * @ingroup Status
  * @brief Get the current status of the block limit
- *    
+ *
  * @return 1 if block limit has been reached, 0 if not, otherwise ERROR;
- *    
+ *
  */
 int
 tipGetBlockLimitStatus()
 {
   unsigned int reg=0, rval=0;
-  if(TIPp==NULL) 
+  if(TIPp==NULL)
     {
       printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
       return ERROR;
@@ -3988,7 +3988,7 @@ tipBReady()
 {
   unsigned int blockBuffer=0, blockReady=0, rval=0;
 
-  if(TIPp==NULL) 
+  if(TIPp==NULL)
     {
       printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
       return 0;
@@ -4029,7 +4029,7 @@ int
 tipGetSyncEventFlag()
 {
   int rval=0;
-  
+
   TIPLOCK;
   rval = tipSyncEventFlag;
   TIPUNLOCK;
@@ -4050,7 +4050,7 @@ int
 tipGetSyncEventReceived()
 {
   int rval=0;
-  
+
   TIPLOCK;
   rval = tipSyncEventReceived;
   TIPUNLOCK;
@@ -4068,7 +4068,7 @@ int
 tipGetReadoutEvents()
 {
   int rval=0;
-  
+
   TIPLOCK;
   rval = tipNReadoutEvents;
   TIPUNLOCK;
@@ -4098,7 +4098,7 @@ tipSetBlockBufferLevel(unsigned int level)
 {
   unsigned int trigsrc = 0;
 
-  if(TIPp==NULL) 
+  if(TIPp==NULL)
     {
       printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
       return ERROR;
@@ -4115,19 +4115,19 @@ tipSetBlockBufferLevel(unsigned int level)
   tipWrite(&TIPp->blockBuffer, level);
 
     tipBlockBufferLevel = level;
-  
+
     if(tipMaster)
       {
 	/* Broadcast buffer level to TI-slaves */
 	trigsrc = tipRead(&TIPp->trigsrc);
-	
+
 	/* Turn on the VME trigger, if not enabled */
 	if(!(trigsrc & TIP_TRIGSRC_VME))
 	tipWrite(&TIPp->trigsrc, TIP_TRIGSRC_VME | trigsrc);
-      
+
 	/* Broadcast using trigger command */
 	tipWrite(&TIPp->triggerCommand, TIP_TRIGGERCOMMAND_SET_BUFFERLEVEL | level);
-      
+
 	/* Turn off the VME trigger, if it was initially disabled */
 	if(!(trigsrc & TIP_TRIGSRC_VME))
 	  tipWrite(&TIPp->trigsrc, trigsrc);
@@ -4160,7 +4160,7 @@ tipGetBroadcastBlockBufferLevel()
     (int) ((tipRead(&TIPp->dataFormat) &
 	    TIP_DATAFORMAT_BCAST_BUFFERLEVEL_MASK) >> 24);
   TIPUNLOCK;
-  
+
   return rval;
 }
 
@@ -4184,13 +4184,13 @@ tipBusyOnBufferLevel(int enable)
   tipWrite(&TIPp->vmeControl,
 	     tipRead(&TIPp->vmeControl) | TIP_VMECONTROL_BUSY_ON_BUFFERLEVEL);
   TIPUNLOCK;
-  
+
   return OK;
 }
 
 /**
  *  @ingroup Config
- *  @brief Enable/Disable the use of the broadcasted buffer level, instead of the 
+ *  @brief Enable/Disable the use of the broadcasted buffer level, instead of the
  *         value set locally with @tiSetBlockBufferLevel.
  *
  *  @param enable - 1: Enable, 0: Disable
@@ -4206,7 +4206,7 @@ tipUseBroadcastBufferLevel(int enable)
       return ERROR;
     }
 
-  
+
   TIPLOCK;
   if(enable)
     tipWrite(&TIPp->vmeControl,
@@ -4215,7 +4215,7 @@ tipUseBroadcastBufferLevel(int enable)
     tipWrite(&TIPp->vmeControl,
 	       tipRead(&TIPp->vmeControl) | TIP_VMECONTROL_USE_LOCAL_BUFFERLEVEL);
   TIPUNLOCK;
-  
+
   return OK;
 }
 
@@ -4239,7 +4239,7 @@ tipUseBroadcastBufferLevel(int enable)
 int
 tipEnableTSInput(unsigned int inpMask)
 {
-  if(TIPp==NULL) 
+  if(TIPp==NULL)
     {
       printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
       return ERROR;
@@ -4277,7 +4277,7 @@ tipEnableTSInput(unsigned int inpMask)
 int
 tipDisableTSInput(unsigned int inpMask)
 {
-  if(TIPp==NULL) 
+  if(TIPp==NULL)
     {
       printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
       return ERROR;
@@ -4312,12 +4312,12 @@ int
 tipSetOutputPort(unsigned int set1, unsigned int set2, unsigned int set3, unsigned int set4)
 {
   unsigned int bits=0;
-  if(TIPp==NULL) 
+  if(TIPp==NULL)
     {
       printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
       return ERROR;
     }
-  
+
   if(set1)
     bits |= (1<<0);
   if(set2)
@@ -4353,7 +4353,7 @@ tipSetClockSource(unsigned int source)
   unsigned int clkread=0;
   char sClock[20] = "";
 
-  if(TIPp==NULL) 
+  if(TIPp==NULL)
     {
       printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
       return ERROR;
@@ -4371,7 +4371,7 @@ tipSetClockSource(unsigned int source)
       break;
     default:
       printf("%s: ERROR: Invalid Clock Souce (%d)\n",__FUNCTION__,source);
-      return ERROR;      
+      return ERROR;
     }
 
   printf("%s: Setting clock source to %s\n",__FUNCTION__,sClock);
@@ -4415,7 +4415,7 @@ int
 tipGetClockSource()
 {
   int rval=0;
-  if(TIPp==NULL) 
+  if(TIPp==NULL)
     {
       printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
       return ERROR;
@@ -4437,7 +4437,7 @@ void
 tipSetFiberDelay(unsigned int delay, unsigned int offset)
 {
   unsigned int fiberLatency=0, syncDelay=0, syncDelay_write=0;
-  if(TIPp==NULL) 
+  if(TIPp==NULL)
     {
       printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
       return;
@@ -4494,7 +4494,7 @@ tipSetFiberDelay(unsigned int delay, unsigned int offset)
 int
 tipAddSlave(unsigned int fiber)
 {
-  if(TIPp==NULL) 
+  if(TIPp==NULL)
     {
       printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
       return ERROR;
@@ -4515,7 +4515,7 @@ tipAddSlave(unsigned int fiber)
 
   /* Add this slave to the global slave mask */
   tipSlaveMask |= (1<<(fiber-1));
-  
+
   /* Add this fiber as a busy source (use first fiber macro as the base) */
   if(tipSetBusySource(TIP_BUSY_HFBR1<<(fiber-1),0)!=OK)
     return ERROR;
@@ -4543,12 +4543,12 @@ tipPrintTriggerHoldoff(int dflag)
   int irule = 0, slowclock = 0, clockticks = 0, timestep = 0, minticks = 0;
   float clock[3] = {250, 100.0, 100.0/32.}, stepsize = 0., time = 0., min = 0.;
 
-  if(TIPp == NULL) 
+  if(TIPp == NULL)
     {
       printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
       return ERROR;
     }
-  
+
   TIPLOCK;
   triggerRule    = tipRead(&TIPp->triggerRule);
   triggerRuleMin = tipRead(&TIPp->triggerRuleMin);
@@ -4586,7 +4586,7 @@ tipPrintTriggerHoldoff(int dflag)
 	minticks = (triggerRuleMin >> (irule*8)) & 0x7F;
       else
 	minticks = 0;
-      
+
       if((timestep == 1) && (slowclock == 1))
 	{
 	  timestep = 2;
@@ -4598,7 +4598,7 @@ tipPrintTriggerHoldoff(int dflag)
       time = (float)clockticks * stepsize;
 
       min = (float) minticks * stepsize;
-      
+
       printf("    %4d     %8.1f    %8.1f    %8.1f ",
 	     irule + 1, 1E3 * time, 1E3 * stepsize, min);
 
@@ -4611,7 +4611,7 @@ tipPrintTriggerHoldoff(int dflag)
 
     }
   printf("\n");
-  
+
   return OK;
 }
 
@@ -4629,8 +4629,8 @@ tipPrintTriggerHoldoff(int dflag)
  *                         rule
  *    timestep    1      2       3       4
  *    -------   ----- ------- ------- -------
- *       0       16ns    16ns    32ns    64ns 
- *       1      160ns   320ns   640ns  1280ns 
+ *       0       16ns    16ns    32ns    64ns
+ *       1      160ns   320ns   640ns  1280ns
  *       2     5120ns 10240ns 20480ns 40960ns
  *</pre>
  *
@@ -4643,7 +4643,7 @@ tipSetTriggerHoldoff(int rule, unsigned int value, int timestep)
   unsigned int wval=0, rval=0;
   unsigned int maxvalue=0x7f;
 
-  if(TIPp==NULL) 
+  if(TIPp==NULL)
     {
       printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
       return ERROR;
@@ -4668,7 +4668,7 @@ tipSetTriggerHoldoff(int rule, unsigned int value, int timestep)
   /* Read the previous values */
   TIPLOCK;
   rval = tipRead(&TIPp->triggerRule);
-  
+
   switch(rule)
     {
     case 1:
@@ -4688,10 +4688,10 @@ tipSetTriggerHoldoff(int rule, unsigned int value, int timestep)
   tipWrite(&TIPp->triggerRule,wval);
 
   if(timestep==2)
-    tipWrite(&TIPp->vmeControl, 
+    tipWrite(&TIPp->vmeControl,
 	     tipRead(&TIPp->vmeControl) | TIP_VMECONTROL_SLOWER_TRIGGER_RULES);
   else
-    tipWrite(&TIPp->vmeControl, 
+    tipWrite(&TIPp->vmeControl,
 	     tipRead(&TIPp->vmeControl) & ~TIP_VMECONTROL_SLOWER_TRIGGER_RULES);
 
   TIPUNLOCK;
@@ -4708,7 +4708,7 @@ tipSetTriggerHoldoff(int rule, unsigned int value, int timestep)
  *            e.g. rule=1: No more than ONE trigger within the
  *                         specified time period
  *
- * @return If successful, returns the value (in steps of 16ns) 
+ * @return If successful, returns the value (in steps of 16ns)
  *            for the specified rule. ERROR, otherwise.
  *
  */
@@ -4716,13 +4716,13 @@ int
 tipGetTriggerHoldoff(int rule)
 {
   unsigned int rval=0;
-  
-  if(TIPp==NULL) 
+
+  if(TIPp==NULL)
     {
       printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
       return ERROR;
     }
-  
+
   if(rule<1 || rule>5)
     {
       printf("%s: ERROR: Invalid value for rule (%d).  Must be 1-4.\n",
@@ -4733,7 +4733,7 @@ tipGetTriggerHoldoff(int rule)
   TIPLOCK;
   rval = tipRead(&TIPp->triggerRule);
   TIPUNLOCK;
-  
+
   switch(rule)
     {
     case 1:
@@ -4770,7 +4770,7 @@ tipGetTriggerHoldoff(int rule)
  *       	 	      rule
  *    		         2      3      4
  *    		       ----- ------ ------
- *    		        16ns  160ns  160ns 
+ *    		        16ns  160ns  160ns
  *    	(timestep=2)    16ns 5120ns 5120ns
  *</pre>
  *
@@ -4781,12 +4781,12 @@ int
 tipSetTriggerHoldoffMin(int rule, unsigned int value)
 {
   unsigned int mask=0, enable=0, shift=0;
-  if(TIPp==NULL) 
+  if(TIPp==NULL)
     {
       printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
       return ERROR;
     }
-  
+
   if(rule<2 || rule>5)
     {
       printf("%s: ERROR: Invalid rule (%d).  Must be 2-4.\n",
@@ -4821,7 +4821,7 @@ tipSetTriggerHoldoffMin(int rule, unsigned int value)
     }
 
   TIPLOCK;
-  tipWrite(&TIPp->triggerRuleMin, 
+  tipWrite(&TIPp->triggerRuleMin,
 	     (tipRead(&TIPp->triggerRuleMin) & mask) |
 	     enable |
 	     (value << shift) );
@@ -4840,8 +4840,8 @@ tipSetTriggerHoldoffMin(int rule, unsigned int value)
  *
  * @param  pflag  if not 0, print the setting to standard out.
  *
- * @return If successful, returns the value 
- *          (in steps of 16ns for rule 2, 480ns otherwise) 
+ * @return If successful, returns the value
+ *          (in steps of 16ns for rule 2, 480ns otherwise)
  *            for the specified rule. ERROR, otherwise.
  *
  */
@@ -4850,12 +4850,12 @@ tipGetTriggerHoldoffMin(int rule, int pflag)
 {
   int rval=0;
   unsigned int mask=0, enable=0, shift=0;
-  if(TIPp==NULL) 
+  if(TIPp==NULL)
     {
       printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
       return ERROR;
     }
-  
+
   if(rule<2 || rule>5)
     {
       printf("%s: ERROR: Invalid rule (%d).  Must be 2-4.\n",
@@ -4911,18 +4911,18 @@ tipGetTriggerHoldoffMin(int rule, int pflag)
 int
 tipDisableDataReadout()
 {
-  if(TIPp==NULL) 
+  if(TIPp==NULL)
     {
       printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
       return ERROR;
     }
-  
+
   tipReadoutEnabled = 0;
   TIPLOCK;
   tipWrite(&TIPp->vmeControl,
 	     tipRead(&TIPp->vmeControl) | TIP_VMECONTROL_BUFFER_DISABLE);
   TIPUNLOCK;
-  
+
   printf("%s: Readout disabled.\n",__FUNCTION__);
 
   return OK;
@@ -4938,12 +4938,12 @@ tipDisableDataReadout()
 int
 tipEnableDataReadout()
 {
-  if(TIPp==NULL) 
+  if(TIPp==NULL)
     {
       printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
       return ERROR;
     }
-  
+
   tipReadoutEnabled = 1;
   TIPLOCK;
   tipWrite(&TIPp->vmeControl,
@@ -4966,13 +4966,13 @@ tipEnableDataReadout()
 void
 tipResetBlockReadout()
 {
- 
-  if(TIPp==NULL) 
+
+  if(TIPp==NULL)
     {
       printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
       return;
     }
- 
+
   TIPLOCK;
   tipWrite(&TIPp->reset,TIP_RESET_BLOCK_READOUT);
   TIPUNLOCK;
@@ -5002,7 +5002,7 @@ tipTriggerTableConfig(unsigned int *itable)
 
   for(ielement=0; ielement<16; ielement++)
     tipTrigPatternData[ielement] = itable[ielement];
-  
+
   return OK;
 }
 
@@ -5028,7 +5028,7 @@ tipGetTriggerTable(unsigned int *otable)
 
   for(ielement=0; ielement<16; ielement++)
     otable[ielement] = tipTrigPatternData[ielement];
-  
+
   return OK;
 }
 
@@ -5043,8 +5043,8 @@ tipGetTriggerTable(unsigned int *otable)
  *    - TS#6 generates Trigger2 (playback trigger),
  *    - No SyncEvent;
  *  - 1:
- *    - TS#1,2,3 generates Trigger1 (physics trigger), 
- *    - TS#4,5,6 generates Trigger2 (playback trigger).  
+ *    - TS#1,2,3 generates Trigger1 (physics trigger),
+ *    - TS#4,5,6 generates Trigger2 (playback trigger).
  *    - If both Trigger1 and Trigger2, they are SyncEvent;
  *  - 2:
  *    - TS#1,2,3,4,5 generates Trigger1 (physics trigger),
@@ -5053,7 +5053,7 @@ tipGetTriggerTable(unsigned int *otable)
  *  - 3:
  *    - TS#1,2,3,4,5,6 generates Trigger1 (physics trigger),
  *    - No Trigger2 (playback trigger),
- *    - No SyncEvent; 
+ *    - No SyncEvent;
  *
  * @return OK if successful, otherwise ERROR
  */
@@ -5061,7 +5061,7 @@ int
 tipTriggerTablePredefinedConfig(int mode)
 {
   int ielement=0;
-  unsigned int trigPattern[4][16] = 
+  unsigned int trigPattern[4][16] =
     {
       { /* mode 0:
 	   TS#1,2,3,4,5 generates Trigger1 (physics trigger),
@@ -5071,17 +5071,17 @@ tipTriggerTablePredefinedConfig(int mode)
 	0x43424100, 0x47464544, 0x4b4a4948, 0x4f4e4d4c,
 	0x53525150, 0x57565554, 0x5b5a5958, 0x5f5e5d5c,
 	0x636261a0, 0x67666564, 0x6b6a6968, 0x6f6e6d6c,
-	0x73727170, 0x77767574, 0x7b7a7978, 0x7f7e7d7c, 
+	0x73727170, 0x77767574, 0x7b7a7978, 0x7f7e7d7c,
       },
       { /* mode 1:
-	   TS#1,2,3 generates Trigger1 (physics trigger), 
-	   TS#4,5,6 generates Trigger2 (playback trigger).  
+	   TS#1,2,3 generates Trigger1 (physics trigger),
+	   TS#4,5,6 generates Trigger2 (playback trigger).
 	   If both Trigger1 and Trigger2, they are SyncEvent;
 	*/
 	0x43424100, 0x47464544, 0xcbcac988, 0xcfcecdcc,
 	0xd3d2d190, 0xd7d6d5d4, 0xdbdad998, 0xdfdedddc,
 	0xe3e2e1a0, 0xe7e6e5e4, 0xebeae9a8, 0xefeeedec,
-	0xf3f2f1b0, 0xf7f6f5f4, 0xfbfaf9b8, 0xfffefdfc, 
+	0xf3f2f1b0, 0xf7f6f5f4, 0xfbfaf9b8, 0xfffefdfc,
       },
       { /* mode 2:
 	   TS#1,2,3,4,5 generates Trigger1 (physics trigger),
@@ -5091,7 +5091,7 @@ tipTriggerTablePredefinedConfig(int mode)
 	0x43424100, 0x47464544, 0x4b4a4948, 0x4f4e4d4c,
 	0x53525150, 0x57565554, 0x5b5a5958, 0x5f5e5d5c,
 	0xe3e2e1a0, 0xe7e6e5e4, 0xebeae9e8, 0xefeeedec,
-	0xf3f2f1f0, 0xf7f6f5f4, 0xfbfaf9f8, 0xfffefdfc 
+	0xf3f2f1f0, 0xf7f6f5f4, 0xfbfaf9f8, 0xfffefdfc
       },
       { /* mode 3:
            TS#1,2,3,4,5,6 generates Trigger1 (physics trigger),
@@ -5118,7 +5118,7 @@ tipTriggerTablePredefinedConfig(int mode)
     {
       tipTrigPatternData[ielement] = trigPattern[mode][ielement];
     }
-  
+
   return OK;
 }
 
@@ -5190,7 +5190,7 @@ tipDefineEventType(int trigMask, int hwTrig, int evType)
 int
 tipDefinePulserEventType(int fixed_type, int random_type)
 {
-  if(TIPp==NULL) 
+  if(TIPp==NULL)
     {
       printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
       return ERROR;
@@ -5226,8 +5226,8 @@ tipDefinePulserEventType(int fixed_type, int random_type)
  *    - TS#6 generates Trigger2 (playback trigger),
  *    - No SyncEvent;
  *  - 1:
- *    - TS#1,2,3 generates Trigger1 (physics trigger), 
- *    - TS#4,5,6 generates Trigger2 (playback trigger).  
+ *    - TS#1,2,3 generates Trigger1 (physics trigger),
+ *    - TS#4,5,6 generates Trigger2 (playback trigger).
  *    - If both Trigger1 and Trigger2, they are SyncEvent;
  *  - 2:
  *    - TS#1,2,3,4,5 generates Trigger1 (physics trigger),
@@ -5236,7 +5236,7 @@ tipDefinePulserEventType(int fixed_type, int random_type)
  *  - 3:
  *    - TS#1,2,3,4,5,6 generates Trigger1 (physics trigger),
  *    - No Trigger2 (playback trigger),
- *    - No SyncEvent; 
+ *    - No SyncEvent;
  *  - 4:
  *    User configured table @sa tiDefineEventType, tiTriggerTablePredefinedConfig
  *
@@ -5247,7 +5247,7 @@ tipLoadTriggerTable(int mode)
 {
   int ipat;
 
-  if(TIPp==NULL) 
+  if(TIPp==NULL)
     {
       printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
       return ERROR;
@@ -5262,7 +5262,7 @@ tipLoadTriggerTable(int mode)
 
   if(mode!=4)
     tipTriggerTablePredefinedConfig(mode);
-  
+
   TIPLOCK;
   for(ipat=0; ipat<16; ipat++)
     tipWrite(&TIPp->trigTable[ipat], tipTrigPatternData[ipat]);
@@ -5301,10 +5301,10 @@ tipPrintTriggerTable(int showbits)
 	{
 	  hwTrig = ((tipTrigPatternData[ielement]>>(ibyte*8)) & 0xC0)>>6;
 	  evType = (tipTrigPatternData[ielement]>>(ibyte*8)) & 0x3F;
-	  
+
 	  if(showbits)
 	    {
-	      printf("%d %d %d %d %d %d   %d   %2d\n", 
+	      printf("%d %d %d %d %d %d   %d   %2d\n",
 		     ((ielement*4+ibyte) & (1<<0))?1:0,
 		     ((ielement*4+ibyte) & (1<<1))?1:0,
 		     ((ielement*4+ibyte) & (1<<2))?1:0,
@@ -5335,7 +5335,7 @@ tipPrintTriggerTable(int showbits)
 int
 tipSetTriggerWindow(int window_width)
 {
-  if(TIPp==NULL) 
+  if(TIPp==NULL)
     {
       printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
       return ERROR;
@@ -5350,7 +5350,7 @@ tipSetTriggerWindow(int window_width)
 
   TIPLOCK;
   tipWrite(&TIPp->triggerWindow,
-	     (tipRead(&TIPp->triggerWindow) & ~TIP_TRIGGERWINDOW_COINC_MASK) 
+	     (tipRead(&TIPp->triggerWindow) & ~TIP_TRIGGERWINDOW_COINC_MASK)
 	     | window_width);
   TIPUNLOCK;
 
@@ -5366,14 +5366,14 @@ int
 tipGetTriggerWindow()
 {
   int rval=0;
-  if(TIPp==NULL) 
+  if(TIPp==NULL)
     {
       printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
       return ERROR;
     }
 
   TIPLOCK;
-  rval = tipRead(&TIPp->triggerWindow) & ~TIP_TRIGGERWINDOW_COINC_MASK;
+  rval = tipRead(&TIPp->triggerWindow) & TIP_TRIGGERWINDOW_COINC_MASK;
   TIPUNLOCK;
 
   return rval;
@@ -5388,7 +5388,7 @@ tipGetTriggerWindow()
 int
 tipSetTriggerInhibitWindow(int window_width)
 {
-  if(TIPp==NULL) 
+  if(TIPp==NULL)
     {
       printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
       return ERROR;
@@ -5403,7 +5403,7 @@ tipSetTriggerInhibitWindow(int window_width)
 
   TIPLOCK;
   tipWrite(&TIPp->triggerWindow,
-	     (tipRead(&TIPp->triggerWindow) & ~TIP_TRIGGERWINDOW_INHIBIT_MASK) 
+	     (tipRead(&TIPp->triggerWindow) & ~TIP_TRIGGERWINDOW_INHIBIT_MASK)
 	     | (window_width<<8));
   TIPUNLOCK;
 
@@ -5419,7 +5419,7 @@ int
 tipGetTriggerInhibitWindow()
 {
   int rval=0;
-  if(TIPp==NULL) 
+  if(TIPp==NULL)
     {
       printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
       return ERROR;
@@ -5445,7 +5445,7 @@ tipGetTriggerInhibitWindow()
 int
 tipSetTrig21Delay(int delay)
 {
-  if(TIPp==NULL) 
+  if(TIPp==NULL)
     {
       printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
       return ERROR;
@@ -5459,7 +5459,7 @@ tipSetTrig21Delay(int delay)
     }
 
   TIPLOCK;
-  tipWrite(&TIPp->triggerWindow, 
+  tipWrite(&TIPp->triggerWindow,
 	     (tipRead(&TIPp->triggerWindow) & ~TIP_TRIGGERWINDOW_TRIG21_MASK) |
 	     (delay<<16));
   TIPUNLOCK;
@@ -5477,7 +5477,7 @@ int
 tipGetTrig21Delay()
 {
   int rval=0;
-  if(TIPp==NULL) 
+  if(TIPp==NULL)
     {
       printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
       return ERROR;
@@ -5505,7 +5505,7 @@ tipGetTrig21Delay()
 int
 tipSetTriggerLatchOnLevel(int enable)
 {
-  if(TIPp == NULL) 
+  if(TIPp == NULL)
     {
       printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
       return ERROR;
@@ -5515,7 +5515,7 @@ tipSetTriggerLatchOnLevel(int enable)
     enable = 0;
 
   TIPLOCK;
-  tipWrite(&TIPp->triggerWindow, 
+  tipWrite(&TIPp->triggerWindow,
 	     (tipRead(&TIPp->triggerWindow) & ~TIP_TRIGGERWINDOW_LEVEL_LATCH) |
 	     (enable<<31));
   TIPUNLOCK;
@@ -5534,7 +5534,7 @@ int
 tipGetTriggerLatchOnLevel()
 {
   int rval=0;
-  if(TIPp == NULL) 
+  if(TIPp == NULL)
     {
       printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
       return ERROR;
@@ -5561,7 +5561,7 @@ return rval;
 int
 tipLatchTimers()
 {
-  if(TIPp==NULL) 
+  if(TIPp==NULL)
     {
       printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
       return ERROR;
@@ -5585,7 +5585,7 @@ unsigned int
 tipGetLiveTime()
 {
   unsigned int rval=0;
-  if(TIPp==NULL) 
+  if(TIPp==NULL)
     {
       printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
       return ERROR;
@@ -5609,7 +5609,7 @@ unsigned int
 tipGetBusyTime()
 {
   unsigned int rval=0;
-  if(TIPp==NULL) 
+  if(TIPp==NULL)
     {
       printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
       return ERROR;
@@ -5640,7 +5640,7 @@ tipLive(int sflag)
   unsigned int live=0, total=0;
   static unsigned int oldLive=0, oldTotal=0;
 
-  if(TIPp==NULL) 
+  if(TIPp==NULL)
     {
       printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
       return ERROR;
@@ -5688,7 +5688,7 @@ tipLive(int sflag)
  *   -  0: Do not latch before readout
  *   -  1: Latch before readout
  *   -  2: Latch and reset before readout
- *      
+ *
  *
  * @return Specified counter value
  *
@@ -5697,7 +5697,7 @@ unsigned int
 tipGetTSscaler(int input, int latch)
 {
   unsigned int rval=0;
-  if(TIPp==NULL) 
+  if(TIPp==NULL)
     {
       printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
       return ERROR;
@@ -5720,7 +5720,7 @@ tipGetTSscaler(int input, int latch)
   TIPLOCK;
   switch(latch)
     {
-    case 1: 
+    case 1:
       tipWrite(&TIPp->reset,TIP_RESET_SCALERS_LATCH);
       break;
 
@@ -5749,7 +5749,7 @@ tipBlockStatus(int fiber, int pflag)
   char name[50];
   unsigned int nblocksReady, nblocksNeedAck;
 
-  if(TIPp==NULL) 
+  if(TIPp==NULL)
     {
       printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
       return ERROR;
@@ -5778,7 +5778,7 @@ tipBlockStatus(int fiber, int pflag)
     case 2:
     case 4:
     case 6:
-    case 8: 
+    case 8:
       rval = ( tipRead(&TIPp->blockStatus[(fiber/2)-1]) & 0xFFFF0000 )>>16;
       break;
     }
@@ -5841,10 +5841,10 @@ FiberMeas()
       /* Measure the fiber latency */
       tipWrite(&TIPp->reset,TIP_RESET_MEASURE_LATENCY);
       usleep(1000);
-      
+
       /* Get the fiber latency measurement result */
       fiberLatency = tipRead(&TIPp->fiberLatencyMeasurement);
-      
+
 #ifdef DEBUGFIBERMEAS
       printf("Software offset = 0x%08x (%d)\n",
 	     tipFiberLatencyOffset, tipFiberLatencyOffset);
@@ -5857,12 +5857,12 @@ FiberMeas()
 
       /* Auto adjust the sync phase */
       tipWrite(&TIPp->reset,TIP_RESET_AUTOALIGN_HFBR1_SYNC);
-      
+
       usleep(100);
-      
+
       /* Get the fiber latency measurement result */
       fiberLatency = tipRead(&TIPp->fiberLatencyMeasurement);
-      
+
       /* Divide by two to get the one way trip */
       tipFiberLatencyMeasurement =
 	((fiberLatency & TIP_FIBERLATENCYMEASUREMENT_DATA_MASK)>>23)>>1;
@@ -5899,7 +5899,7 @@ FiberMeas()
 	     firstMeas, tipFiberLatencyMeasurement);
       tipFiberLatencyMeasurement = 0;
       rval = ERROR;
-    }  
+    }
   else if(!((tipFiberLatencyMeasurement > 0) && (tipFiberLatencyMeasurement <= 0xFF)))
     {
       printf("\n");
@@ -5918,7 +5918,7 @@ FiberMeas()
 	     tipFiberLatencyMeasurement, tipFiberLatencyMeasurement);
       rval = OK;
     }
-      
+
   return rval;
 }
 
@@ -5946,7 +5946,7 @@ tipGetFiberLatencyMeasurement()
 int
 tipSetUserSyncResetReceive(int enable)
 {
-  if(TIPp==NULL) 
+  if(TIPp==NULL)
     {
       printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
       return ERROR;
@@ -5954,7 +5954,7 @@ tipSetUserSyncResetReceive(int enable)
 
   TIPLOCK;
   if(enable)
-    tipWrite(&TIPp->sync, (tipRead(&TIPp->sync) & TIP_SYNC_SOURCEMASK) | 
+    tipWrite(&TIPp->sync, (tipRead(&TIPp->sync) & TIP_SYNC_SOURCEMASK) |
 	       TIP_SYNC_USER_SYNCRESET_ENABLED);
   else
     tipWrite(&TIPp->sync, (tipRead(&TIPp->sync) & TIP_SYNC_SOURCEMASK) &
@@ -5967,7 +5967,7 @@ tipSetUserSyncResetReceive(int enable)
 /**
  * @ingroup Status
  * @brief Return last SyncCommand received
- * @param 
+ * @param
  *   - >0: print to standard out
  * @return Last SyncCommand received
  */
@@ -5975,7 +5975,7 @@ int
 tipGetLastSyncCodes(int pflag)
 {
   int rval=0;
-  if(TIPp==NULL) 
+  if(TIPp==NULL)
     {
       printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
       return ERROR;
@@ -6001,7 +6001,7 @@ tipGetLastSyncCodes(int pflag)
  * @ingroup Status
  * @brief Get the status of the SyncCommand History Buffer
  *
- * @param pflag  
+ * @param pflag
  *   - >0: Print to standard out
  *
  * @return
@@ -6013,14 +6013,14 @@ int
 tipGetSyncHistoryBufferStatus(int pflag)
 {
   int hist_status=0, rval=0;
-  if(TIPp==NULL) 
+  if(TIPp==NULL)
     {
       printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
       return ERROR;
     }
 
   TIPLOCK;
-  hist_status = tipRead(&TIPp->sync) 
+  hist_status = tipRead(&TIPp->sync)
     & (TIP_SYNC_HISTORY_FIFO_MASK);
   TIPUNLOCK;
 
@@ -6054,7 +6054,7 @@ tipGetSyncHistoryBufferStatus(int pflag)
 void
 tipResetSyncHistory()
 {
-  if(TIPp==NULL) 
+  if(TIPp==NULL)
     {
       printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
       return;
@@ -6080,7 +6080,7 @@ tipResetSyncHistory()
 void
 tipUserSyncReset(int enable, int pflag)
 {
-  if(TIPp==NULL) 
+  if(TIPp==NULL)
     {
       printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
       return;
@@ -6088,9 +6088,9 @@ tipUserSyncReset(int enable, int pflag)
 
   TIPLOCK;
   if(enable)
-    tipWrite(&TIPp->syncCommand,TIP_SYNCCOMMAND_SYNCRESET_HIGH); 
+    tipWrite(&TIPp->syncCommand,TIP_SYNCCOMMAND_SYNCRESET_HIGH);
   else
-    tipWrite(&TIPp->syncCommand,TIP_SYNCCOMMAND_SYNCRESET_LOW); 
+    tipWrite(&TIPp->syncCommand,TIP_SYNCCOMMAND_SYNCRESET_LOW);
 
   usleep(20000);
   TIPUNLOCK;
@@ -6115,12 +6115,12 @@ tipPrintSyncHistory()
 {
   unsigned int syncHistory=0;
   int count=0, code=1, valid=0, timestamp=0, overflow=0;
-  if(TIPp==NULL) 
+  if(TIPp==NULL)
     {
       printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
       return;
     }
-  
+
   while(code!=0)
     {
       TIPLOCK;
@@ -6139,7 +6139,7 @@ tipPrintSyncHistory()
 	  code  = syncHistory & TIP_SYNCHISTORY_HFBR1_CODE_MASK;
 	  valid = (syncHistory & TIP_SYNCHISTORY_HFBR1_CODE_VALID)>>4;
 	}
-      
+
       overflow  = (syncHistory & TIP_SYNCHISTORY_TIMESTAMP_OVERFLOW)>>15;
       timestamp = (syncHistory & TIP_SYNCHISTORY_TIMESTAMP_MASK)>>16;
 
@@ -6164,16 +6164,16 @@ tipPrintSyncHistory()
  * @ingroup MasterConfig
  * @brief Set the value of the syncronization event interval
  *
- * 
- * @param  blk_interval 
+ *
+ * @param  blk_interval
  *      Sync Event will occur in the last event of the set blk_interval (number of blocks)
- * 
+ *
  * @return OK if successful, otherwise ERROR
  */
 int
 tipSetSyncEventInterval(int blk_interval)
 {
-  if(TIPp==NULL) 
+  if(TIPp==NULL)
     {
       printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
       return ERROR;
@@ -6208,7 +6208,7 @@ int
 tipGetSyncEventInterval()
 {
   int rval=0;
-  if(TIPp==NULL) 
+  if(TIPp==NULL)
     {
       printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
       return ERROR;
@@ -6235,7 +6235,7 @@ tipGetSyncEventInterval()
 int
 tipForceSyncEvent()
 {
-  if(TIPp==NULL) 
+  if(TIPp==NULL)
     {
       printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
       return ERROR;
@@ -6256,7 +6256,7 @@ tipForceSyncEvent()
 
 /**
  * @ingroup Readout
- * @brief Sync Reset Request is sent to TI-Master or TS.  
+ * @brief Sync Reset Request is sent to TI-Master or TS.
  *
  *    This option is available for multicrate systems when the
  *    synchronization is suspect.  It should be exercised only during
@@ -6268,7 +6268,7 @@ tipForceSyncEvent()
 int
 tipSyncResetRequest()
 {
-  if(TIPp==NULL) 
+  if(TIPp==NULL)
     {
       printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
       return ERROR;
@@ -6291,7 +6291,7 @@ int
 tipGetSyncResetRequest()
 {
   int request=0;
-  if(TIPp==NULL) 
+  if(TIPp==NULL)
     {
       printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
       return ERROR;
@@ -6322,7 +6322,7 @@ tipGetSyncResetRequest()
 int
 tipEnableSyncResetRequest(unsigned int portMask, int self)
 {
-  if(TIPp == NULL) 
+  if(TIPp == NULL)
     {
       printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
       return ERROR;
@@ -6346,13 +6346,13 @@ tipEnableSyncResetRequest(unsigned int portMask, int self)
     self = 1;
   else
     self = 0;
-  
+
   TIPLOCK;
   tipWrite(&TIPp->rocEnable,
 	   (tipRead(&TIPp->rocEnable) & TIP_ROCENABLE_MASK) |
 	   (portMask << 11) | (self << 10) );
   TIPUNLOCK;
-  
+
   return OK;
 }
 
@@ -6366,7 +6366,7 @@ int
 tipSyncResetRequestStatus(int pflag)
 {
   int self = 0, rval = 0, ibit = 0;
-  if(TIPp == NULL) 
+  if(TIPp == NULL)
     {
       printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
       return ERROR;
@@ -6400,12 +6400,12 @@ tipSyncResetRequestStatus(int pflag)
 	    {
 	      printf("%d ", ibit + 1);
 	    }
-	  
+
 	  if(rval & (1 << 8))
 	    {
 	      printf("SELF ");
 	    }
-	  
+
 	  printf("*****\n");
 	}
       else
@@ -6413,7 +6413,7 @@ tipSyncResetRequestStatus(int pflag)
 	  printf("    No SyncReset Requested\n");
 	}
     }
-  
+
   return rval;
 }
 
@@ -6425,7 +6425,7 @@ tipSyncResetRequestStatus(int pflag)
 void
 tipTriggerReadyReset()
 {
-  if(TIPp==NULL) 
+  if(TIPp==NULL)
     {
       printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
       return;
@@ -6436,9 +6436,9 @@ tipTriggerReadyReset()
       printf("%s: ERROR: TI is not the TI Master.\n",__FUNCTION__);
       return;
     }
-  
+
   TIPLOCK;
-  tipWrite(&TIPp->syncCommand,TIP_SYNCCOMMAND_TRIGGER_READY_RESET); 
+  tipWrite(&TIPp->syncCommand,TIP_SYNCCOMMAND_TRIGGER_READY_RESET);
   TIPUNLOCK;
 
 
@@ -6454,7 +6454,7 @@ tipTriggerReadyReset()
 int
 tipFillToEndBlock()
 {
-  if(TIPp==NULL) 
+  if(TIPp==NULL)
     {
       printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
       return ERROR;
@@ -6481,7 +6481,7 @@ tipFillToEndBlock()
 int
 tipResetMGT()
 {
-  if(TIPp==NULL) 
+  if(TIPp==NULL)
     {
       printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
       return ERROR;
@@ -6509,7 +6509,7 @@ tipResetMGT()
 int
 tipResetMGTReceiver()
 {
-  if(TIPp==NULL) 
+  if(TIPp==NULL)
     {
       printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
       return ERROR;
@@ -6539,7 +6539,7 @@ tipResetMGTReceiver()
 int
 tipSetTSInputDelay(int chan, int delay)
 {
-  if(TIPp==NULL) 
+  if(TIPp==NULL)
     {
       printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
       return ERROR;
@@ -6579,7 +6579,7 @@ int
 tipGetTSInputDelay(int chan)
 {
   int rval=0;
-  if(TIPp==NULL) 
+  if(TIPp==NULL)
     {
       printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
       return ERROR;
@@ -6610,7 +6610,7 @@ tipPrintTSInputDelay()
 {
   unsigned int reg[2];
   int ireg=0, ichan=0, delay=0;
-  if(TIPp==NULL) 
+  if(TIPp==NULL)
     {
       printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
       return ERROR;
@@ -6622,10 +6622,10 @@ tipPrintTSInputDelay()
   TIPUNLOCK;
 
   printf("%s: Front panel delays:", __FUNCTION__);
-  for(ichan=0;ichan<6;ichan++) 
+  for(ichan=0;ichan<6;ichan++)
     {
       delay = reg[ichan/3] & TIP_FPDELAY_MASK(ichan)>>(10*(ichan%3));
-      if((ichan%4)==0) 
+      if((ichan%4)==0)
 	{
 	  printf("\n");
 	}
@@ -6732,7 +6732,7 @@ tipEnableFifo()
 
   TIPLOCK;
   /* Disable DMA readout */
-  tipWrite(&TIPp->vmeControl, 
+  tipWrite(&TIPp->vmeControl,
 	   tipRead(&TIPp->vmeControl) &~TIP_VMECONTROL_DMASETTING_MASK);
 
   /* Enable FIFO */
@@ -6781,11 +6781,11 @@ tipDmaConfig(int packet_size, int adr_mode, int dma_size)
   TIPLOCK;
   tipWrite(&TIPp->dmaSetting,
 	   (tipRead(&TIPp->dmaSetting) & TIP_DMASETTING_PHYS_ADDR_HI_MASK) |
-	   (packet_size<<24) | 
+	   (packet_size<<24) |
 	   (dma_size<<28) |
 	   (adr_mode<<31) );
 
-  tipWrite(&TIPp->vmeControl, 
+  tipWrite(&TIPp->vmeControl,
 	   tipRead(&TIPp->vmeControl) | TIP_VMECONTROL_DMA_DATA_ENABLE);
   TIPUNLOCK;
 
@@ -6837,7 +6837,7 @@ tipDmaSetAddr(unsigned int phys_addr_lo, unsigned int phys_addr_hi)
 int
 tipPCIEStatus(int pflag)
 {
-  unsigned int dmaSetting, dmaAddr, 
+  unsigned int dmaSetting, dmaAddr,
     pcieConfigLink, pcieConfigStatus, pcieConfig, pcieDevConfig;
   unsigned long TIBase=0;
 
@@ -6867,19 +6867,19 @@ tipPCIEStatus(int pflag)
     {
       printf(" Registers (offset):\n");
 
-      printf(" dmaSetting       (0x%04lx) = 0x%08x ", 
+      printf(" dmaSetting       (0x%04lx) = 0x%08x ",
 	     (unsigned long)&TIPp->dmaSetting - TIBase, dmaSetting);
-      printf(" dmaAddr          (0x%04lx) = 0x%08x\n", 
+      printf(" dmaAddr          (0x%04lx) = 0x%08x\n",
 	     (unsigned long)&TIPp->dmaAddr - TIBase, dmaAddr);
 
-      printf(" pcieConfigLink   (0x%04lx) = 0x%08x ", 
+      printf(" pcieConfigLink   (0x%04lx) = 0x%08x ",
 	     (unsigned long)&TIPp->pcieConfigLink - TIBase, pcieConfigLink);
-      printf(" pcieConfigStatus (0x%04lx) = 0x%08x\n", 
+      printf(" pcieConfigStatus (0x%04lx) = 0x%08x\n",
 	     (unsigned long)&TIPp->pcieConfigStatus - TIBase, pcieConfigStatus);
 
-      printf(" pcieConfig       (0x%04lx) = 0x%08x ", 
+      printf(" pcieConfig       (0x%04lx) = 0x%08x ",
 	     (unsigned long)&TIPp->pcieConfig - TIBase, pcieConfig);
-      printf(" pcieDevConfig    (0x%04lx) = 0x%08x\n", 
+      printf(" pcieDevConfig    (0x%04lx) = 0x%08x\n",
 	     (unsigned long)&TIPp->pcieDevConfig - TIBase, pcieDevConfig);
       printf("\n");
     }
@@ -6900,7 +6900,7 @@ tipPCIEStatus(int pflag)
 	 ((dmaSetting&TIP_DMASETTING_MAX_PACKET_SIZE_MASK)>>28)==4?512:0);
 
   printf("\n");
-  
+
   printf("--------------------------------------------------------------------------------\n");
   printf("\n\n");
 
@@ -6919,7 +6919,7 @@ tipPCIEStatus(int pflag)
  *  - Default interrupt handler
  *    Handles the TI interrupt.  Calls a user defined routine,
  *    if it was connected with tiIntConnect()
- *    
+ *
  */
 static void
 tiInt(void)
@@ -6964,7 +6964,7 @@ tipWaitForData()
 
   /* if(*TIPpd==0) */
   /*   return 0; */
-    
+
   return 1;
 }
 #endif
@@ -6988,7 +6988,7 @@ tipPoll(void)
   int j;
   cpu_set_t testCPU;
 
-  if (pthread_getaffinity_np(pthread_self(), sizeof(testCPU), &testCPU) <0) 
+  if (pthread_getaffinity_np(pthread_self(), sizeof(testCPU), &testCPU) <0)
     {
       perror("pthread_getaffinity_np");
     }
@@ -7000,11 +7000,11 @@ tipPoll(void)
 
   CPU_ZERO(&testCPU);
   CPU_SET(1,&testCPU);
-  if (pthread_setaffinity_np(pthread_self(),sizeof(testCPU), &testCPU) <0) 
+  if (pthread_setaffinity_np(pthread_self(),sizeof(testCPU), &testCPU) <0)
     {
       perror("pthread_setaffinity_np");
     }
-  if (pthread_getaffinity_np(pthread_self(), sizeof(testCPU), &testCPU) <0) 
+  if (pthread_getaffinity_np(pthread_self(), sizeof(testCPU), &testCPU) <0)
     {
       perror("pthread_getaffinity_np");
     }
@@ -7018,7 +7018,7 @@ tipPoll(void)
 
 
 #endif
-  
+
   /* Set scheduler and priority for this thread */
   policy=SCHED_OTHER;
   sp.sched_priority=40;
@@ -7029,24 +7029,24 @@ tipPoll(void)
 	  (policy == SCHED_FIFO ? "FIFO"
 	   : (policy == SCHED_RR ? "RR"
 	      : (policy == SCHED_OTHER ? "OTHER"
-		 : "unknown"))), sp.sched_priority);  
+		 : "unknown"))), sp.sched_priority);
   prctl(PR_SET_NAME,"tipPoll");
 
-  while(1) 
+  while(1)
     {
       usleep(1);
       pthread_testcancel();
 
       /* If still need Ack, don't test the Trigger Status */
-      if(tipNeedAck>0) 
+      if(tipNeedAck>0)
 	{
 	  continue;
 	}
 
       tidata = 0;
-	  
+
       tidata = tipBReady();
-      if(tidata == ERROR) 
+      if(tidata == ERROR)
 	{
 	  printf("%s: ERROR: tiIntPoll returned ERROR.\n",__FUNCTION__);
 	  break;
@@ -7054,7 +7054,7 @@ tipPoll(void)
 
       if(tidata && tipIntRunning)
 	{
-	  INTLOCK; 
+	  INTLOCK;
 	  tipDaqCount = tidata;
 	  tipIntCount++;
 
@@ -7077,14 +7077,14 @@ tipPoll(void)
 	      printf("**************************************************\n");
 	    }
 #endif /* WAITFORDATA */
-	  
+
 	  if (tipIntRoutine != NULL)	/* call user routine */
 	    {
 	      (*tipIntRoutine) (tipIntArg);
 	    }
-	
-	  /* Write to TI to Acknowledge Interrupt */	  
-	  if(tipDoAck==1) 
+
+	  /* Write to TI to Acknowledge Interrupt */
+	  if(tipDoAck==1)
 	    {
 	      tipIntAck();
 	    }
@@ -7092,7 +7092,7 @@ tipPoll(void)
 
 	  INTUNLOCK;
 	}
-    
+
     }
   printf("%s: Read ERROR: Exiting Thread\n",__FUNCTION__);
   pthread_exit(0);
@@ -7106,7 +7106,7 @@ tipPoll(void)
  *
  *   choice:   0 - No Thread Polling
  *             1 - Library Thread Polling (started with tirIntEnable)
- * 
+ *
  *
  * RETURNS: OK, or ERROR .
  */
@@ -7118,14 +7118,14 @@ tipDoLibraryPollingThread(int choice)
     tipDoIntPolling=1;
   else
     tipDoIntPolling=0;
-      
+
   return tipDoIntPolling;
 }
 
 /*******************************************************************************
  *
  *  tipStartPollingThread
- *  - Routine that launches tiPoll in its own thread 
+ *  - Routine that launches tiPoll in its own thread
  *
  */
 static void
@@ -7133,15 +7133,15 @@ tipStartPollingThread(void)
 {
   int ti_status;
 
-  ti_status = 
+  ti_status =
     pthread_create(&tippollthread,
 		   NULL,
 		   (void*(*)(void *)) tipPoll,
 		   (void *)NULL);
-  if(ti_status!=0) 
-    {						
+  if(ti_status!=0)
+    {
       printf("%s: ERROR: TI Polling Thread could not be started.\n",
-	     __FUNCTION__);	
+	     __FUNCTION__);
       printf("\t pthread_create returned: %d\n",ti_status);
     }
 
@@ -7163,7 +7163,7 @@ tipIntConnect(unsigned int vector, VOIDFUNCPTR routine, unsigned int arg)
 {
   int status;
 
-  if(TIPp==NULL) 
+  if(TIPp==NULL)
     {
       printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
       return(ERROR);
@@ -7175,7 +7175,7 @@ tipIntConnect(unsigned int vector, VOIDFUNCPTR routine, unsigned int arg)
   tipDoAck = 1;
 
   /* Set Vector and Level */
-  if((vector < 0xFF)&&(vector > 0x40)) 
+  if((vector < 0xFF)&&(vector > 0x40))
     {
       tipIntVec = vector;
     }
@@ -7201,7 +7201,7 @@ tipIntConnect(unsigned int vector, VOIDFUNCPTR routine, unsigned int arg)
 #ifdef NOTDONEYET
       status = vmeIntConnect (tiIntVec, tiIntLevel,
 			      tiInt,arg);
-      if (status != OK) 
+      if (status != OK)
 	{
 	  printf("%s: vmeIntConnect failed with status = 0x%08x\n",
 		 __FUNCTION__,status);
@@ -7222,7 +7222,7 @@ tipIntConnect(unsigned int vector, VOIDFUNCPTR routine, unsigned int arg)
   printf("%s: INFO: Interrupt Vector = 0x%x  Level = %d\n",
 	 __FUNCTION__,tipIntVec,tipIntLevel);
 
-  if(routine) 
+  if(routine)
     {
       tipIntRoutine = routine;
       tipIntArg = arg;
@@ -7250,13 +7250,13 @@ tipIntDisconnect()
   int status;
   void *res;
 
-  if(TIPp==NULL) 
+  if(TIPp==NULL)
     {
       printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
       return ERROR;
     }
 
-  if(tipIntRunning) 
+  if(tipIntRunning)
     {
       printf("%s: ERROR: TI is Enabled - Call tipIntDisable() first\n",
 	     __FUNCTION__);
@@ -7267,14 +7267,14 @@ tipIntDisconnect()
 
   status=0;
 
-  switch (tipReadoutMode) 
+  switch (tipReadoutMode)
     {
     case TIP_READOUT_TS_POLL:
     case TIP_READOUT_EXT_POLL:
       {
 	if(tippollthread)
 	  {
-	    if(pthread_cancel(tippollthread)<0) 
+	    if(pthread_cancel(tippollthread)<0)
 	      perror("pthread_cancel");
 	    if(pthread_join(tippollthread,&res)<0)
 	      perror("pthread_join");
@@ -7289,7 +7289,7 @@ tipIntDisconnect()
     case TIP_READOUT_EXT_INT:
 #ifdef NOTDONEYET
       status = vmeIntDisconnect(tiIntLevel);
-      if (status != OK) 
+      if (status != OK)
 	{
 	  printf("vmeIntDisconnect failed\n");
 	}
@@ -7307,15 +7307,15 @@ tipIntDisconnect()
   printf("%s: Disconnected\n",__FUNCTION__);
 
   return OK;
-  
+
 }
 
 /**
  * @ingroup IntPoll
- * @brief Connect a user routine to be executed instead of the default 
+ * @brief Connect a user routine to be executed instead of the default
  *  TI interrupt/trigger latching acknowledge prescription
  *
- * @param routine Routine to call 
+ * @param routine Routine to call
  * @param arg argument to pass to routine
  * @return OK if successful, otherwise ERROR
  */
@@ -7339,7 +7339,7 @@ tipAckConnect(VOIDFUNCPTR routine, unsigned int arg)
 
 /**
  * @ingroup IntPoll
- * @brief Acknowledge an interrupt or latched trigger.  This "should" effectively 
+ * @brief Acknowledge an interrupt or latched trigger.  This "should" effectively
  *  release the "Busy" state of the TI.
  *
  *  Execute a user defined routine, if it is defined.  Otherwise, use
@@ -7349,12 +7349,12 @@ void
 tipIntAck()
 {
   int resetbits=0;
-  if(TIPp==NULL) 
+  if(TIPp==NULL)
     {
       printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
       return;
     }
-  
+
   if (tipAckRoutine != NULL)
     {
       /* Execute user defined Acknowlege, if it was defined */
@@ -7374,7 +7374,7 @@ tipIntAck()
 	  /* Readout Acknowledge and decrease the number of available blocks by 1 */
 	  resetbits |= TIP_RESET_BLOCK_READOUT;
 	}
-      
+
       if(tipDoSyncResetRequest)
 	{
 	  resetbits |= TIP_RESET_SYNCRESET_REQUEST;
@@ -7393,7 +7393,7 @@ tipIntAck()
 /**
  * @ingroup IntPoll
  * @brief Enable interrupts or latching triggers (depending on set TI mode)
- *  
+ *
  * @param iflag if = 1, trigger counter will be reset
  *
  * @return OK if successful, otherwise ERROR
@@ -7401,7 +7401,7 @@ tipIntAck()
 int
 tipIntEnable(int iflag)
 {
-  if(TIPp==NULL) 
+  if(TIPp==NULL)
     {
       printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
       return(-1);
@@ -7440,7 +7440,7 @@ tipIntEnable(int iflag)
 	     __FUNCTION__,tipReadoutMode);
       TIPUNLOCK;
       return(ERROR);
-      
+
     }
 
   tipWrite(&TIPp->runningMode,0x71);
@@ -7458,11 +7458,11 @@ tipIntEnable(int iflag)
  * @brief Disable interrupts or latching triggers
  *
 */
-void 
+void
 tipIntDisable()
 {
 
-  if(TIPp==NULL) 
+  if(TIPp==NULL)
     {
       printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
       return;
@@ -7512,7 +7512,7 @@ tipGetAckCount()
 
 /**
  * @ingroup Status
- * @brief Read the fiber fifo from the TI 
+ * @brief Read the fiber fifo from the TI
  *
  * @param   fiber - Fiber fifo to read. 1 and 5 only supported.
  * @param   data  - local memory address to place data
@@ -7526,8 +7526,8 @@ tipReadFiberFifo(int fiber, volatile unsigned int *data, int maxwords)
 {
   int nwords = 0;
   unsigned int word = 0;
-  
-  if(data==NULL) 
+
+  if(data==NULL)
     {
       printf("%s: ERROR: Invalid Destination address\n",
 	     __func__);
@@ -7551,11 +7551,11 @@ tipReadFiberFifo(int fiber, volatile unsigned int *data, int maxwords)
 
       if(word & (1<<31))
 	break;
-      
+
       data[nwords++] = word;
     }
   TIPUNLOCK;
-  
+
   return nwords;
 }
 
@@ -7581,7 +7581,7 @@ tipPrintFiberFifo(int fiber)
 	     __func__, fiber);
       return ERROR;
     }
-  
+
   data = (volatile unsigned int *)malloc(maxwords * sizeof(unsigned int));
   if(!data)
     {
@@ -7604,7 +7604,7 @@ tipPrintFiberFifo(int fiber)
 	     __func__);
       return ERROR;
     }
-  
+
   printf(" Fiber %d fifo (%d words)\n",
 	 fiber, rwords);
   printf("      Timestamp     Data\n");
@@ -7618,10 +7618,10 @@ tipPrintFiberFifo(int fiber)
     }
   printf("----------------------------\n");
   printf("\n");
-  
+
   if(data)
     free((void *)data);
-  
+
   return OK;
 }
 
@@ -7631,7 +7631,7 @@ tipPrintFiberFifo(int fiber)
 int
 tipRocEnable(int roc)
 {
-  if(TIPp==NULL) 
+  if(TIPp==NULL)
     {
       printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
       return ERROR;
@@ -7645,7 +7645,7 @@ tipRocEnable(int roc)
     }
 
   TIPLOCK;
-  tipWrite(&TIPp->rocEnable, (tipRead(&TIPp->rocEnable) & TIP_ROCENABLE_MASK) | 
+  tipWrite(&TIPp->rocEnable, (tipRead(&TIPp->rocEnable) & TIP_ROCENABLE_MASK) |
 	     TIP_ROCENABLE_ROC(roc-1));
   TIPUNLOCK;
 
@@ -7655,7 +7655,7 @@ tipRocEnable(int roc)
 int
 tipRocEnableMask(int rocmask)
 {
-  if(TIPp==NULL) 
+  if(TIPp==NULL)
     {
       printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
       return ERROR;
@@ -7679,7 +7679,7 @@ int
 tipGetRocEnableMask()
 {
   int rval=0;
-  if(TIPp==NULL) 
+  if(TIPp==NULL)
     {
       printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
       return ERROR;
@@ -7921,7 +7921,7 @@ tipOpen()
 
   dev_base = bars[0];
 
-  tipMappedBase = mmap(0, sizeof(struct TIPCIE_RegStruct), 
+  tipMappedBase = mmap(0, sizeof(struct TIPCIE_RegStruct),
 		     PROT_READ|PROT_WRITE, MAP_SHARED, tipFD, dev_base);
   if (tipMappedBase == MAP_FAILED)
     {
@@ -7933,14 +7933,14 @@ tipOpen()
 
   dev_base = bars[1];
 
-  tipJTAGMappedBase = mmap(0, 0x1000, 
+  tipJTAGMappedBase = mmap(0, 0x1000,
 		     PROT_READ|PROT_WRITE, MAP_SHARED, tipFD, dev_base);
   if (tipJTAGMappedBase == MAP_FAILED)
     {
       perror("mmap");
       return ERROR;
     }
-  
+
   TIPpj = (volatile unsigned int *)tipJTAGMappedBase;
 
   return OK;
@@ -7966,7 +7966,7 @@ tipClose()
   if(munmap(tipMappedBase,sizeof(struct TIPCIE_RegStruct))<0)
      perror("munmap");
 
-  
+
   close(tipFD);
   return OK;
 }
@@ -8029,7 +8029,7 @@ tipAllocDmaMemory(int size, unsigned long *phys_addr)
   *phys_addr = info.phys_addr;
 
   /* Do an mmap here */
-  tmp_addr = (volatile char *)mmap(0, size, PROT_READ | PROT_WRITE, 
+  tmp_addr = (volatile char *)mmap(0, size, PROT_READ | PROT_WRITE,
 		  MAP_SHARED, tipFD, info.phys_addr);
 
   if(tmp_addr == (void*) -1)
@@ -8045,7 +8045,7 @@ tipAllocDmaMemory(int size, unsigned long *phys_addr)
   return rval;
 }
 
-static int 
+static int
 tipFreeDmaMemory(DMA_MAP_INFO mapInfo)
 {
   int stat=0;
@@ -8073,4 +8073,3 @@ tipFreeDmaMemory(DMA_MAP_INFO mapInfo)
   return stat;
 }
 #endif /* ALLOCMEM */
-
