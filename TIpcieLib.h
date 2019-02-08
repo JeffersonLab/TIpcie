@@ -29,7 +29,7 @@
 #define FALSE 0
 #define OK    0
 #define ERROR -1
-#define LOCAL 
+#define LOCAL
 #ifndef _ROLDEFINED
 typedef void            (*VOIDFUNCPTR) ();
 typedef int             (*FUNCPTR) ();
@@ -136,7 +136,7 @@ struct TIPCIE_RegStruct
 
 /* Define TI Modes of operation:     Ext trigger - Interrupt mode   0
                                      TS  trigger - Interrupt mode   1
-                                     Ext trigger - polling  mode    2 
+                                     Ext trigger - polling  mode    2
                                      TS  trigger - polling  mode    3  */
 #define TIP_READOUT_EXT_INT    0
 #define TIP_READOUT_TS_INT     1
@@ -144,7 +144,7 @@ struct TIPCIE_RegStruct
 #define TIP_READOUT_TS_POLL    3
 
 /* Supported firmware version */
-#define TIP_SUPPORTED_FIRMWARE 0x074
+#define TIP_SUPPORTED_FIRMWARE 0x091
 #define TIP_SUPPORTED_TYPE     3
 
 /* Firmware Masks */
@@ -758,4 +758,3 @@ int  tipOpen();
 int  tipClose();
 
 #endif /* TIPLIB_H */
-
