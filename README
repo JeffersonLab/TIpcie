@@ -1,0 +1,49 @@
+######################################################################
+#
+# README for PCIExpress Pipeline TI kernel driver and library
+#
+# Author:
+#      Bryan Moffit
+#      TJNAF Data Acquisition Group
+#
+######################################################################
+
+What is this for?
+
+This is the kernel driver and library for the PCIExpress pipeline TI.
+
+What do I do with it?
+
+1. Install and compile the kernel driver:
+   cd linux_driver
+   make -B
+(and as root)
+   make install
+
+2. Reboot the PC
+
+3. Compile the library
+   make -B
+
+4. Move the library to a location that is in your LD_LIBRARY_PATH
+  OR
+   Add the library directory to your LD_LIBRARY_PATH
+
+5. (optional?) Compile and try one of the test programs (tipLibTest tipReadoutTest):
+
+   cd test
+   make -B
+   ./tipLibTest
+   ./tipReadoutTest
+
+6. (optional?) Update the firmware (with tiep92.svf, for example):
+   cd firmware
+   make -B
+   ./TIpcieFirmwareUpdate tiep92.svf
+
+7. (optional?) Compile and try out the CODA readout list using the TIpcie:
+   cd rol
+   make -B
+
+   Then use tipcie_list.so and event_list.so as the readout lists in the CODA configuration.
+
