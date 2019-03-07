@@ -102,3 +102,14 @@ V7.2 May 9, 2017: Change the MEMenable from VMEsetting(22) to VmeSetting(26), so
 V7.3 June 15, 2017: If the trigger_source_en (0x20) is set to 0xFCxxxx, the TI will send the trgsrc back even when the board is BUSY
   (highest priority in status_feneration block)
 V7.4, Aug. 17, 2017: recompile as the StatusGen common block was changed, Sync the SendID to Clk625.
+V7.5, Nov. 1, 2017: Migrate the changes in TIFPGAC about the Clk250A addition (tip78).
+      Nov. 3, 2017: Remove the Clk250A, copy to local ClockGenPcie, which use the Clk0 as feedback, as there is no phase shift here.
+      Nov. 15, 2017: recompile as the TsType fix ("stored" trigger during BUSY, which was fixed on TS in 2015, TI today).
+v7.6, Dec. 13, 2017: Fix the 0x94 block number counter, (in line with TI v7.c)
+V8.1, Feb. 12-14, 2018: ClockCont, replace the non-clock FD with FDE;
+   ClockGenPcie: Add one clock cycle on the DCM LOCK, remove Data-->C_in; Added the VmeRst(30) to reset optic transceivers;
+	extend the VmeRst(14) to 80 ns for IDelayRst; Put VME clock reset on VmeClkInG.
+	   Feb. 15, 2018: use VmeRst(5), instead of VmeRst(30); add the filler if no signal on fiber chan#4 in FiberMeas
+		Feb. 20, 2018: Added one clock (sync) on CounterReset.  Actually, there is no need for the reset to the PreScaleCounter.
+	This change will also affect the TI and TS as the change is in "TrigBitControl" module (common)
+	   Feb. 21, 2018: fix the ClockOK logic, as the ClkPcieRef = 100 MHz, and ClkPcie = 125 MHz.
