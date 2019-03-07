@@ -144,7 +144,7 @@ struct TIPCIE_RegStruct
 #define TIP_READOUT_TS_POLL    3
 
 /* Supported firmware version */
-#define TIP_SUPPORTED_FIRMWARE 0x091
+#define TIP_SUPPORTED_FIRMWARE 0x092
 #define TIP_SUPPORTED_TYPE     3
 
 /* Firmware Masks */

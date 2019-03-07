@@ -10,11 +10,11 @@
  */
 
 
+#include <unistd.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
 #include "TIpcieLib.h"
-/* #include "remexLib.h" */
 
 #define BLOCKLEVEL 0x1
 
@@ -27,9 +27,7 @@
 void
 mytiISR(int arg)
 {
-  volatile unsigned short reg;
-  int dCnt, len=0,idata;
-  int tibready=0, timeout=0;
+  int dCnt;
   int printout = 1000;
   int dataCheck=0;
   volatile unsigned int data[120];
@@ -40,6 +38,8 @@ mytiISR(int arg)
 #ifdef DO_READOUT
 
 #ifdef DOINT
+  int tibready=0, timeout=0;
+
   tibready = tipBReady();
   if(tibready==ERROR)
     {
@@ -86,7 +86,7 @@ mytiISR(int arg)
 	     tiIntCount);
 
       len = dCnt;
-      
+
       for(idata=0;idata<(len);idata++)
 	{
 	  if((idata%4)==0) printf("\n\t");
@@ -122,8 +122,8 @@ mytiISR(int arg)
 }
 
 
-int 
-main(int argc, char *argv[]) 
+int
+main(int argc, char *argv[])
 {
 
   int stat;
@@ -162,7 +162,7 @@ main(int argc, char *argv[])
 #endif
 
   tipLoadTriggerTable(0);
-    
+
   tipSetTriggerHoldoff(1,1,2);
   /* tipSetTriggerHoldoff(2,4,0); */
 
@@ -170,12 +170,12 @@ main(int argc, char *argv[])
   tipSetBlockLevel(BLOCKLEVEL);
 
   stat = tipIntConnect(TIP_INT_VEC, mytiISR, 0);
-  if (stat != OK) 
+  if (stat != OK)
     {
       printf("ERROR: tiIntConnect failed \n");
       goto CLOSE;
-    } 
-  else 
+    }
+  else
     {
       printf("INFO: Attached TI Interrupt\n");
     }
@@ -198,7 +198,7 @@ main(int argc, char *argv[])
 /*   tiSetFiberDelay(1,2); */
 /*   tiSetSyncDelayWidth(1,0x3f,1); */
   tipSetSyncEventInterval(1000);
-  
+
   tipSetBlockLimit(0);
 
   printf("Hit enter to reset stuff\n");
@@ -215,7 +215,7 @@ main(int argc, char *argv[])
   tipSyncReset(1);
 
   usleep(10000);
-    
+
   tipStatus(1);
   tipPCIEStatus(1);
   tipPrintTempVolt();
@@ -260,4 +260,3 @@ main(int argc, char *argv[])
   tipClose();
   exit(0);
 }
-

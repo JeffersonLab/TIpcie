@@ -13,9 +13,9 @@
 ARCH=${shell uname -m}
 KERNEL_VERSION=${shell uname -r}
 # BUILD 64bit for EL7
-#ifneq (,$(findstring el7,${KERNEL_VERSION}))
-#	BUILD64=0
-#endif
+ifneq (,$(findstring el7,${KERNEL_VERSION}))
+	BUILD64=0
+endif
 
 ifdef BUILD64
 CC			= gcc
@@ -27,16 +27,12 @@ RANLIB                  = ranlib
 CFLAGS			= -Wall -g -I. -I../ -I/usr/include \
 			  -L. -L../
 
-PROGS			= tipReadoutTest tipLibTest pti_test pti_dma_test
+PROGS			= tipReadoutTest tipLibTest
 
 all: $(PROGS)
 
 clean distclean:
-	@rm -f $(PROGS) *~ 
-
-pti_dma_test: pti_test.c
-	echo "Making $@"
-	$(CC) $(CFLAGS) -o $@ $< -lrt
+	@rm -f $(PROGS) *~
 
 %: %.c
 	echo "Making $@"

@@ -16,15 +16,14 @@
 
 extern int nfadc;
 
-int 
-main(int argc, char *argv[]) 
+int
+main(int argc, char *argv[])
 {
-  int i=0;
 
   if(tipOpen()!=OK)
     goto CLOSE;
-  
-  tipInit(0,0);
+
+  tipInit(0,TIP_INIT_SKIP_FIRMWARE_CHECK | TIP_INIT_NO_INIT);
   tipStatus(1);
 
   tipPCIEStatus(1);
@@ -33,18 +32,8 @@ main(int argc, char *argv[])
 
   tipPrintTempVolt();
 
-  printf("Break\n");
-  getchar();
-
-  /* for(i=0; i<10000; i++) */
-  /*   { */
-  /*     tipLatchTimers(); */
-  /*     printf("%x\n",tipGetLiveTime()); */
-  /*   } */
-
  CLOSE:
   tipClose();
 
   exit(0);
 }
-
