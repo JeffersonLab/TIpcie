@@ -14,8 +14,6 @@
 #include <stdio.h>
 #include "TIpcieLib.h"
 
-extern int nfadc;
-
 int
 main(int argc, char *argv[])
 {

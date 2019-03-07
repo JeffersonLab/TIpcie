@@ -29,6 +29,7 @@ What do I do with it?
   OR
    Add the library directory to your LD_LIBRARY_PATH
 
+
 5. (optional?) Compile and try one of the test programs (tipLibTest tipReadoutTest):
 
    cd test
@@ -40,6 +41,7 @@ What do I do with it?
    cd firmware
    make -B
    ./TIpcieFirmwareUpdate tiep92.svf
+   (then reboot)
 
 7. (optional?) Compile and try out the CODA readout list using the TIpcie:
    cd rol
