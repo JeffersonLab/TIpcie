@@ -9,7 +9,7 @@
 #include <linux/init.h>
 #include <linux/ioctl.h>
 #include <linux/proc_fs.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/fs.h>
 #include <linux/interrupt.h>
 #include <linux/wait.h>
@@ -82,7 +82,7 @@ wait_queue_head_t  irq_queue;
 static struct proc_dir_entry *TIpcie_proc_devices;
 static struct class *TIpcie_class;
 static struct device *TIpcie_dev;
-static const struct file_operations TIpcie_fops = 
+static const struct file_operations TIpcie_fops =
 {
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,11)
  ioctl:        TIpcie_ioctl,
@@ -118,23 +118,26 @@ ti_irqhandler(int irq, void *dev_id)
   return IRQ_HANDLED;
 }
 
-static ssize_t 
+static ssize_t
 TIpcie_read(struct file *filp, char __user *buf, size_t count,
 	    loff_t *f_pos)
 {
+#ifdef rdtscl
   unsigned long long before=0, after=0;
+#endif
   read_open=1;
 
-#ifndef rdtscl
-#define rdtscl(x) x==1
-#endif
+#ifdef rdtscl
   rdtscl(before);
+#endif
   wait_event_interruptible(irq_queue,irq_flag!=0);
   irq_flag=0;
+#ifdef rdtscl
   rdtscl(after);
 
   printk("%s:\n\tbefore = %lld\n\t after = %lld\n\tdiff = %lld\n",__FUNCTION__,
 	 before,after,after-before);
+#endif
 
   return 1;
 }
@@ -148,7 +151,7 @@ findTIpcie(void)
   int status;
 
   if ((ti_pci_dev = pci_get_device(PCI_VENDOR_ID_DOE,
-                                     PCI_DEVICE_ID_TIPCIE, 
+                                     PCI_DEVICE_ID_TIPCIE,
                                      ti_pci_dev))) {
     status = pci_enable_device(ti_pci_dev);
 
@@ -171,11 +174,11 @@ findTIpcie(void)
 #ifdef TEST_INTERRUPTS
   // 01jan2016 BM - Enabling IRQ causes a un-reloadable driver ATM.
   status = pci_enable_msi(ti_pci_dev);
-  if (status) 
+  if (status)
     {
-      printk("%s: Unable to enable MSI\n", 
+      printk("%s: Unable to enable MSI\n",
 	     __FUNCTION__);
-    } 
+    }
   else
     ADD_RESOURCE(TIpcie_init_flags, TIPCIE_RSRC_MSI);
 
@@ -183,9 +186,9 @@ findTIpcie(void)
   if(ti_irq == 0)
     {
       ti_irq = ti_pci_dev->irq;
-      
+
       printk("  PCI_INTLINE = %08x\n", ti_irq);
-      
+
       ti_irq &= 0x000000FF;                    // Only a byte in size
       if(ti_irq == 0) ti_irq = 0x00000050;    // Only a byte in size
     }
@@ -195,17 +198,17 @@ findTIpcie(void)
     return(NULL);
   }
 
-  status = request_irq(ti_irq, 
-		       ti_irqhandler, 
-		       IRQF_SHARED, 
+  status = request_irq(ti_irq,
+		       ti_irqhandler,
+		       IRQF_SHARED,
 		       "TIpcie", ti_pci_dev);
-  
-  if (status) 
+
+  if (status)
     {
-      printk("  %s: can't get assigned pci irq vector %02X\n", 
+      printk("  %s: can't get assigned pci irq vector %02X\n",
 	     __FUNCTION__,ti_irq);
       return(0);
-    } 
+    }
   ADD_RESOURCE(TIpcie_init_flags, TIPCIE_RSRC_INTR);
 
   init_waitqueue_head(&irq_queue);
@@ -249,7 +252,7 @@ mapInTIpcie(struct pci_dev *TIpcie_pci_dev)
 
   ADD_RESOURCE(TIpcie_init_flags, TIPCIE_RSRC_MAP0);
 #ifdef DEBUGMAP
-  printk("  mapped TIpcie Mem0 to Kernel Space, kernel_address: %0lx\n", 
+  printk("  mapped TIpcie Mem0 to Kernel Space, kernel_address: %0lx\n",
             (unsigned long)TIpcie_resaddr0);
 #endif
 
@@ -274,7 +277,7 @@ mapInTIpcie(struct pci_dev *TIpcie_pci_dev)
 
   ADD_RESOURCE(TIpcie_init_flags, TIPCIE_RSRC_MAP1);
 #ifdef DEBUGMAP
-  printk("  mapped TIpcie Mem1 to Kernel Space, kernel_address: %0lx\n", 
+  printk("  mapped TIpcie Mem1 to Kernel Space, kernel_address: %0lx\n",
             (unsigned long)TIpcie_resaddr1);
 #endif
 
@@ -299,7 +302,7 @@ mapInTIpcie(struct pci_dev *TIpcie_pci_dev)
 
   ADD_RESOURCE(TIpcie_init_flags, TIPCIE_RSRC_MAP2);
 #ifdef DEBUGMAP
-  printk("  mapped TIpcie Mem2 to Kernel Space, kernel_address: %0lx\n", 
+  printk("  mapped TIpcie Mem2 to Kernel Space, kernel_address: %0lx\n",
             (unsigned long)TIpcie_resaddr2);
 #endif
 
@@ -307,7 +310,7 @@ mapInTIpcie(struct pci_dev *TIpcie_pci_dev)
 
 }
 
-static void 
+static void
 remove(struct pci_dev *dev)
 {
   /* clean up any allocated resources and stuff here.
@@ -319,7 +322,7 @@ remove(struct pci_dev *dev)
   printk("TIpcie.ko: Unloaded\n");
 }
 
-static int 
+static int
 __init TIpcie_init(void)
 {
   int rval=0;
@@ -338,7 +341,7 @@ __init TIpcie_init(void)
 
   ADD_RESOURCE(TIpcie_init_flags, TIPCIE_RSRC_PROC);
 
-  if (register_chrdev(TIPCIE_MAJOR, "TIpcie", &TIpcie_fops)) 
+  if (register_chrdev(TIPCIE_MAJOR, "TIpcie", &TIpcie_fops))
     {
       printk("TIpcie:  Error getting Major Number for Drivers\n");
       return(-1);
@@ -349,7 +352,7 @@ __init TIpcie_init(void)
   TIpcie_class = class_create(THIS_MODULE, "TIpcie");
   if (IS_ERR(ptr_err = TIpcie_class))
     goto BailOut;
-  
+
   ADD_RESOURCE(TIpcie_init_flags, TIPCIE_RSRC_CLASS);
 
   TIpcie_dev = device_create(TIpcie_class, NULL, MKDEV(TIPCIE_MAJOR, 0), NULL, "TIpcie");
@@ -377,7 +380,7 @@ __init TIpcie_init(void)
     }
   else
     {
-      printk("TIpcie: Initial PCI MEM start: 0x%0lx end: 0x%0lx\n", 
+      printk("TIpcie: Initial PCI MEM start: 0x%0lx end: 0x%0lx\n",
 	     (unsigned long)tipcimem->start, (unsigned long)tipcimem->end);
     }
 
@@ -387,7 +390,7 @@ __init TIpcie_init(void)
     goto BailOut;
   }
 
-  /* Display TIpcie information */  
+  /* Display TIpcie information */
   pci_read_config_dword(ti_pci_dev, PCI_COMMAND, &status);
 
   printk("  Vendor = %04X  Device = %04X  Revision = %02X Status = %08X\n",
@@ -396,7 +399,7 @@ __init TIpcie_init(void)
 
   pci_read_config_dword(ti_pci_dev, PCI_CACHE_LINE_SIZE, &temp);
 
-  printk("  Misc0 = %08X\n",temp);      
+  printk("  Misc0 = %08X\n",temp);
   printk("  Irq = %04X\n",ti_irq);
 
   sema_init(&dma_buffer_lock, 1);
@@ -407,7 +410,7 @@ __init TIpcie_init(void)
   printk(" Bailing out of initialization\n");
   clean_module();
   return -1;
-  
+
 }
 
 static void
@@ -417,7 +420,7 @@ clean_module(void)
   printk("%s: Entered\n",__FUNCTION__);
 #endif
 
-  if (HAS_RESOURCE(TIpcie_init_flags, TIPCIE_RSRC_MAP2)) 
+  if (HAS_RESOURCE(TIpcie_init_flags, TIPCIE_RSRC_MAP2))
     {
 #ifdef DEBUGCLEAN
       printk("%s: Unregistering map2\n",__FUNCTION__);
@@ -427,7 +430,7 @@ clean_module(void)
       DEL_RESOURCE(TIpcie_init_flags, TIPCIE_RSRC_MAP2);
     }
 
-  if (HAS_RESOURCE(TIpcie_init_flags, TIPCIE_RSRC_MAP1)) 
+  if (HAS_RESOURCE(TIpcie_init_flags, TIPCIE_RSRC_MAP1))
     {
 #ifdef DEBUGCLEAN
       printk("%s: Unregistering map1\n",__FUNCTION__);
@@ -437,7 +440,7 @@ clean_module(void)
       DEL_RESOURCE(TIpcie_init_flags, TIPCIE_RSRC_MAP1);
     }
 
-  if (HAS_RESOURCE(TIpcie_init_flags, TIPCIE_RSRC_MAP0)) 
+  if (HAS_RESOURCE(TIpcie_init_flags, TIPCIE_RSRC_MAP0))
     {
 #ifdef DEBUGCLEAN
       printk("%s: Unregistering map0\n",__FUNCTION__);
@@ -447,7 +450,7 @@ clean_module(void)
       DEL_RESOURCE(TIpcie_init_flags, TIPCIE_RSRC_MAP0);
     }
 
-  if (HAS_RESOURCE(TIpcie_init_flags, TIPCIE_RSRC_MSI)) 
+  if (HAS_RESOURCE(TIpcie_init_flags, TIPCIE_RSRC_MSI))
     {
 #ifdef DEBUGCLEAN
       printk("%s: Disabling MSI\n",__FUNCTION__);
@@ -456,7 +459,7 @@ clean_module(void)
       DEL_RESOURCE(TIpcie_init_flags, TIPCIE_RSRC_MSI);
     }
 
-  if (HAS_RESOURCE(TIpcie_init_flags, TIPCIE_RSRC_INTR)) 
+  if (HAS_RESOURCE(TIpcie_init_flags, TIPCIE_RSRC_INTR))
     {
 #ifdef DEBUGCLEAN
       printk("%s: Freeing IRQ\n",__FUNCTION__);
@@ -465,7 +468,7 @@ clean_module(void)
       DEL_RESOURCE(TIpcie_init_flags, TIPCIE_RSRC_INTR);
     }
 
-  if (HAS_RESOURCE(TIpcie_init_flags, TIPCIE_RSRC_PROC)) 
+  if (HAS_RESOURCE(TIpcie_init_flags, TIPCIE_RSRC_PROC))
     {
 #ifdef DEBUGCLEAN
       printk("%s: Unregistering Proc\n",__FUNCTION__);
@@ -474,7 +477,7 @@ clean_module(void)
       DEL_RESOURCE(TIpcie_init_flags, TIPCIE_RSRC_PROC);
     }
 
-  if (HAS_RESOURCE(TIpcie_init_flags, TIPCIE_RSRC_DEV)) 
+  if (HAS_RESOURCE(TIpcie_init_flags, TIPCIE_RSRC_DEV))
     {
 #ifdef DEBUGCLEAN
       printk("%s: Destroy device\n",__FUNCTION__);
@@ -483,7 +486,7 @@ clean_module(void)
       DEL_RESOURCE(TIpcie_init_flags, TIPCIE_RSRC_DEV);
     }
 
-  if (HAS_RESOURCE(TIpcie_init_flags, TIPCIE_RSRC_CLASS)) 
+  if (HAS_RESOURCE(TIpcie_init_flags, TIPCIE_RSRC_CLASS))
     {
 #ifdef DEBUGCLEAN
       printk("%s: Destroy class\n",__FUNCTION__);
@@ -492,7 +495,7 @@ clean_module(void)
       DEL_RESOURCE(TIpcie_init_flags, TIPCIE_RSRC_CLASS);
     }
 
-  if (HAS_RESOURCE(TIpcie_init_flags, TIPCIE_RSRC_CHR)) 
+  if (HAS_RESOURCE(TIpcie_init_flags, TIPCIE_RSRC_CHR))
     {
 #ifdef DEBUGCLEAN
       printk("%s: Unregistering chrdev\n",__FUNCTION__);
@@ -501,7 +504,7 @@ clean_module(void)
       DEL_RESOURCE(TIpcie_init_flags, TIPCIE_RSRC_CHR);
     }
 
-  if (HAS_RESOURCE(TIpcie_init_flags, TIPCIE_RSRC_PCI_EN)) 
+  if (HAS_RESOURCE(TIpcie_init_flags, TIPCIE_RSRC_PCI_EN))
     {
 #ifdef DEBUGCLEAN
       printk("%s: Disabling pci device\n",__FUNCTION__);
@@ -513,7 +516,7 @@ clean_module(void)
   pci_unregister_driver(&pci_driver);
 }
 
-static void 
+static void
 __exit TIpcie_exit(void)
 {
   clean_module();
@@ -521,7 +524,7 @@ __exit TIpcie_exit(void)
 
 
 
-static int 
+static int
 TIpcie_proc_show(struct seq_file *m, void *v)
 {
   int ireg=0;
@@ -563,7 +566,7 @@ TIpcie_proc_open(struct inode *inode, struct file *file)
   return single_open(file, TIpcie_proc_show, NULL);
 }
 
-static const struct 
+static const struct
 file_operations TIpcie_proc_ops =
   {
     .open	= TIpcie_proc_open,
@@ -572,7 +575,7 @@ file_operations TIpcie_proc_ops =
     .release	= single_release,
   };
 
-static void 
+static void
 register_proc( void )
 {
 
@@ -580,11 +583,11 @@ register_proc( void )
     proc_create("TIpcie", S_IFREG | S_IRUGO | S_IWUSR, NULL,
 		&TIpcie_proc_ops);
 
-  if (TIpcie_proc_devices == NULL) 
+  if (TIpcie_proc_devices == NULL)
     {
       return;
     }
-  
+
 }
 
 //----------------------------------------------------------------------------
@@ -594,7 +597,7 @@ static void unregister_proc( void )
 {
   if (TIpcie_proc_devices != NULL)
     remove_proc_entry("TIpcie", NULL);
-  
+
 }
 
 
@@ -604,11 +607,11 @@ static void unregister_proc( void )
 
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,11)
-static long 
+static long
 TIpcie_ioctl(struct inode *inode, struct file *filp,
 	     unsigned int cmd, unsigned long arg)
 #else
-static long 
+static long
 TIpcie_ioctl(struct file *filp,
 	     unsigned int cmd, unsigned long arg)
 #endif
@@ -681,7 +684,7 @@ TIpcie_ioctl(struct file *filp,
 			       user_info.mem_region,regs[ireg]);
 			return -ENOTTY;
 		      }
-		    
+
 		    iowrite32(values[ireg], TIpcie_resaddr0 + regs[ireg]);
 		  }
 		break;
@@ -695,7 +698,7 @@ TIpcie_ioctl(struct file *filp,
 			       user_info.mem_region,regs[ireg]);
 			return -ENOTTY;
 		      }
-		    
+
 		    iowrite32(values[ireg], TIpcie_resaddr1 + regs[ireg]);
 		  }
 		break;
@@ -709,7 +712,7 @@ TIpcie_ioctl(struct file *filp,
 			       user_info.mem_region,regs[ireg]);
 			return -ENOTTY;
 		      }
-		    
+
 		    iowrite32(values[ireg], TIpcie_resaddr2 + regs[ireg]);
 		  }
 		break;
@@ -735,7 +738,7 @@ TIpcie_ioctl(struct file *filp,
 			       user_info.mem_region,regs[ireg]);
 			return -ENOTTY;
 		      }
-		    
+
 		    values[ireg] = ioread32(TIpcie_resaddr0 + regs[ireg]);
 		  }
 		break;
@@ -749,7 +752,7 @@ TIpcie_ioctl(struct file *filp,
 			       user_info.mem_region,regs[ireg]);
 			return -ENOTTY;
 		      }
-		    
+
 		    values[ireg] = ioread32(TIpcie_resaddr1 + regs[ireg]);
 		  }
 		break;
@@ -763,7 +766,7 @@ TIpcie_ioctl(struct file *filp,
 			       user_info.mem_region,regs[ireg]);
 			return -ENOTTY;
 		      }
-		    
+
 		    values[ireg] = ioread32(TIpcie_resaddr2 + regs[ireg]);
 		  }
 		break;
@@ -795,20 +798,20 @@ TIpcie_ioctl(struct file *filp,
 	    printk("TIpcie: copy_to_user (values) failed\n");
 	    return -EFAULT;
 	  }
-	
-	
+
+
 	if(copy_to_user((void *)arg, &user_info, sizeof(TIPCIE_IOCTL_INFO)))
 	  {
 	    printk("TIpcie: copy_to_user (user_info) failed\n");
 	    return -EFAULT;
 	  }
-	
+
       }
       break;
 
     case TIPCIE_IOC_MEM:
       {
-	if(copy_from_user(&dma_info, (void *)arg, sizeof(dmaHandle_t)))
+	if(copy_from_user(&dma_info, (void *)arg, sizeof(DMA_BUF_INFO)))
 	  {
 	    printk("TIpcie: copy_from_user (dma_info) failed\n");
 	    return -EFAULT;
@@ -816,7 +819,7 @@ TIpcie_ioctl(struct file *filp,
 
 	if(dma_info.command_type==TIPCIE_MEM_ALLOC)
 	  {
-	    TIpcieAllocDmaBuf(&dma_info);	
+	    TIpcieAllocDmaBuf(&dma_info);
 	  }
 	else if(dma_info.command_type==TIPCIE_MEM_FREE)
 	  {
@@ -828,7 +831,7 @@ TIpcie_ioctl(struct file *filp,
 	    return -ENOTTY;
 	  }
 
-	if(copy_to_user((void *)arg, &dma_info, sizeof(dmaHandle_t)))
+	if(copy_to_user((void *)arg, &dma_info, sizeof(DMA_BUF_INFO)))
 	  {
 	    printk("TIpcie: copy_to_user (dma_info) failed\n");
 	    return -EFAULT;
@@ -884,8 +887,8 @@ TIpcie_compat_ioctl(struct file *filep, unsigned int cmd,
 	regs   = (compat_uint_t*)kmalloc(user_info.nreg*sizeof(user_info.reg), GFP_KERNEL);
 	values = (compat_uint_t*)kmalloc(user_info.nreg*sizeof(user_info.value), GFP_KERNEL);
 
-	stat = copy_from_user(regs, 
-			      (void *)compat_ptr(p32->reg), 
+	stat = copy_from_user(regs,
+			      (void *)compat_ptr(p32->reg),
 			      user_info.nreg*sizeof(user_info.reg));
 	if(stat)
 	  {
@@ -893,8 +896,8 @@ TIpcie_compat_ioctl(struct file *filep, unsigned int cmd,
 	    return -EFAULT;
 	  }
 
-	stat = copy_from_user(values, 
-			      (void *)compat_ptr(p32->value), 
+	stat = copy_from_user(values,
+			      (void *)compat_ptr(p32->value),
 			      user_info.nreg*sizeof(user_info.value));
 	if(stat)
 	  {
@@ -931,7 +934,7 @@ TIpcie_compat_ioctl(struct file *filep, unsigned int cmd,
 			       user_info.mem_region,regs[ireg]);
 			return -ENOTTY;
 		      }
-		    
+
 		    iowrite32(values[ireg], TIpcie_resaddr0 + regs[ireg]);
 		  }
 		break;
@@ -945,7 +948,7 @@ TIpcie_compat_ioctl(struct file *filep, unsigned int cmd,
 			       user_info.mem_region,regs[ireg]);
 			return -ENOTTY;
 		      }
-		    
+
 		    iowrite32(values[ireg], TIpcie_resaddr1 + regs[ireg]);
 		  }
 		break;
@@ -959,7 +962,7 @@ TIpcie_compat_ioctl(struct file *filep, unsigned int cmd,
 			       user_info.mem_region,regs[ireg]);
 			return -ENOTTY;
 		      }
-		    
+
 		    iowrite32(values[ireg], TIpcie_resaddr2 + regs[ireg]);
 		  }
 		break;
@@ -985,7 +988,7 @@ TIpcie_compat_ioctl(struct file *filep, unsigned int cmd,
 			       user_info.mem_region,regs[ireg]);
 			return -ENOTTY;
 		      }
-		    
+
 		    values[ireg] = ioread32(TIpcie_resaddr0 + regs[ireg]);
 		  }
 		break;
@@ -999,7 +1002,7 @@ TIpcie_compat_ioctl(struct file *filep, unsigned int cmd,
 			       user_info.mem_region,regs[ireg]);
 			return -ENOTTY;
 		      }
-		    
+
 		    values[ireg] = ioread32(TIpcie_resaddr1 + regs[ireg]);
 		  }
 		break;
@@ -1013,7 +1016,7 @@ TIpcie_compat_ioctl(struct file *filep, unsigned int cmd,
 			       user_info.mem_region,regs[ireg]);
 			return -ENOTTY;
 		      }
-		    
+
 		    values[ireg] = ioread32(TIpcie_resaddr2 + regs[ireg]);
 		  }
 		break;
@@ -1047,14 +1050,14 @@ TIpcie_compat_ioctl(struct file *filep, unsigned int cmd,
 	    printk("%s: copy_to_user (values) failed\n",__FUNCTION__);
 	    return -EFAULT;
 	  }
-	
-	
+
+
 	if(copy_to_user((void *)compat_ptr(arg), &user_info, sizeof(TIPCIE_COMPAT_IOCTL_INFO)))
 	  {
 	    printk("%s: copy_to_user (user_info) failed\n",__FUNCTION__);
 	    return -EFAULT;
 	  }
-	
+
       }
       break;
 
@@ -1069,7 +1072,7 @@ TIpcie_compat_ioctl(struct file *filep, unsigned int cmd,
 
 	if(dma_info.command_type==TIPCIE_MEM_ALLOC)
 	  {
-	    TIpcieAllocDmaBuf(&dma_info);	
+	    TIpcieAllocDmaBuf(&dma_info);
 	  }
 	else if(dma_info.command_type==TIPCIE_MEM_FREE)
 	  {
@@ -1103,7 +1106,7 @@ TIpcie_compat_ioctl(struct file *filep, unsigned int cmd,
   return retval;
 }
 
-static int 
+static int
 TIpcie_mmap(struct file *file,struct vm_area_struct *vma)
 {
 
@@ -1134,10 +1137,10 @@ TIpcie_mmap(struct file *file,struct vm_area_struct *vma)
 //    Allocate contiguous DMA buffer.
 //----------------------------------------------------------------------------
 
-int 
-TIpcieAllocDmaBuf(DMA_BUF_INFO *dma_buf_info) 
+int
+TIpcieAllocDmaBuf(DMA_BUF_INFO *dma_buf_info)
 {
-    
+
   dmaHandle_t *dmahandle = NULL;
   struct page *page;
   int status;
@@ -1161,21 +1164,21 @@ TIpcieAllocDmaBuf(DMA_BUF_INFO *dma_buf_info)
     }
 
   memset(dmahandle, 0, sizeof(dmaHandle_t));
-    
+
   dma_buf_info->dma_osspec_hdl = (unsigned long) dmahandle;
-    
+
   dmahandle->size = dma_buf_info->size;
 
   dmahandle->vptr = pci_alloc_consistent(ti_pci_dev, dma_buf_info->size,
 					 &dmahandle->resource);
 
-  if ((NULL == dmahandle->vptr)) 
+  if ((NULL == dmahandle->vptr))
     {
       printk("%s: pci_alloc_consistent failed\n",
 	     __FUNCTION__);
       up(&dma_buffer_lock);
       return(-1);
-    } 
+    }
 
 #ifdef DEBUGALLOC
   printk("%s: pci_alloc_consistent virtual buffer pointer %#lx\n",
@@ -1186,9 +1189,9 @@ TIpcieAllocDmaBuf(DMA_BUF_INFO *dma_buf_info)
        page <= virt_to_page(dmahandle->vptr + dma_buf_info->size - 1);
        ++page)
     {
-      SetPageReserved(page);		
+      SetPageReserved(page);
     }
-    
+
   dmahandle->phys_addr = virt_to_phys(dmahandle->vptr);
   dmahandle->pci_addr = dmahandle->phys_addr;
 
@@ -1199,23 +1202,23 @@ TIpcieAllocDmaBuf(DMA_BUF_INFO *dma_buf_info)
 
 #ifdef DEBUGALLOC
   printk("%s: %#llx byte DMA buffer allocated with physical "
-	 "addr %#llx pci addr %#llx resource addr %#llx\n", 
+	 "addr %#llx pci addr %#llx resource addr %#llx\n",
 	 __FUNCTION__,
 	 (unsigned long long) dma_buf_info->size,
 	 (unsigned long long) dmahandle->phys_addr,
 	 (unsigned long long) dmahandle->pci_addr,
 	 (unsigned long long) dmahandle->resource);
 #endif
-  
+
   dmahandle->magic = TIPCIE_DMA_MAGIC;
-    
+
   // Expects dma_buffer_lock acquired
   status = dmaHandleListAdd(dmahandle);
 
   up(&dma_buffer_lock);
 
   return (status);
-    
+
 }
 
 //----------------------------------------------------------------------------
@@ -1223,74 +1226,74 @@ TIpcieAllocDmaBuf(DMA_BUF_INFO *dma_buf_info)
 //    Free contiguous DMA buffer.
 //----------------------------------------------------------------------------
 
-int 
-TIpcieFreeDmaBuf(DMA_BUF_INFO *dma_buf_info) 
+int
+TIpcieFreeDmaBuf(DMA_BUF_INFO *dma_buf_info)
 {
 
   int status;
   struct page *page;
   dmaHandle_t *dmahandle = NULL;
-    
+
   if (NULL == dma_buf_info)
     {
       printk("%s: failure: NULL == dma_buf_info\n",
-	     __FUNCTION__); 
+	     __FUNCTION__);
       return(-1);
     }
 
-  dmahandle = (dmaHandle_t *) dma_buf_info->dma_osspec_hdl; 
-    
+  dmahandle = (dmaHandle_t *) dma_buf_info->dma_osspec_hdl;
+
   if (NULL == dmahandle)
     {
       printk("%s: failure: NULL == dmahandle\n",
-	     __FUNCTION__); 
+	     __FUNCTION__);
       return(-1);
-    }    
-    
+    }
+
   if (TIPCIE_DMA_MAGIC != dmahandle->magic)
     {
       printk("%s: failure: TIPCIE_DMA_MAGIC (0x%x)!= dmahandle->magic (0x%x)\n",
 	     __FUNCTION__,
 	     TIPCIE_DMA_MAGIC,
-	     dmahandle->magic); 
+	     dmahandle->magic);
       return(-1);
     }
 
 #ifdef DEBUGALLOC
   printk("%s: Freeing %#llx byte DMA buffer allocated with physical "
-		"addr %#llx pci addr %#llx resource addr %#llx\n", 
+		"addr %#llx pci addr %#llx resource addr %#llx\n",
 	 __FUNCTION__,
 	 (u64) dmahandle->size,
 	 (u64) dmahandle->phys_addr,
 	 (u64) dmahandle->pci_addr,
 	 (u64) dmahandle->resource);
 #endif
-     
+
   if(down_interruptible(&dma_buffer_lock))
     {
       return(-1);
     }
-    
+
   for (page = virt_to_page(dmahandle->vptr);
        page <= virt_to_page(dmahandle->vptr + dmahandle->size - 1);
-       ++page)              
+       ++page)
     {
-        
+
       ClearPageReserved(page);
     }
-    
+
   pci_free_consistent(ti_pci_dev, dmahandle->size,
-		      dmahandle->vptr, 
+		      dmahandle->vptr,
 		      dmahandle->resource);
-  
+
 
   // Expects dma_buffer_lock acquired
   status = dmaHandleListRemove(dmahandle);
-    
+
   up(&dma_buffer_lock);
-    
+
   return (status);
-    
+
 }
 
 //----------------------------------------------------------------------------
@@ -1299,25 +1302,25 @@ TIpcieFreeDmaBuf(DMA_BUF_INFO *dma_buf_info)
 //    Expects dma_buffer_lock acquired.
 //----------------------------------------------------------------------------
 
-static int 
+static int
 dmaHandleListAdd(dmaHandle_t *dmahandle)
 {
-  if (NULL == dmahandle) 
+  if (NULL == dmahandle)
     {
       return(-1);
     }
-    
+
   if (NULL == dma_handle_list)
     {
       dma_handle_list = dmahandle;
       dmahandle->next = NULL;
-    } 
+    }
   else
     {
       dmahandle->next = dma_handle_list;
       dma_handle_list = dmahandle;
     }
-    
+
   return 0;
 }
 
@@ -1327,22 +1330,22 @@ dmaHandleListAdd(dmaHandle_t *dmahandle)
 //    Expects dma_buffer_lock acquired.
 //----------------------------------------------------------------------------
 
-static int 
+static int
 dmaHandleListRemove(dmaHandle_t *dmahandle)
 {
   int status;
   dmaHandle_t *search_hdl;
   dmaHandle_t *prev_hdl;
   int found=0;
-    
-  if (NULL == dma_handle_list) 
+
+  if (NULL == dma_handle_list)
     {
       return(-1);
     }
-    
+
   search_hdl = dma_handle_list;
   prev_hdl = dma_handle_list;
-    
+
   found = 0;
   while ((found == 0) && (search_hdl != NULL))
     {
@@ -1355,7 +1358,7 @@ dmaHandleListRemove(dmaHandle_t *dmahandle)
 	  search_hdl = search_hdl->next;
         }
     }
-    
+
   if (found == 1)
     {
       // Check for head of list
@@ -1363,22 +1366,22 @@ dmaHandleListRemove(dmaHandle_t *dmahandle)
         {
 	  dma_handle_list = search_hdl->next;
         }
-      else 
+      else
         {
-	  prev_hdl->next = search_hdl->next;    
+	  prev_hdl->next = search_hdl->next;
         }
       memset(search_hdl, 0, sizeof (dmaHandle_t));
       kfree(search_hdl);
       search_hdl = NULL;
-        
-        
+
+
       status = 0;
-    } 
+    }
   else
     {
       status = -1;
     }
-    
+
   return (status);
 }
 
@@ -1388,8 +1391,8 @@ dmaHandleListRemove(dmaHandle_t *dmahandle)
 //    Frees DMA buffers and handles on driver shutdown.
 //----------------------------------------------------------------------------
 
-int 
-TIpcieFreeDmaHandles(void) 
+int
+TIpcieFreeDmaHandles(void)
 {
   int status = 0;
   DMA_BUF_INFO dma_buf_info;
@@ -1398,7 +1401,7 @@ TIpcieFreeDmaHandles(void)
   printk("%s: removing DMA buffers and handles.\n",
 	 __FUNCTION__);
 #endif
-    
+
   while ((NULL != dma_handle_list) && (status == 0))
     {
       dma_buf_info.dma_osspec_hdl = (unsigned long) dma_handle_list;
