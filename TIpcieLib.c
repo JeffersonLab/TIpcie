@@ -4457,7 +4457,10 @@ tipSetFiberDelay(unsigned int delay, unsigned int offset)
       syncDelay = (offset-(delay));
     }
 
-  syncDelay_write = (syncDelay&0xff<<8) | (syncDelay&0xff<<16) | (syncDelay&0xff<<24);  /* set the sync delay according to the fiber latency */
+  /* set the sync delay according to the fiber latency */
+  syncDelay_write =
+    ((syncDelay & 0xff) << 8) | ((syncDelay & 0xff) << 16) |
+    ((syncDelay & 0xff) << 24);
 
   tipWrite(&TIPp->fiberSyncDelay,syncDelay_write);
 
