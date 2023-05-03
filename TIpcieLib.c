@@ -6929,8 +6929,6 @@ tiInt(void)
 {
   tiIntCount++;
 
-  INTLOCK;
-
   if (tiIntRoutine != NULL)	/* call user routine */
     (*tiIntRoutine) (tiIntArg);
 
@@ -6939,7 +6937,6 @@ tiInt(void)
     {
       tiIntAck();
     }
-  INTUNLOCK;
 
 }
 #endif /* NOTDONEYET */
@@ -7057,7 +7054,6 @@ tipPoll(void)
 
       if(tidata && tipIntRunning)
 	{
-	  INTLOCK;
 	  tipDaqCount = tidata;
 	  tipIntCount++;
 
@@ -7093,7 +7089,6 @@ tipPoll(void)
 	    }
 
 
-	  INTUNLOCK;
 	}
 
     }
@@ -7266,7 +7261,6 @@ tipIntDisconnect()
       return ERROR;
     }
 
-  INTLOCK;
 
   status=0;
 
@@ -7305,7 +7299,6 @@ tipIntDisconnect()
       break;
     }
 
-  INTUNLOCK;
 
   printf("%s: Disconnected\n",__FUNCTION__);
 

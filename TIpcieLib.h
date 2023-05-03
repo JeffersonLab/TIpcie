@@ -1,3 +1,4 @@
+#pragma once
 /*----------------------------------------------------------------------------*
  *  Copyright (c) 2012        Southeastern Universities Research Association, *
  *                            Thomas Jefferson National Accelerator Facility  *
@@ -17,8 +18,6 @@
  *     Supervisor (TI) card
  *
  *----------------------------------------------------------------------------*/
-#ifndef TILIB_H
-#define TILIB_H
 
 #define INT16  short
 #define UINT16 unsigned short
@@ -43,21 +42,6 @@ typedef char            BOOL;
                          (((x) & 0xff000000) >> 24))
 #endif
 
-#include <pthread.h>
-
-pthread_mutex_t tiISR_mutex=PTHREAD_MUTEX_INITIALIZER;
-
-#ifdef NOTDONEYET
-#define INTLOCK {				\
-    vmeBusLock();				\
-}
-#define INTUNLOCK {				\
-    vmeBusUnlock();				\
-}
-#else
-#define INTLOCK
-#define INTUNLOCK
-#endif
 
 struct TIPCIE_RegStruct
 {
@@ -144,7 +128,7 @@ struct TIPCIE_RegStruct
 #define TIP_READOUT_TS_POLL    3
 
 /* Supported firmware version */
-#define TIP_SUPPORTED_FIRMWARE 0x092
+#define TIP_SUPPORTED_FIRMWARE 0x095
 #define TIP_SUPPORTED_TYPE     3
 
 /* Firmware Masks */
@@ -494,7 +478,7 @@ struct TIPCIE_RegStruct
 #define TIP_EVENTNUMBER_HI_MASK        0xFFFF0000
 
 
-/* 0xEC rocEnable bits and masks */
+/* 0xEC nrocEnable bits and masks */
 #define TIP_ROCENABLE_MASK             0x000000FF
 #define TIP_ROCENABLE_ROC(x)           (1<<(x))
 #define TIP_ROCENABLE_FIFO_ENABLE      (1<<1)
@@ -756,5 +740,3 @@ int  tipReadBlock2(int bar, unsigned int *reg, unsigned int *value, int nreg);
 int  tipWriteBlock(int bar, unsigned int *reg, unsigned int *value, int nreg);
 int  tipOpen();
 int  tipClose();
-
-#endif /* TIPLIB_H */
