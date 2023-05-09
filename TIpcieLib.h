@@ -289,6 +289,7 @@ struct TIPCIE_RegStruct
 #define TIP_BUSY_HFBR6            (1<<13)
 #define TIP_BUSY_HFBR7            (1<<14)
 #define TIP_BUSY_HFBR8            (1<<15)
+#define TIP_BUSY_HFBR_MASK        0x0000FF00
 #define TIP_BUSY_MONITOR_MASK     0xFFFF0000
 #define TIP_BUSY_MONITOR_SWA      (1<<16)
 #define TIP_BUSY_MONITOR_SWB      (1<<17)
@@ -651,6 +652,7 @@ int  tipSetOutputPort(unsigned int set1, unsigned int set2, unsigned int set3, u
 int  tipSetClockSource(unsigned int source);
 int  tipGetClockSource();
 void  tipSetFiberDelay(unsigned int delay, unsigned int offset);
+int  tipResetSlaveConfig();
 int  tipAddSlave(unsigned int fiber);
 int  tipSetTriggerHoldoff(int rule, unsigned int value, int timestep);
 int  tipGetTriggerHoldoff(int rule);
@@ -713,6 +715,7 @@ int  tipDmaSetAddr(unsigned int phys_addr_lo, unsigned int phys_addr_hi);
 int  tipPCIEStatus(int pflag);
 
 /* Library Interrupt/Polling routine prototypes */
+int  tipDoLibraryPollingThread(int choice);
 int  tipIntConnect(unsigned int vector, VOIDFUNCPTR routine, unsigned int arg);
 int  tipIntDisconnect();
 int  tipAckConnect(VOIDFUNCPTR routine, unsigned int arg);

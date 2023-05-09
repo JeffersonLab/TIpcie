@@ -17,7 +17,7 @@
 #define MAX_EVENT_LENGTH   1152*32      /* Size in Bytes */
 
 #include "TIpcie_source.h" /* source required for CODA */
-#include <unistd.h>
+#include "TIpcieConfig.h"
 
 const char *configFile = "/daqfs/home/moffit/work/TIpcie/cfg/master.ini";
 

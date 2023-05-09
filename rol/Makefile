@@ -23,17 +23,17 @@ CODA_INCS		= -I. -I${TIPCIE_PATH} -isystem${CODA}/common/include \
 CODA_LIBDIRS            = -L. -L${TIPCIE_PATH}
 CODA_LIBS		= -lTIpcie
 CODA_DEFS		= -DLINUX -DDAYTIME=\""`date`"\"
-CODA_CFLAGS		= -w -fpic -shared ${CODA_INCS} ${CODA_LIBDIRS} \
+CODA_CFLAGS		= -fpic -shared ${CODA_INCS} ${CODA_LIBDIRS} \
 			  ${CODA_LIBS} ${CODA_DEFS}
 ifdef DEBUG
-CODA_CFLAGS		+= -Wall -g
+CODA_CFLAGS		+= -Wall -Wno-unused -g
 else
 CODA_CFLAGS		+= -O
 endif
-CRLFILES		= $(wildcard *.crl)
-CFILES			= $(CRLFILES:.crl=.c)
-SOBJS			= $(CRLFILES:.crl=.so)
-DEPS			= $(CRLFILES:.crl=.d)
+
+SRC			= $(wildcard *.c)
+SOBJS			= $(SRC:.c=.so)
+DEPS			= $(SRC:.c=.d)
 
 all: $(SOBJS)
 
@@ -41,7 +41,7 @@ all: $(SOBJS)
 	@echo
 	@echo "Building $@ from $<"
 	@echo
-	${CC} ${CODA_CFLAGS} -o $@ $<
+	${CC} ${CODA_CFLAGS} -DINIT_NAME=$(@:.so=__init) -DINIT_NAME_POLL=$(@:.so=__poll) -o $@ $<
 
 %.c: %.crl
 	@echo
@@ -49,7 +49,7 @@ all: $(SOBJS)
 	@${CCRL} $<
 
 clean:
-	@rm -f  $(ROLS) $(SOBJS) $(CFILES) ${DEPS} ${DEPS}.* *~
+	@rm -f  $(ROLS) $(SOBJS) ${DEPS} ${DEPS}.* *~
 
 %.d: %.c
 	@echo ""

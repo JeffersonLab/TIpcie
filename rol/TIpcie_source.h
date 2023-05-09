@@ -9,6 +9,7 @@
 #define __GEN_ROL__
 
 #include "dmaBankTools.h"
+#include <unistd.h>
 #include <stdio.h>
 #include <rol.h>
 #include "TIpcieLib.h"
@@ -245,7 +246,7 @@ __attribute__((constructor)) void start (void)
 
       printf("%s: Open TIpcie\n",__func__);
       tipOpen();
-      tipusOpen();
+      tipOpen();
       tipDoLibraryPollingThread(0);
       tipSetFiberLatencyOffset_preInit(FIBER_LATENCY_OFFSET);
       tipInit(TI_READOUT, TIP_INIT_SKIP_FIRMWARE_CHECK);
