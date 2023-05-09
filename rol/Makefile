@@ -3,7 +3,7 @@
 #    Makefile
 #
 # Description:
-#    Makefile for the coda primary and secondary readout lists 
+#    Makefile for the coda primary and secondary readout lists
 #    running on an Intel-based controller running Linux
 #
 #
@@ -16,10 +16,11 @@ DEBUG=1
 TIPCIE_PATH		= /daqfs/home/moffit/work/TIpcie
 
 # DEFs for compiling CODA readout lists
-CC			= gcc -m32
+CC			= gcc
 CCRL			= ${CODA_BIN}/ccrl
-CODA_INCS		= -I. -I${TIPCIE_PATH} -I${CODA}/common/include
-CODA_LIBDIRS            = -L. -L${TIPCIE_PATH} 
+CODA_INCS		= -I. -I${TIPCIE_PATH} -isystem${CODA}/common/include \
+				-isystem${CODA}/linuxvme/include
+CODA_LIBDIRS            = -L. -L${TIPCIE_PATH}
 CODA_LIBS		= -lTIpcie
 CODA_DEFS		= -DLINUX -DDAYTIME=\""`date`"\"
 CODA_CFLAGS		= -w -fpic -shared ${CODA_INCS} ${CODA_LIBDIRS} \
@@ -34,7 +35,7 @@ CFILES			= $(CRLFILES:.crl=.c)
 SOBJS			= $(CRLFILES:.crl=.so)
 DEPS			= $(CRLFILES:.crl=.d)
 
-all: $(SOBJS) 
+all: $(SOBJS)
 
 %.so: %.c
 	@echo
@@ -48,7 +49,7 @@ all: $(SOBJS)
 	@${CCRL} $<
 
 clean:
-	@rm -f  $(ROLS) $(SOBJS) $(CFILES) ${DEPS} ${DEPS}.* *~ 
+	@rm -f  $(ROLS) $(SOBJS) $(CFILES) ${DEPS} ${DEPS}.* *~
 
 %.d: %.c
 	@echo ""
