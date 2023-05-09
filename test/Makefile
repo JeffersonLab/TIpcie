@@ -3,31 +3,32 @@
 #    Makefile
 #
 # Description:
-#    Makefile for the JLAB extensions to the GEFANUC Controller API
+#    Makefile for the TIpcie test programs
 #
 #
-# $Date$
-# $Rev$
+DEBUG	?= 1
+QUIET	?= 1
 #
+ifeq ($(QUIET),1)
+        Q = @
+else
+        Q =
+endif
 
 ARCH=${shell uname -m}
-KERNEL_VERSION=${shell uname -r}
-# BUILD 64bit for EL7
-ifneq (,$(findstring el7,${KERNEL_VERSION}))
-	BUILD64=0
-endif
 
-ifdef BUILD64
 CC			= gcc
-else
-CC			= gcc -m32
-endif
 AR                      = ar
 RANLIB                  = ranlib
-CFLAGS			= -Wall -g -I. -I../ -I/usr/include \
-			  -L. -L../
+INCS			= -I. -I../
+CFLAGS			= -Wall -g -lstdc++ -L. -L../ -lrt -lTIpcie
+ifeq ($(DEBUG),1)
+	CFLAGS		+= -Wall -Wno-unused -g
+endif
 
-PROGS			= tipReadoutTest tipLibTest
+SRC			= $(wildcard *.c)
+DEPS			= $(SRC:.c=.d)
+PROGS			= $(SRC:.c=)
 
 all: $(PROGS)
 
@@ -35,7 +36,19 @@ clean distclean:
 	@rm -f $(PROGS) *~
 
 %: %.c
-	echo "Making $@"
-	$(CC) $(CFLAGS) -o $@ $(@:%=%.c) -lrt -lTIpcie
+	@echo " CC     $@"
+	${Q}$(CC) $(CFLAGS) $(INCS) -o $@ $<
+
+%.d: %.c
+	@echo " DEP    $@"
+	@set -e; rm -f $@; \
+	$(CC) -MM -shared $(INCS) $< > $@.$$$$; \
+	sed 's,\($*\)\.o[ :]*,\1 $@ : ,g' < $@.$$$$ > $@; \
+	rm -f $@.$$$$
+
+-include $(DEPS)
 
 .PHONY: all clean distclean
+
+echoarch:
+	@echo "Make for $(ARCH)"
