@@ -70,3 +70,9 @@ tipConfigReadout ../cfg/master.ini
 
 ** CODA 3 readout list
 - example master and slave readout lists are found in the =rol= directory
+- both use hardcoded filename paths for the configuration
+  + this MUST be updated for the specific DAQ environment/filesystem
+  + e.g. update these lines to suit the path in your DAQ:
+    #+begin_src C
+      const char *configFile = "/daqfs/home/moffit/work/TIpcie/cfg/master.ini";
+    #+end_src
