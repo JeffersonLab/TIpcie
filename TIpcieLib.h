@@ -1,3 +1,4 @@
+#pragma once
 /*----------------------------------------------------------------------------*
  *  Copyright (c) 2012        Southeastern Universities Research Association, *
  *                            Thomas Jefferson National Accelerator Facility  *
@@ -17,8 +18,6 @@
  *     Supervisor (TI) card
  *
  *----------------------------------------------------------------------------*/
-#ifndef TILIB_H
-#define TILIB_H
 
 #define INT16  short
 #define UINT16 unsigned short
@@ -43,21 +42,6 @@ typedef char            BOOL;
                          (((x) & 0xff000000) >> 24))
 #endif
 
-#include <pthread.h>
-
-pthread_mutex_t tiISR_mutex=PTHREAD_MUTEX_INITIALIZER;
-
-#ifdef NOTDONEYET
-#define INTLOCK {				\
-    vmeBusLock();				\
-}
-#define INTUNLOCK {				\
-    vmeBusUnlock();				\
-}
-#else
-#define INTLOCK
-#define INTUNLOCK
-#endif
 
 struct TIPCIE_RegStruct
 {
@@ -144,7 +128,7 @@ struct TIPCIE_RegStruct
 #define TIP_READOUT_TS_POLL    3
 
 /* Supported firmware version */
-#define TIP_SUPPORTED_FIRMWARE 0x092
+#define TIP_SUPPORTED_FIRMWARE 0x095
 #define TIP_SUPPORTED_TYPE     3
 
 /* Firmware Masks */
@@ -305,6 +289,7 @@ struct TIPCIE_RegStruct
 #define TIP_BUSY_HFBR6            (1<<13)
 #define TIP_BUSY_HFBR7            (1<<14)
 #define TIP_BUSY_HFBR8            (1<<15)
+#define TIP_BUSY_HFBR_MASK        0x0000FF00
 #define TIP_BUSY_MONITOR_MASK     0xFFFF0000
 #define TIP_BUSY_MONITOR_SWA      (1<<16)
 #define TIP_BUSY_MONITOR_SWB      (1<<17)
@@ -494,7 +479,7 @@ struct TIPCIE_RegStruct
 #define TIP_EVENTNUMBER_HI_MASK        0xFFFF0000
 
 
-/* 0xEC rocEnable bits and masks */
+/* 0xEC nrocEnable bits and masks */
 #define TIP_ROCENABLE_MASK             0x000000FF
 #define TIP_ROCENABLE_ROC(x)           (1<<(x))
 #define TIP_ROCENABLE_FIFO_ENABLE      (1<<1)
@@ -667,6 +652,7 @@ int  tipSetOutputPort(unsigned int set1, unsigned int set2, unsigned int set3, u
 int  tipSetClockSource(unsigned int source);
 int  tipGetClockSource();
 void  tipSetFiberDelay(unsigned int delay, unsigned int offset);
+int  tipResetSlaveConfig();
 int  tipAddSlave(unsigned int fiber);
 int  tipSetTriggerHoldoff(int rule, unsigned int value, int timestep);
 int  tipGetTriggerHoldoff(int rule);
@@ -729,6 +715,7 @@ int  tipDmaSetAddr(unsigned int phys_addr_lo, unsigned int phys_addr_hi);
 int  tipPCIEStatus(int pflag);
 
 /* Library Interrupt/Polling routine prototypes */
+int  tipDoLibraryPollingThread(int choice);
 int  tipIntConnect(unsigned int vector, VOIDFUNCPTR routine, unsigned int arg);
 int  tipIntDisconnect();
 int  tipAckConnect(VOIDFUNCPTR routine, unsigned int arg);
@@ -756,5 +743,3 @@ int  tipReadBlock2(int bar, unsigned int *reg, unsigned int *value, int nreg);
 int  tipWriteBlock(int bar, unsigned int *reg, unsigned int *value, int nreg);
 int  tipOpen();
 int  tipClose();
-
-#endif /* TIPLIB_H */

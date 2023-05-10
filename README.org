@@ -1,0 +1,79 @@
+PCIExpress Pipeline TI kernel driver and library
+
+* How to use
+- For use with x86_64 PC with TIpcie installed
+
+** Compilation
+*** kernel driver
+- compile and load the kernel driver:
+  #+begin_src shell
+   cd linux_driver
+   make 
+  #+end_src
+- then install (as root)
+  #+begin_src shell
+   make install
+  #+end_src
+
+- Reboot the PC after installation
+
+*** TIpcie Library
+- compile the library
+  #+begin_src shell
+   make 
+  #+end_src
+- Move the library to a location that is in ~LD_LIBRARY_PATH~ or add the TIpcie library path to ~LD_LIBRARY_PATH~
+
+*** Firmware Update Program
+#+begin_src shell
+   cd firmware
+   make
+#+end_src
+
+*** Test programs
+- all can be compiled using the =Makefile=
+  #+begin_src shell
+make <program name>
+  #+end_src
+
+** Configuration File
+- configuration examples in the =cfg= directory
+**** master.ini
+- shows all available master configuration options
+- if a parameter is not defined, the library default will be used
+
+**** master_with_slave.ini
+- scaled down version of master.ini with a Slave configured on port 1
+  
+**** slave.ini
+- shows all available slave configuration options
+
+** Stand-alone programs
+- example stand-alone programs are found in the =test= directory
+**** tipStatus
+- show the status of the TIpcie
+  #+begin_example
+tipStatus
+  #+end_example
+  
+**** tipReadoutTest
+- test readout of the TIpcie with hardcoded configuration
+#+begin_example
+tipReadoutTest
+#+end_example
+  
+**** tipConfigReadout
+- test readout of the TIpcie with configuration file
+#+begin_example
+tipConfigReadout ../cfg/master.ini
+#+end_example
+
+** CODA 3 readout list
+- example master and slave readout lists are found in the =rol= directory
+- both will use either
+  * ROL1 User String
+  * hardcoded filename
+    - update these lines to suit the path in your DAQ:
+       #+begin_src C
+         const char *configFile = "/daqfs/home/moffit/work/TIpcie/cfg/master.ini";
+       #+end_src

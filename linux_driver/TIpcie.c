@@ -368,22 +368,6 @@ __init TIpcie_init(void)
       goto BailOut;
     }
 
-  /* Get parent PCI resource & verify enough space is available. */
-  memset(&pcimemres,0,sizeof(pcimemres));
-
-  pcimemres.flags = IORESOURCE_MEM;
-  tipcimem = pci_find_parent_resource(ti_pci_dev, &pcimemres);
-  if(tipcimem == 0)
-    {
-      printk("TIpcie: Can't get TI parent device PCI resource\n");
-      /* goto BailOut; */
-    }
-  else
-    {
-      printk("TIpcie: Initial PCI MEM start: 0x%0lx end: 0x%0lx\n",
-	     (unsigned long)tipcimem->start, (unsigned long)tipcimem->end);
-    }
-
   // Map in TIpcie registers.
   if(mapInTIpcie(ti_pci_dev)){
       printk("TIpcie: Bridge not initialized\n");
@@ -784,8 +768,10 @@ TIpcie_ioctl(struct file *filp,
 	    values[0] = pci_bar0;
 	    values[1] = pci_bar1;
 	    values[2] = pci_bar2;
+#ifdef DEBUG_RW_STAT
 	    for(ireg=0; ireg<3; ireg++)
 	      printk("values[%d] = 0x%08x\n",ireg,values[ireg]);
+#endif
 	  }
 	else
 	  {

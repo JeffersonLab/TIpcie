@@ -4481,6 +4481,41 @@ tipSetFiberDelay(unsigned int delay, unsigned int offset)
 
 }
 
+
+/**
+ *  @ingroup MasterConfig
+ *  @brief Reset the configuration of TI Slaves on the TI-Master.
+ *
+ *      This routine removes all slaves and resets the fiber port busys.
+ *
+ *  @return OK if successful, ERROR otherwise
+ *
+ */
+int
+tipResetSlaveConfig()
+{
+  if(TIPp == NULL)
+    {
+      printf("%s: ERROR: TI not initialized\n",__FUNCTION__);
+      return ERROR;
+    }
+
+  if(!tipMaster)
+    {
+      printf("%s: ERROR: TI is not the TI Master.\n",__FUNCTION__);
+      return ERROR;
+    }
+
+  TIPLOCK;
+  tipSlaveMask = 0;
+  tipWrite(&TIPp->busy, (tipRead(&TIPp->busy) & ~TIP_BUSY_HFBR_MASK));
+  TIPUNLOCK;
+
+  return OK;
+}
+
+
+
 /**
  * @ingroup MasterConfig
  * @brief Add and configurate a TI Slave for the TI Master.
@@ -6929,8 +6964,6 @@ tiInt(void)
 {
   tiIntCount++;
 
-  INTLOCK;
-
   if (tiIntRoutine != NULL)	/* call user routine */
     (*tiIntRoutine) (tiIntArg);
 
@@ -6939,7 +6972,6 @@ tiInt(void)
     {
       tiIntAck();
     }
-  INTUNLOCK;
 
 }
 #endif /* NOTDONEYET */
@@ -7057,7 +7089,6 @@ tipPoll(void)
 
       if(tidata && tipIntRunning)
 	{
-	  INTLOCK;
 	  tipDaqCount = tidata;
 	  tipIntCount++;
 
@@ -7093,7 +7124,6 @@ tipPoll(void)
 	    }
 
 
-	  INTUNLOCK;
 	}
 
     }
@@ -7266,7 +7296,6 @@ tipIntDisconnect()
       return ERROR;
     }
 
-  INTLOCK;
 
   status=0;
 
@@ -7305,7 +7334,6 @@ tipIntDisconnect()
       break;
     }
 
-  INTUNLOCK;
 
   printf("%s: Disconnected\n",__FUNCTION__);
 
