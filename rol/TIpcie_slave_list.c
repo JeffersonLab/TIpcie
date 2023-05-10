@@ -32,10 +32,10 @@ rocDownload()
   /* Configure TIpcie */
   tiConfigInitGlobals();
 
-  tiConfig(configFile);
-
-  tiConfigFree();
-
+  if(rol->usrString)
+    tiConfig(rol->usrString);
+  else
+    tiConfig(configFile);
 
   tipStatus(1);
 
@@ -152,7 +152,7 @@ rocTrigger_done()
 void
 rocReset()
 {
-
+  tiConfigFree();
 }
 
 void
