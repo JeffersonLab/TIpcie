@@ -33,7 +33,7 @@ PROGS			= $(SRC:.c=)
 all: $(PROGS)
 
 clean distclean:
-	@rm -f $(PROGS) *~
+	@rm -f $(PROGS) ${DEPS}* *~
 
 %: %.c
 	@echo " CC     $@"
