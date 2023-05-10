@@ -96,13 +96,6 @@ static ti_param_map ti_general_ini = ti_general_def, ti_general_readback = ti_ge
 const ti_param_map ti_slaves_def
   {
     { "ENABLE_FIBER_1", -1},
-    { "ENABLE_FIBER_2", -1},
-    { "ENABLE_FIBER_3", -1},
-    { "ENABLE_FIBER_4", -1},
-    { "ENABLE_FIBER_5", -1},
-    { "ENABLE_FIBER_6", -1},
-    { "ENABLE_FIBER_7", -1},
-    { "ENABLE_FIBER_8", -1},
   };
 static ti_param_map ti_slaves_ini = ti_slaves_def, ti_slaves_readback = ti_slaves_def;
 
@@ -308,7 +301,9 @@ param2ti()
   CHECK_PARAM(ti_general_ini, "CRATE_ID");
   if(param_val > 0)
     {
-      printf("%s: Set Crate ID\n", __func__);
+#ifdef DEBUG
+      printf("%s: Set Crate ID to %d\n", __func__, param_val);
+#endif
       rval = tipSetCrateID(param_val);
       if(rval != OK)
 	return ERROR;
@@ -611,6 +606,7 @@ param2ti()
     }
 #endif
 
+  // slaves
   CHECK_PARAM(ti_slaves_ini, "ENABLE_FIBER_1");
   if(param_val > 0)
     {
@@ -619,108 +615,189 @@ param2ti()
 	return ERROR;
     }
 
-  CHECK_PARAM(ti_slaves_ini, "ENABLE_FIBER_2");
+  // ts inputs
+  uint32_t tsinput_mask = 0;
+  CHECK_PARAM(ti_tsinputs_ini, "ENABLE_TS1");
   if(param_val > 0)
     {
-      rval = tipAddSlave(2);
-      if(rval != OK)
-	return ERROR;
+      tsinput_mask |= TIP_TSINPUT_1;
     }
 
-  CHECK_PARAM(ti_slaves_ini, "ENABLE_FIBER_3");
+  CHECK_PARAM(ti_tsinputs_ini, "PRESCALE_TS1");
   if(param_val > 0)
     {
-      rval = tipAddSlave(3);
-      if(rval != OK)
-	return ERROR;
+      tipSetTSInputDelay(1, param_val);
     }
 
-  CHECK_PARAM(ti_slaves_ini, "ENABLE_FIBER_4");
+  CHECK_PARAM(ti_tsinputs_ini, "PRESCALE_TS1");
   if(param_val > 0)
     {
-      rval = tipAddSlave(4);
-      if(rval != OK)
-	return ERROR;
+      tipSetInputPrescale(1, param_val);
     }
 
-  CHECK_PARAM(ti_slaves_ini, "ENABLE_FIBER_5");
+  CHECK_PARAM(ti_tsinputs_ini, "ENABLE_TS2");
   if(param_val > 0)
     {
-      rval = tipAddSlave(5);
-      if(rval != OK)
-	return ERROR;
+      tsinput_mask |= TIP_TSINPUT_2;
     }
 
-  CHECK_PARAM(ti_slaves_ini, "ENABLE_FIBER_6");
+  CHECK_PARAM(ti_tsinputs_ini, "PRESCALE_TS2");
   if(param_val > 0)
     {
-      rval = tipAddSlave(6);
-      if(rval != OK)
-	return ERROR;
+      tipSetTSInputDelay(2, param_val);
     }
 
-  CHECK_PARAM(ti_slaves_ini, "ENABLE_FIBER_7");
+  CHECK_PARAM(ti_tsinputs_ini, "PRESCALE_TS2");
   if(param_val > 0)
     {
-      rval = tipAddSlave(7);
-      if(rval != OK)
-	return ERROR;
+      tipSetInputPrescale(2, param_val);
     }
 
-  CHECK_PARAM(ti_slaves_ini, "ENABLE_FIBER_8");
+  CHECK_PARAM(ti_tsinputs_ini, "ENABLE_TS3");
   if(param_val > 0)
     {
-      rval = tipAddSlave(8);
-      if(rval != OK)
-	return ERROR;
+      tsinput_mask |= TIP_TSINPUT_3;
     }
 
-#ifdef OLDWAY
-  /* TS Inputs */
-  uint32_t input_mask = 0;
-  for(int32_t input = 0; input < 6; input++)
+  CHECK_PARAM(ti_tsinputs_ini, "PRESCALE_TS3");
+  if(param_val > 0)
     {
-      if(param.ts_inputs[input].enable > 0)
-	{
-	  input_mask |= (1 << input);
-
-	  rval = tipSetTSInputDelay(input + 1, param.ts_inputs[input].delay);
-	  if(rval != OK)
-	    return ERROR;
-
-	  rval = tipSetInputPrescale(input + 1, param.ts_inputs[input].prescale);
-	  if(rval != OK)
-	    return ERROR;
-	}
+      tipSetTSInputDelay(3, param_val);
     }
 
-  if(input_mask != 0)
+  CHECK_PARAM(ti_tsinputs_ini, "PRESCALE_TS3");
+  if(param_val > 0)
     {
-      rval = tipEnableTSInput(input_mask);
-      if(rval != OK)
-	return ERROR;
-
+      tipSetInputPrescale(3, param_val);
     }
 
-  /* Trigger Rules */
-  for(int32_t irule = 0; irule < 4; irule++)
+  CHECK_PARAM(ti_tsinputs_ini, "ENABLE_TS4");
+  if(param_val > 0)
     {
-      if(param.trigger_rules[irule].window > 0)
-	{
-	  rval = tipSetTriggerHoldoff(irule, param.trigger_rules[irule].window,
-				     param.trigger_rules[irule].timestep);
-	  if(rval != OK)
-	    return ERROR;
-	}
-
-      if(param.trigger_rules[irule].minimum > 0)
-	{
-	  rval = tipSetTriggerHoldoffMin(irule, param.trigger_rules[irule].minimum);
-	  if(rval != OK)
-	    return ERROR;
-	}
+      tsinput_mask |= TIP_TSINPUT_4;
     }
-#endif // OLDWAY
+
+  CHECK_PARAM(ti_tsinputs_ini, "PRESCALE_TS4");
+  if(param_val > 0)
+    {
+      tipSetTSInputDelay(4, param_val);
+    }
+
+  CHECK_PARAM(ti_tsinputs_ini, "PRESCALE_TS4");
+  if(param_val > 0)
+    {
+      tipSetInputPrescale(4, param_val);
+    }
+
+  CHECK_PARAM(ti_tsinputs_ini, "ENABLE_TS5");
+  if(param_val > 0)
+    {
+      tsinput_mask |= TIP_TSINPUT_5;
+    }
+
+  CHECK_PARAM(ti_tsinputs_ini, "PRESCALE_TS5");
+  if(param_val > 0)
+    {
+      tipSetTSInputDelay(5, param_val);
+    }
+
+  CHECK_PARAM(ti_tsinputs_ini, "PRESCALE_TS5");
+  if(param_val > 0)
+    {
+      tipSetInputPrescale(5, param_val);
+    }
+
+  CHECK_PARAM(ti_tsinputs_ini, "ENABLE_TS6");
+  if(param_val > 0)
+    {
+      tsinput_mask |= TIP_TSINPUT_6;
+    }
+
+  CHECK_PARAM(ti_tsinputs_ini, "PRESCALE_TS6");
+  if(param_val > 0)
+    {
+      tipSetTSInputDelay(6, param_val);
+    }
+
+  CHECK_PARAM(ti_tsinputs_ini, "PRESCALE_TS6");
+  if(param_val > 0)
+    {
+      tipSetInputPrescale(6, param_val);
+    }
+
+  if(tsinput_mask)
+    {
+      tipEnableTSInput(tsinput_mask);
+    }
+
+  // Trigger Rules
+  int32_t time = 0, timestep = 0;
+  CHECK_PARAM(ti_rules_ini, "RULE_1");
+  if(param_val > 0)
+    time = param_val;
+
+  CHECK_PARAM(ti_rules_ini, "RULE_TIMESTEP_1");
+  if(param_val > 0)
+    timestep = param_val;
+
+  if(time > 0)
+    tipSetTriggerHoldoff(1, time, timestep);
+
+  CHECK_PARAM(ti_rules_ini, "RULE_MIN_1");
+  if(param_val > 0)
+    tipSetTriggerHoldoffMin(1, param_val);
+
+  time = 0; timestep = 0;
+
+  CHECK_PARAM(ti_rules_ini, "RULE_2");
+  if(param_val > 0)
+    time = param_val;
+
+  CHECK_PARAM(ti_rules_ini, "RULE_TIMESTEP_2");
+  if(param_val > 0)
+    timestep = param_val;
+
+  if(time > 0)
+    tipSetTriggerHoldoff(2, time, timestep);
+
+  CHECK_PARAM(ti_rules_ini, "RULE_MIN_2");
+  if(param_val > 0)
+    tipSetTriggerHoldoffMin(2, param_val);
+
+  time = 0; timestep = 0;
+
+  CHECK_PARAM(ti_rules_ini, "RULE_3");
+  if(param_val > 0)
+    time = param_val;
+
+  CHECK_PARAM(ti_rules_ini, "RULE_TIMESTEP_3");
+  if(param_val > 0)
+    timestep = param_val;
+
+  if(time > 0)
+    tipSetTriggerHoldoff(3, time, timestep);
+
+  CHECK_PARAM(ti_rules_ini, "RULE_MIN_3");
+  if(param_val > 0)
+    tipSetTriggerHoldoffMin(3, param_val);
+
+  time = 0; timestep = 0;
+
+  CHECK_PARAM(ti_rules_ini, "RULE_4");
+  if(param_val > 0)
+    time = param_val;
+
+  CHECK_PARAM(ti_rules_ini, "RULE_TIMESTEP_4");
+  if(param_val > 0)
+    timestep = param_val;
+
+  if(time > 0)
+    tipSetTriggerHoldoff(4, time, timestep);
+
+  CHECK_PARAM(ti_rules_ini, "RULE_MIN_4");
+  if(param_val > 0)
+    tipSetTriggerHoldoffMin(4, param_val);
+
 
   return 0;
 }
@@ -753,6 +830,8 @@ tiConfig(const char *filename)
       std::cout << "Can't load: " << filename << std::endl;
       return ERROR;
     }
+  std::cout << __func__ << ": INFO: Loaded file:" << filename << std::endl;
+
 
   tiConfigLoadParameters();
   return 0;

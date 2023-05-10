@@ -82,7 +82,7 @@ all: echoarch $(LIBS)
 -include $(DEPS)
 
 clean:
-	@rm -vf ${OBJ} ${DEPS}
+	@rm -vf ${OBJ} ${DEPS} ${LIBS}
 
 echoarch:
 	@echo "Make for $(ARCH)"

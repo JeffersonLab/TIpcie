@@ -246,7 +246,6 @@ __attribute__((constructor)) void start (void)
 
       printf("%s: Open TIpcie\n",__func__);
       tipOpen();
-      tipOpen();
       tipDoLibraryPollingThread(0);
       tipSetFiberLatencyOffset_preInit(FIBER_LATENCY_OFFSET);
       tipInit(TI_READOUT, TIP_INIT_SKIP_FIRMWARE_CHECK);

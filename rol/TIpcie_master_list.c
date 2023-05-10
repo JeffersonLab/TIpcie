@@ -19,10 +19,10 @@
 #include "TIpcie_source.h" /* source required for CODA */
 #include "TIpcieConfig.h"
 
-const char *configFile = "/daqfs/home/moffit/work/TIpcie/cfg/master.ini";
-
 /* Global Flag for debug printing */
 int usrDebugFlag=0;
+
+const char *configFile = "/daqfs/home/moffit/work/TIpcie/cfg/master.ini";
 
 /****************************************
  *  DOWNLOAD
@@ -33,9 +33,11 @@ rocDownload()
   /* Configure TIpcie */
   tiConfigInitGlobals();
 
-  tiConfig(configFile);
+  if(rol->usrString)
+    tiConfig(rol->usrString);
+  else
+    tiConfig(configFile);
 
-  tiConfigFree();
 
 
   tipStatus(1);
@@ -65,7 +67,7 @@ rocGo()
 {
 
   tipStatus(1);
-
+  tipConfigEnablePulser();
   /* Last thing done in Go */
 }
 
@@ -75,7 +77,7 @@ rocGo()
 void
 rocEnd()
 {
-
+  tipConfigDisablePulser();
   tipStatus(1);
 
   printf("rocEnd: Ended after %d events\n",*(rol->nevents));
@@ -153,6 +155,7 @@ rocTrigger_done()
 void
 rocReset()
 {
+  tiConfigFree();
 
 }
 
